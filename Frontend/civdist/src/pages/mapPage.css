@@ -1,0 +1,12 @@
+.hexGrid 
+{
+  height: auto;
+}
+
+.hex 
+{
+  fill: lightcoral;
+  font-size: 5px;
+  stroke: black;
+  stroke-width: 2;
+}

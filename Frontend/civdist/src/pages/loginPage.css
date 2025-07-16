@@ -1,0 +1,34 @@
+.forms
+{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    margin-top: 1.5em;
+    font-size: 1.25em;
+}
+
+.forms label
+{
+    display: flex;
+    flex-direction: column;
+}
+
+#loginButton
+{
+    margin-top: 10px;
+    font-size: 0.9rem;
+}
+
+#signUpText
+{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 10px;
+}
+
+#signUpText span
+{
+    padding-left: 5px;
+}

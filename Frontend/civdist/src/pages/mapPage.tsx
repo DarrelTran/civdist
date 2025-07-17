@@ -3,9 +3,9 @@ import { Link } from 'react-router-dom';
 import { HexGrid, Layout, Hexagon} from 'react-hexgrid';
 import './mapPage.css'
 import './allPages.css';
-import mapData from '../json/huge.json'
+import mapData from '../json/duel.json'
 // tile images
-import {coast, desert_hills, desert_mountain, desert, forest, grass_hills, grass_mountain, grass, jungle, ocean, plains_hills, plains_mountain, plains, river, snow_hills, snow_mountain, snow, tundra_hills, tundra_mountain, tundra} from '../images/tileImport'
+import {coast, desert_hills, desert_mountain, desert, grass_hills, grass_mountain, grass_forest, grass_hills_forest, grass, ocean, plains_hills, plains_mountain, plains_forest, plains_hills_forest, plains_jungle, plains_hills_jungle, plains, river, snow_hills, snow_mountain, snow, tundra_hills, tundra_mountain, tundra_forest, tundra_hills_forest, tundra} from '../images/tileImport'
 import {aqueduct_district, aerodome_district, center_district, commercial_district, encampment_district, entertainment_district, faith_district, harbor_district, industrial_district, neighborhood_district, rocket_district, science_district, theater_district} from '../images/districtImport'
 import {HexType, TileType} from '../utils/types'
 
@@ -228,6 +228,7 @@ const MapPage = () =>
                             const pixel = oddrToPixel(value.tile.X, value.tile.Y, tileW, tileH);
 
                             context.save();
+                            // flip y coords to make everything look like in-game civ6
                             context.scale(1, -1);
                             context.translate(0, -gridSize.y);
 
@@ -493,16 +494,24 @@ const MapPage = () =>
         else if (tile.TerrainType === "Ocean") return {imagePath: ocean, scaleType: HexType.TERRAIN};
         else if (tile.TerrainType === "Coast and Lake") return {imagePath: coast, scaleType: HexType.TERRAIN};
         //else if (tile.IsRiver) return {imagePath: river, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Plains" && tile.FeatureType === "Rainforest") return {imagePath: plains_jungle, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Plains" && tile.FeatureType === "Woods") return {imagePath: plains_forest, scaleType: HexType.TERRAIN};
         else if (tile.TerrainType === "Plains") return {imagePath: plains, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Plains (Hills)" && tile.FeatureType === "Rainforest") return {imagePath: plains_hills_jungle, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Plains (Hills)" && tile.FeatureType === "Woods") return {imagePath: plains_hills_forest, scaleType: HexType.TERRAIN};
         else if (tile.TerrainType === "Plains (Hills)") return {imagePath: plains_hills, scaleType: HexType.TERRAIN};
         else if (tile.TerrainType === "Plains (Mountain)") return {imagePath: plains_mountain, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Grassland" && tile.FeatureType === "Woods") return {imagePath: grass_forest, scaleType: HexType.TERRAIN};
         else if (tile.TerrainType === "Grassland") return {imagePath: grass, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Grassland (Hills)" && tile.FeatureType === "Woods") return {imagePath: grass_hills_forest, scaleType: HexType.TERRAIN};
         else if (tile.TerrainType === "Grassland (Hills)") return {imagePath: grass_hills, scaleType: HexType.TERRAIN};
         else if (tile.TerrainType === "Grassland (Mountain)") return {imagePath: grass_mountain, scaleType: HexType.TERRAIN};
         else if (tile.TerrainType === "Desert") return {imagePath: desert, scaleType: HexType.TERRAIN};
         else if (tile.TerrainType === "Desert (Hills)") return {imagePath: desert_hills, scaleType: HexType.TERRAIN};
         else if (tile.TerrainType === "Desert (Mountain)") return {imagePath: desert_mountain, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Tundra" && tile.FeatureType === "Woods") return {imagePath: tundra_forest, scaleType: HexType.TERRAIN};
         else if (tile.TerrainType === "Tundra") return {imagePath: tundra, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Tundra (Hills)" && tile.FeatureType === "Woods") return {imagePath: tundra_hills_forest, scaleType: HexType.TERRAIN};
         else if (tile.TerrainType === "Tundra (Hills)") return {imagePath: tundra_hills, scaleType: HexType.TERRAIN};
         else if (tile.TerrainType === "Tundra (Mountain)") return {imagePath: tundra_mountain, scaleType: HexType.TERRAIN};
         else if (tile.TerrainType === "Snow") return {imagePath: snow, scaleType: HexType.TERRAIN};

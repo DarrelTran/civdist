@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { HexGrid, Layout, Hexagon} from 'react-hexgrid';
 import './mapPage.css'
 import './allPages.css';
-import mapData from '../json/duel.json'
+import mapData from '../json/huge.json'
 // tile images
 import {coast, desert_hills, desert_mountain, desert, forest, grass_hills, grass_mountain, grass, jungle, ocean, plains_hills, plains_mountain, plains, river, snow_hills, snow_mountain, snow, tundra_hills, tundra_mountain, tundra} from '../images/tileImport'
 import {aqueduct_district, aerodome_district, center_district, commercial_district, encampment_district, entertainment_district, faith_district, harbor_district, industrial_district, neighborhood_district, rocket_district, science_district, theater_district} from '../images/districtImport'
@@ -12,11 +12,13 @@ import {HexType, TileType} from '../utils/types'
 /*
 /////////////////////////////////////////////////////////////////
 
-TODO: Shrink district images by 0.47
-
 TODO: Add forest/jungle
+TODO: Add rivers
+TODO: Add natural wonders
+TODO: Add toggable hover with tile data
+TODO: Add loading warning/prompt when map is being drawn
 
-TODO: Getting wonders is part of district?
+Wonders - district, Natural wonder - feature
 
 /////////////////////////////////////////////////////////////////
 */
@@ -27,13 +29,11 @@ const MapPage = () =>
 
     const [debugBool, setDebugBool] = useState<Boolean>(false); 
     const [winSize, setWinSize] = useState<{width: number, height: number}>({width: window.innerWidth, height: window.innerHeight});
-    const [hoveredKey, setHoveredKey] = useState<{x: number, y: number}>({x: -1, y: -1});
-    const [mousePos, setMousePos] = useState<{x: number, y: number}>({x: -1, y: -1});
-
-    const [oddrCoordsSet, setOddrCoordsSet] = useState<Set<string>>(new Set()); 
 
     const [gridSize, setGridSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(baseTileSize).gridX, y: getScaledGridAndTileSizes(baseTileSize).gridY});
     const [tileSize, setTileSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(baseTileSize).tileX, y: getScaledGridAndTileSizes(baseTileSize).tileY});
+
+    const [zoomLevel, setZoomLevel] = useState<number>(1); // 1 = 100%, REMOVE?????????
 
     /**
      * - Shifting hex img's by the subtraction seen in drawMap() keeps correct oddr coordinate detection but visuals will break
@@ -43,6 +43,7 @@ const MapPage = () =>
 
     const theCanvas = useRef<HTMLCanvasElement>(null);
     const imageCache = useRef<Map<string, {img: HTMLImageElement, tile: TileType}>>(new Map());
+    const scrollRef = useRef<HTMLDivElement>(null);
 
     function getTextWidth(text: string, font: string)
     {
@@ -65,7 +66,9 @@ const MapPage = () =>
      */
     function drawTextWithBox(context: CanvasRenderingContext2D, px: {x: number, y: number}, text: string)
     {
-        const fontSize = Math.min(gridSize.x, gridSize.y) * (1 / 64); // arbritrary 1/64 that seems to work
+        const minTile = Math.min(tileSize.x, tileSize.y);
+        const fontSize = minTile / 1.5;
+        //const fontSize = minGrid / minTile;
         const font = `${fontSize}px arial`;
 
         const textWidth = getTextWidth(text, font);
@@ -88,6 +91,8 @@ const MapPage = () =>
 
     function drawMapWithHoveredTile(context: CanvasRenderingContext2D, oddrCoord: {col: number, row: number}, opacity: number)
     {
+        context.clearRect(0, 0, gridSize.x, gridSize.y);
+
         let textBoxPos = {x: -1, y: -1};
         let textBoxText = '';
 
@@ -136,8 +141,6 @@ const MapPage = () =>
         const hoveredImg = imageCache.current.get(key);
         if (hoveredImg && context && hoveredImg.img) 
         {
-            context.clearRect(0, 0, gridSize.x, gridSize.y);
-
             drawMapWithHoveredTile(context, oddrCoord, 0.25);
         }
     }, [tileSize, gridSize]); // to ensure latest values are used
@@ -195,7 +198,6 @@ const MapPage = () =>
         mapData.forEach(tile => 
         {
             const imgAttributes = getImageAttributes(tile);
-            const scale = getScaleFromType(imgAttributes.scaleType);
 
             const img = new Image();
             img.src = imgAttributes.imagePath;
@@ -254,6 +256,8 @@ const MapPage = () =>
 
     const drawMapFromCache = useCallback((context: CanvasRenderingContext2D) =>
     {
+        context.clearRect(0, 0, context.canvas.width, context.canvas.height);
+
         imageCache.current.forEach((value, oddr) => 
         {
             const [col, row] = oddr.split(',').map(Number);
@@ -287,17 +291,88 @@ const MapPage = () =>
     }, [drawMapNoCache, drawMapFromCache]);
 
     return (
-        <div>
-            <canvas
-                ref={theCanvas}
-                width={gridSize.x}
-                height={gridSize.y}
-                style={{border: '1px solid black', margin: '0', padding: '0', display: 'block'}}
-            />
+        <div style={{display: 'flex'}}>
+            <div
+                style=
+                {{
+                    overflow: 'scroll',
+                    border: '1px solid black'
+                }}
+                ref={scrollRef}
+            >
+                <canvas
+                    ref={theCanvas}
+                    width={gridSize.x}
+                    height={gridSize.y}
+                    style={{display: 'block'}}
+                />
+            </div>
+
+            <button onClick={() => {increaseZoom(1.1)}}>ZOOM</button>
+            <button onClick={() => {decreaseZoom(1.1)}}>UN-ZOOM</button>
+
+            <div>
+                <select></select>
+            </div>
 
             {<button onClick={testStuff}>TEST BUTTON</button>}
         </div>
     );
+
+    function getScaledGridSizesFromTile(tileSize: {x: number, y: number}) 
+    {
+        const { minX, maxX, minY, maxY } = getMinMaxXY();
+        const mapCols = maxX - minX + 1;
+        const mapRows = maxY - minY + 1;
+
+        const gridW = tileSize.x * Math.sqrt(3) * (mapCols + 2);
+        const gridH = tileSize.y * 3/2 * (mapRows + 2);
+
+        return { gridX: gridW, gridY: gridH };
+    }
+
+    function increaseZoom(zoomMultiplier: number) 
+    {
+        const theZoom = zoomLevel * zoomMultiplier;
+
+        if (theZoom <= 2) 
+        {
+            const newTileSize = 
+            {
+                x: tileSize.x * zoomMultiplier,
+                y: tileSize.y * zoomMultiplier
+            };
+
+            setZoomLevel(theZoom);
+            setTileSize(newTileSize);
+
+            // update gridSize (canvas size) to match enlarged map
+            // since tiles got bigger
+            // otherwise scroll won't show
+            const sizes = getScaledGridSizesFromTile(newTileSize);
+            setGridSize({ x: sizes.gridX, y: sizes.gridY });
+        }
+    }
+
+    function decreaseZoom(zoomDivider: number) 
+    {
+        const theZoom = zoomLevel / zoomDivider;
+
+        if (theZoom >= 0.5) 
+        {
+            const newTileSize = 
+            {
+                x: tileSize.x / zoomDivider,
+                y: tileSize.y / zoomDivider
+            };
+
+            setZoomLevel(theZoom);
+            setTileSize(newTileSize);
+
+            const sizes = getScaledGridSizesFromTile(newTileSize);
+            setGridSize({ x: sizes.gridX, y: sizes.gridY });
+        }
+    }
 
     // https://www.redblobgames.com/grids/hexagons/#hex-to-pixel
     function oddrToPixel(col: number, row: number, sizeX: number, sizeY: number) 
@@ -486,7 +561,7 @@ const MapPage = () =>
 
     function testStuff()
     {
-        console.log('winX: ' + winSize.width + ' winY: ' + winSize.height)
+        console.log('winX: ' + gridSize.x + ' winY: ' + gridSize.y)
     }
 };
 

@@ -12,7 +12,6 @@ import {HexType, TileType} from '../utils/types'
 /*
 /////////////////////////////////////////////////////////////////
 
-TODO: Add forest/jungle
 TODO: Add rivers
 TODO: Add natural wonders
 TODO: Add toggable hover with tile data
@@ -320,6 +319,29 @@ const MapPage = () =>
         </div>
     );
 
+    function getRiverEdgesForTile(tile: TileType, map: TileType[]): string[] 
+    {
+        const edges: string[] = [];
+        const dirs = ['W', 'NW', 'NE'] as const;
+
+        const neighborOffsets = {
+            'W':  {x: -1, y:  0},
+            'NW': {x: (tile.Y % 2 === 0 ? -1 : 0), y: -1},
+            'NE': {x: (tile.Y % 2 === 0 ? 0 : 1),  y: -1},
+        };
+
+        dirs.forEach(dir => {
+            const offset = neighborOffsets[dir];
+            const neighbor = map.find(t => t.X === tile.X + offset.x && t.Y === tile.Y + offset.y);
+            
+            // if both this tile and neighbor have IsRiver, then the edge between them likely has a river
+            if (tile.IsRiver && neighbor?.IsRiver)
+                edges.push(dir);
+        });
+
+        return edges;
+    }
+
     function getScaledGridSizesFromTile(tileSize: {x: number, y: number}) 
     {
         const { minX, maxX, minY, maxY } = getMinMaxXY();
@@ -493,7 +515,7 @@ const MapPage = () =>
         if (tile.IsCity) return {imagePath: center_district, scaleType: HexType.DISTRICT};
         else if (tile.TerrainType === "Ocean") return {imagePath: ocean, scaleType: HexType.TERRAIN};
         else if (tile.TerrainType === "Coast and Lake") return {imagePath: coast, scaleType: HexType.TERRAIN};
-        //else if (tile.IsRiver) return {imagePath: river, scaleType: HexType.TERRAIN};
+        else if (tile.IsRiver) return {imagePath: river, scaleType: HexType.TERRAIN};
         else if (tile.TerrainType === "Plains" && tile.FeatureType === "Rainforest") return {imagePath: plains_jungle, scaleType: HexType.TERRAIN};
         else if (tile.TerrainType === "Plains" && tile.FeatureType === "Woods") return {imagePath: plains_forest, scaleType: HexType.TERRAIN};
         else if (tile.TerrainType === "Plains") return {imagePath: plains, scaleType: HexType.TERRAIN};

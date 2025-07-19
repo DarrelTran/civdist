@@ -3,21 +3,25 @@ import { Link } from 'react-router-dom';
 import { HexGrid, Layout, Hexagon} from 'react-hexgrid';
 import './mapPage.css'
 import './allPages.css';
-import mapData from '../json/duel.json'
+import mapData from '../json/huge.json'
 // tile images
 import {coast, desert_hills, desert_mountain, desert, grass_hills, grass_mountain, grass_forest, grass_hills_forest, grass, ocean, plains_hills, plains_mountain, plains_forest, plains_hills_forest, plains_jungle, plains_hills_jungle, plains, river, snow_hills, snow_mountain, snow, tundra_hills, tundra_mountain, tundra_forest, tundra_hills_forest, tundra} from '../images/tileImport'
 import {aqueduct_district, aerodome_district, center_district, commercial_district, encampment_district, entertainment_district, faith_district, harbor_district, industrial_district, neighborhood_district, rocket_district, science_district, theater_district} from '../images/districtImport'
-import {HexType, TileType} from '../utils/types'
+import {HexType, RiverDirections, TileType} from '../utils/types'
 
 /*
 /////////////////////////////////////////////////////////////////
 
-TODO: Add rivers
+TODO: Make textbox move left or right of box is out of canvas bounds
+
 TODO: Add natural wonders
+
 TODO: Add toggable hover with tile data
 TODO: Add loading warning/prompt when map is being drawn
 
 Wonders - district, Natural wonder - feature
+
+TODO: Make toolbar on right of map
 
 /////////////////////////////////////////////////////////////////
 */
@@ -88,6 +92,130 @@ const MapPage = () =>
         }
     }
 
+    /**
+     * 
+     * @param context 
+     * @param point1 The starting point
+     * @param point2 The last point
+     * @param strokeStyle 
+     * @param lineWidth 
+     */
+    function drawLine(context: CanvasRenderingContext2D, point1: {x: number, y: number}, point2: {x: number, y: number}, strokeStyle: string, lineWidth: number)
+    {
+        context.save();
+
+        context.scale(1, -1);
+        context.translate(0, -gridSize.y);
+
+        context.strokeStyle = strokeStyle;
+        context.lineWidth = lineWidth;
+        context.beginPath();
+        context.moveTo(point1.x, point1.y);
+        context.lineTo(point2.x, point2.y);
+        context.stroke();
+
+        context.restore();
+    }
+
+    function drawRiver6PossibleDirections(context: CanvasRenderingContext2D, riverDirection: RiverDirections, startingPos: {x: number, y: number})
+    {
+        if (riverDirection === RiverDirections.EAST)
+        {
+            drawLine(context, getHexPoint(0, startingPos), getHexPoint(1, startingPos), '#38afcd', Math.min(tileSize.x / 8, tileSize.y / 8));
+        }
+        else if (riverDirection === RiverDirections.NORTHEAST)
+        {
+            drawLine(context, getHexPoint(1, startingPos), getHexPoint(2, startingPos), '#38afcd', Math.min(tileSize.x / 8, tileSize.y / 8));
+        }
+        else if (riverDirection === RiverDirections.NORTHWEST)
+        {
+            drawLine(context, getHexPoint(2, startingPos), getHexPoint(3, startingPos), '#38afcd', Math.min(tileSize.x / 8, tileSize.y / 8));
+        }
+        else if (riverDirection === RiverDirections.SOUTHEAST)
+        {
+            drawLine(context, getHexPoint(5, startingPos), getHexPoint(6, startingPos), '#38afcd', Math.min(tileSize.x / 8, tileSize.y / 8));
+        }
+        else if (riverDirection === RiverDirections.SOUTHWEST)
+        {
+            drawLine(context, getHexPoint(4, startingPos), getHexPoint(5, startingPos), '#38afcd', Math.min(tileSize.x / 8, tileSize.y / 8));
+        }
+        else if (riverDirection === RiverDirections.WEST)
+        {
+            drawLine(context, getHexPoint(3, startingPos), getHexPoint(4, startingPos), '#38afcd', Math.min(tileSize.x / 8, tileSize.y / 8));
+        }
+    }
+
+    function drawRiversFromCache(context: CanvasRenderingContext2D)
+    {
+        imageCache.current.forEach((value, oddr) => 
+        {
+            const [col, row] = oddr.split(',').map(Number);
+            const px = oddrToPixel(col, row, tileSize.x, tileSize.y);
+
+            let RiverEFlow = value.tile.RiverEFlow;
+            let RiverSEFlow = value.tile.RiverSEFlow;
+            let RiverSWFlow = value.tile.RiverSWFlow;
+
+            let IsNEOfRiver = value.tile.IsNEOfRiver;
+            let IsNWOfRiver = value.tile.IsNWOfRiver;
+            let IsWOfRiver = value.tile.IsWOfRiver;
+
+            context.globalAlpha = 0.75;
+
+            if (RiverEFlow !== "NONE")
+                drawRiver6PossibleDirections(context, RiverDirections.EAST, px);
+            if (RiverSEFlow !== "NONE")
+                drawRiver6PossibleDirections(context, RiverDirections.SOUTHEAST, px);
+            if (RiverSWFlow !== "NONE")
+                drawRiver6PossibleDirections(context, RiverDirections.SOUTHWEST, px);
+
+            // draw missing rivers
+            if (IsNEOfRiver)
+                drawRiver6PossibleDirections(context, RiverDirections.SOUTHWEST, px);
+            if (IsNWOfRiver)
+                drawRiver6PossibleDirections(context, RiverDirections.SOUTHEAST, px);
+            if (IsWOfRiver)
+                drawRiver6PossibleDirections(context, RiverDirections.EAST, px);
+
+            context.globalAlpha = 1;
+        });
+    }
+
+    function drawRiversNoCache(context: CanvasRenderingContext2D)
+    {
+        mapData.forEach(tile => 
+        {
+            const px = oddrToPixel(tile.X, tile.Y, tileSize.x, tileSize.y);
+
+            let RiverEFlow = tile.RiverEFlow;
+            let RiverSEFlow = tile.RiverSEFlow;
+            let RiverSWFlow = tile.RiverSWFlow;
+
+            let IsNEOfRiver = tile.IsNEOfRiver;
+            let IsNWOfRiver = tile.IsNWOfRiver;
+            let IsWOfRiver = tile.IsWOfRiver;
+
+            context.globalAlpha = 0.75;
+
+            if (RiverEFlow !== "NONE")
+                drawRiver6PossibleDirections(context, RiverDirections.EAST, px);
+            if (RiverSEFlow !== "NONE")
+                drawRiver6PossibleDirections(context, RiverDirections.SOUTHEAST, px);
+            if (RiverSWFlow !== "NONE")
+                drawRiver6PossibleDirections(context, RiverDirections.SOUTHWEST, px);
+
+            // draw missing rivers
+            if (IsNEOfRiver)
+                drawRiver6PossibleDirections(context, RiverDirections.SOUTHWEST, px);
+            if (IsNWOfRiver)
+                drawRiver6PossibleDirections(context, RiverDirections.SOUTHEAST, px);
+            if (IsWOfRiver)
+                drawRiver6PossibleDirections(context, RiverDirections.EAST, px);
+
+            context.globalAlpha = 1;
+        });
+    }
+
     function drawMapWithHoveredTile(context: CanvasRenderingContext2D, oddrCoord: {col: number, row: number}, opacity: number)
     {
         context.clearRect(0, 0, gridSize.x, gridSize.y);
@@ -122,11 +250,14 @@ const MapPage = () =>
             context.restore();
         });
 
+        drawRiversFromCache(context);
+
         context.save();
 
         // keep in line with the flipped hexmap
         context.scale(1, -1);
         context.translate(0, -gridSize.y);
+        // flip upright
         context.scale(1, -1);
 
         drawTextWithBox(context, {x: textBoxPos.x, y: textBoxPos.y}, textBoxText);
@@ -249,6 +380,8 @@ const MapPage = () =>
                     drawImages(imageCacheOther);     
                     drawImages(imageCacheMountains); // draw mountains last so overlapping parts show up
                     imageCache.current = imageCacheTemp;
+
+                    drawRiversNoCache(context);
                 }
             };
         });
@@ -276,6 +409,8 @@ const MapPage = () =>
             context.drawImage(value.img, px.x - drawWidth / 2, px.y - drawHeight / 2, drawWidth, drawHeight);
             context.restore();
         });
+
+        drawRiversFromCache(context);
     }, [tileSize, gridSize]);
 
     useEffect(() => 
@@ -319,27 +454,17 @@ const MapPage = () =>
         </div>
     );
 
-    function getRiverEdgesForTile(tile: TileType, map: TileType[]): string[] 
+    /**
+     * 
+     * @param n The nth point on the hex. Point 0 is the bottom point on the right side of the hex and subsequent points are located on a counter-clockwise basis. Values >6 are the same as n % 6.
+     * @param startingPos Typically the center of the hex.
+     * @returns 
+     */
+    function getHexPoint(n: number, startingPos: {x: number, y: number}): {x: number, y: number}
     {
-        const edges: string[] = [];
-        const dirs = ['W', 'NW', 'NE'] as const;
-
-        const neighborOffsets = {
-            'W':  {x: -1, y:  0},
-            'NW': {x: (tile.Y % 2 === 0 ? -1 : 0), y: -1},
-            'NE': {x: (tile.Y % 2 === 0 ? 0 : 1),  y: -1},
-        };
-
-        dirs.forEach(dir => {
-            const offset = neighborOffsets[dir];
-            const neighbor = map.find(t => t.X === tile.X + offset.x && t.Y === tile.Y + offset.y);
-            
-            // if both this tile and neighbor have IsRiver, then the edge between them likely has a river
-            if (tile.IsRiver && neighbor?.IsRiver)
-                edges.push(dir);
-        });
-
-        return edges;
+        let angleDeg = 60 * n - 30;
+        let angleRad = Math.PI / 180 * angleDeg;
+        return {x: startingPos.x + tileSize.x * Math.cos(angleRad), y: startingPos.y + tileSize.y * Math.sin(angleRad)};
     }
 
     function getScaledGridSizesFromTile(tileSize: {x: number, y: number}) 
@@ -515,7 +640,7 @@ const MapPage = () =>
         if (tile.IsCity) return {imagePath: center_district, scaleType: HexType.DISTRICT};
         else if (tile.TerrainType === "Ocean") return {imagePath: ocean, scaleType: HexType.TERRAIN};
         else if (tile.TerrainType === "Coast and Lake") return {imagePath: coast, scaleType: HexType.TERRAIN};
-        else if (tile.IsRiver) return {imagePath: river, scaleType: HexType.TERRAIN};
+        //else if (tile.IsRiver) return {imagePath: river, scaleType: HexType.TERRAIN};
         else if (tile.TerrainType === "Plains" && tile.FeatureType === "Rainforest") return {imagePath: plains_jungle, scaleType: HexType.TERRAIN};
         else if (tile.TerrainType === "Plains" && tile.FeatureType === "Woods") return {imagePath: plains_forest, scaleType: HexType.TERRAIN};
         else if (tile.TerrainType === "Plains") return {imagePath: plains, scaleType: HexType.TERRAIN};

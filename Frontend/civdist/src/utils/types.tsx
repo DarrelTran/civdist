@@ -37,3 +37,13 @@ export type TileType =
   Culture: number, 
   Faith: number
 }
+
+export enum RiverDirections
+{
+  NORTHEAST, 
+  EAST, 
+  SOUTHEAST, 
+  SOUTHWEST, 
+  WEST, 
+  NORTHWEST
+}

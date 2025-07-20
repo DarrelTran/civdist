@@ -3,25 +3,28 @@ import { Link } from 'react-router-dom';
 import { HexGrid, Layout, Hexagon} from 'react-hexgrid';
 import './mapPage.css'
 import './allPages.css';
-import mapData from '../json/huge.json'
-// tile images
-import {coast, desert_hills, desert_mountain, desert, grass_hills, grass_mountain, grass_forest, grass_hills_forest, grass, ocean, plains_hills, plains_mountain, plains_forest, plains_hills_forest, plains_jungle, plains_hills_jungle, plains, river, snow_hills, snow_mountain, snow, tundra_hills, tundra_mountain, tundra_forest, tundra_hills_forest, tundra} from '../images/tileImport'
-import {aqueduct_district, aerodome_district, center_district, commercial_district, encampment_district, entertainment_district, faith_district, harbor_district, industrial_district, neighborhood_district, rocket_district, science_district, theater_district} from '../images/districtImport'
+import mapData from '../json/duel.json'
 import {HexType, RiverDirections, TileType} from '../utils/types'
+
+// terrain images
+import {coast, desert_hills, desert_mountain, desert, grass_hills, grass_mountain, grass_forest, grass_hills_forest, grass, ocean, plains_hills, plains_mountain, plains_forest, plains_hills_forest, plains_jungle, plains_hills_jungle, plains, river, snow_hills, snow_mountain, snow, tundra_hills, tundra_mountain, tundra_forest, tundra_hills_forest, tundra} from '../images/terrainImport'
+// district images
+import {aqueduct_district, aerodome_district, center_district, commercial_district, encampment_district, entertainment_district, faith_district, harbor_district, industrial_district, neighborhood_district, rocket_district, science_district, theater_district} from '../images/districtImport'
+// natural wonder images
+import { cliffs_of_dover, crater_lake, dead_sea, galapagos_islands, great_barrier_reef, mount_everest, mount_lilimanjaro, pantanal, piopiotahi, torres_del_paine, tsingy_de_bemaraha, yosemite } from '../images/naturalWondersImport';
 
 /*
 /////////////////////////////////////////////////////////////////
 
-TODO: Make textbox move left or right of box is out of canvas bounds
-
-TODO: Add natural wonders
-
-TODO: Add toggable hover with tile data
 TODO: Add loading warning/prompt when map is being drawn
 
-Wonders - district, Natural wonder - feature
+TODO: Add wonders - district
+
+TODO: Add toggable hover with tile data and resize if too long with max width
 
 TODO: Make toolbar on right of map
+
+TODO: Parse and save mapData to modify it so users can save their map?
 
 /////////////////////////////////////////////////////////////////
 */
@@ -81,14 +84,32 @@ const MapPage = () =>
             context.globalAlpha = 0.5;
 
             context.beginPath();
-            context.rect(px.x, -px.y - ((fontSize * 2) / 1.5), textWidth * 1.5, fontSize * 2);
+
+            let xPosRect = px.x;
+            let yPosRect = -px.y - ((fontSize * 2) / 1.5);
+            let widthRect = textWidth * 1.5;
+            let heightRect = fontSize * 2;
+            let finalXPosRect = xPosRect + widthRect;
+
+            let xPosText = px.x + (textWidth / 4);
+            let yPosText = -px.y;
+
+            if (finalXPosRect >= gridSize.x)
+            {
+                let diff = (finalXPosRect - gridSize.x) * 1.1;
+                xPosRect = xPosRect - diff;
+                xPosText = xPosText - diff;
+            }
+
+            context.rect(xPosRect, yPosRect, widthRect, heightRect);
             context.fill();
 
             context.globalAlpha = 1;
 
             context.fillStyle = 'white';
             context.font = font;
-            context.fillText(text, px.x + (textWidth / 4), -px.y);
+
+            context.fillText(text, xPosText, yPosText);
         }
     }
 
@@ -633,37 +654,56 @@ const MapPage = () =>
      * @param tile 
      * Hex tile of TileType.
      * @returns 
-     * The image type where imageType is the path to the actual image and scaleType returns the generic kind of image that will be displayed. Districts will take priority over terrain. Returns an empty string if the tile cannot be resolved.
+     * The image type where imageType is the path to the actual image and scaleType returns the generic kind of image that will be displayed. Districts and natural wonders will take priority over terrain. Returns an empty string if the tile cannot be resolved.
      */
     function getImageAttributes(tile: TileType): {imagePath: string, scaleType: number}
     {    
-        if (tile.IsCity) return {imagePath: center_district, scaleType: HexType.DISTRICT};
-        else if (tile.TerrainType === "Ocean") return {imagePath: ocean, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Coast and Lake") return {imagePath: coast, scaleType: HexType.TERRAIN};
-        //else if (tile.IsRiver) return {imagePath: river, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Plains" && tile.FeatureType === "Rainforest") return {imagePath: plains_jungle, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Plains" && tile.FeatureType === "Woods") return {imagePath: plains_forest, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Plains") return {imagePath: plains, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Plains (Hills)" && tile.FeatureType === "Rainforest") return {imagePath: plains_hills_jungle, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Plains (Hills)" && tile.FeatureType === "Woods") return {imagePath: plains_hills_forest, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Plains (Hills)") return {imagePath: plains_hills, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Plains (Mountain)") return {imagePath: plains_mountain, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Grassland" && tile.FeatureType === "Woods") return {imagePath: grass_forest, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Grassland") return {imagePath: grass, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Grassland (Hills)" && tile.FeatureType === "Woods") return {imagePath: grass_hills_forest, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Grassland (Hills)") return {imagePath: grass_hills, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Grassland (Mountain)") return {imagePath: grass_mountain, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Desert") return {imagePath: desert, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Desert (Hills)") return {imagePath: desert_hills, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Desert (Mountain)") return {imagePath: desert_mountain, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Tundra" && tile.FeatureType === "Woods") return {imagePath: tundra_forest, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Tundra") return {imagePath: tundra, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Tundra (Hills)" && tile.FeatureType === "Woods") return {imagePath: tundra_hills_forest, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Tundra (Hills)") return {imagePath: tundra_hills, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Tundra (Mountain)") return {imagePath: tundra_mountain, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Snow") return {imagePath: snow, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Snow (Hills)") return {imagePath: snow_hills, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Snow (Mountain)") return {imagePath: snow_mountain, scaleType: HexType.TERRAIN};
+        if (tile.FeatureType === "Cliffs of Dover")                                             return {imagePath: cliffs_of_dover, scaleType: HexType.TERRAIN};
+        else if (tile.FeatureType === "Mount Kilimanjaro")                                      return {imagePath: mount_lilimanjaro, scaleType: HexType.TERRAIN};
+        else if (tile.FeatureType === "Crater Lake")                                            return {imagePath: crater_lake, scaleType: HexType.TERRAIN};
+        else if (tile.FeatureType === "Dead Sea")                                               return {imagePath: dead_sea, scaleType: HexType.TERRAIN};
+        else if (tile.FeatureType === "Galápagos Islands")                                      return {imagePath: galapagos_islands, scaleType: HexType.TERRAIN};
+        else if (tile.FeatureType === "Pantanal")                                               return {imagePath: pantanal, scaleType: HexType.TERRAIN};
+        else if (tile.FeatureType === "Piopiotahi")                                             return {imagePath: piopiotahi, scaleType: HexType.TERRAIN};
+        else if (tile.FeatureType === "Torres del Paine")                                       return {imagePath: torres_del_paine, scaleType: HexType.TERRAIN};
+        else if (tile.FeatureType === "Tsingy de Bemaraha")                                     return {imagePath: tsingy_de_bemaraha, scaleType: HexType.TERRAIN};
+        else if (tile.FeatureType === "Yosemite")                                               return {imagePath: yosemite, scaleType: HexType.TERRAIN};
+        else if (tile.District === "DISTRICT_CITY_CENTER")                                      return {imagePath: center_district, scaleType: HexType.DISTRICT};
+        else if (tile.District === "DISTRICT_COMMERCIAL_HUB")                                   return {imagePath: commercial_district, scaleType: HexType.DISTRICT};
+        else if (tile.District === "DISTRICT_ENCAMPMENT")                                       return {imagePath: encampment_district, scaleType: HexType.DISTRICT};
+        else if (tile.District === "DISTRICT_ENTERTAINMENT_COMPLEX")                            return {imagePath: entertainment_district, scaleType: HexType.DISTRICT};
+        else if (tile.District === "DISTRICT_HARBOR")                                           return {imagePath: harbor_district, scaleType: HexType.DISTRICT};
+        else if (tile.District === "DISTRICT_HOLY_SITE")                                        return {imagePath: faith_district, scaleType: HexType.DISTRICT};
+        else if (tile.District === "DISTRICT_THEATER")                                          return {imagePath: theater_district, scaleType: HexType.DISTRICT};
+        else if (tile.District === "DISTRICT_INDUSTRIAL_ZONE")                                  return {imagePath: industrial_district, scaleType: HexType.DISTRICT};
+        else if (tile.District === "DISTRICT_NEIGHBORHOOD")                                     return {imagePath: neighborhood_district, scaleType: HexType.DISTRICT};
+        else if (tile.District === "DISTRICT_AQUEDUCT")                                         return {imagePath: aqueduct_district, scaleType: HexType.DISTRICT};
+        else if (tile.District === "DISTRICT_SPACEPORT")                                        return {imagePath: rocket_district, scaleType: HexType.DISTRICT};
+        else if (tile.TerrainType === "Ocean")                                                  return {imagePath: ocean, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Coast and Lake")                                         return {imagePath: coast, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Plains" && tile.FeatureType === "Rainforest")            return {imagePath: plains_jungle, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Plains" && tile.FeatureType === "Woods")                 return {imagePath: plains_forest, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Plains")                                                 return {imagePath: plains, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Plains (Hills)" && tile.FeatureType === "Rainforest")    return {imagePath: plains_hills_jungle, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Plains (Hills)" && tile.FeatureType === "Woods")         return {imagePath: plains_hills_forest, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Plains (Hills)")                                         return {imagePath: plains_hills, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Plains (Mountain)")                                      return {imagePath: plains_mountain, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Grassland" && tile.FeatureType === "Woods")              return {imagePath: grass_forest, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Grassland")                                              return {imagePath: grass, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Grassland (Hills)" && tile.FeatureType === "Woods")      return {imagePath: grass_hills_forest, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Grassland (Hills)")                                      return {imagePath: grass_hills, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Grassland (Mountain)")                                   return {imagePath: grass_mountain, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Desert")                                                 return {imagePath: desert, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Desert (Hills)")                                         return {imagePath: desert_hills, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Desert (Mountain)")                                      return {imagePath: desert_mountain, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Tundra" && tile.FeatureType === "Woods")                 return {imagePath: tundra_forest, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Tundra")                                                 return {imagePath: tundra, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Tundra (Hills)" && tile.FeatureType === "Woods")         return {imagePath: tundra_hills_forest, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Tundra (Hills)")                                         return {imagePath: tundra_hills, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Tundra (Mountain)")                                      return {imagePath: tundra_mountain, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Snow")                                                   return {imagePath: snow, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Snow (Hills)")                                           return {imagePath: snow_hills, scaleType: HexType.TERRAIN};
+        else if (tile.TerrainType === "Snow (Mountain)")                                        return {imagePath: snow_mountain, scaleType: HexType.TERRAIN};
 
         return {imagePath: "", scaleType: -1};
     }

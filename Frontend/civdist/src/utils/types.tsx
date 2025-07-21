@@ -16,6 +16,7 @@ export type TileType =
   IsMountain: boolean,
   IsWater: boolean,
   IsCity: boolean,
+  TileCity: string,
   IsRiver: boolean,
   IsNEOfRiver: boolean,
   IsWOfRiver: boolean,

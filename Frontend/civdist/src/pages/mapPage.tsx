@@ -12,9 +12,15 @@ import {coast, desert_hills, desert_mountain, desert, grass_hills, grass_mountai
 import {aqueduct_district, aerodome_district, center_district, commercial_district, encampment_district, entertainment_district, faith_district, harbor_district, industrial_district, neighborhood_district, rocket_district, science_district, theater_district} from '../images/districtImport'
 // natural wonder images
 import { cliffs_of_dover, crater_lake, dead_sea, galapagos_islands, great_barrier_reef, mount_everest, mount_lilimanjaro, pantanal, piopiotahi, torres_del_paine, tsingy_de_bemaraha, yosemite } from '../images/naturalWondersImport';
+import { hover } from '@testing-library/user-event/dist/hover';
 
 /*
 /////////////////////////////////////////////////////////////////
+
+TODO: Allow user to click on a city to focus on it and see city boundaries. CHANGE BOUNDARY OPACITY TO DRAW LINES. Change cityBoundaryTiles to a SET.
+TODO: Checking adjacent tiles based on even or odd (for boundary) is correct??????????
+
+TODO: Zoom breaks when resizing window!!
 
 TODO: Add loading warning/prompt when map is being drawn
 
@@ -22,9 +28,11 @@ TODO: Add wonders - district
 
 TODO: Add toggable hover with tile data and resize if too long with max width
 
-TODO: Make toolbar on right of map
+TODO: Make toolbar on right of map. Change zoom to insert any value like textbox with limit of -50% to 150%?
 
-TODO: Parse and save mapData to modify it so users can save their map?
+TODO: Parse and save mapData to modify it so users can save their map? Change imageCache or minAndMaxCoords to useState since users can load new map?
+
+TODO: Refactor code to make it nicer. Probably refactor drawing functions to make the more generic????
 
 /////////////////////////////////////////////////////////////////
 */
@@ -33,6 +41,8 @@ const MapPage = () =>
 {
     const baseTileSize : number = 10;
 
+    const minAndMaxCoords = useRef<{minX: number, maxX: number, minY: number, maxY: number}>(getMinMaxXY()); // coords never change
+
     const [debugBool, setDebugBool] = useState<Boolean>(false); 
     const [winSize, setWinSize] = useState<{width: number, height: number}>({width: window.innerWidth, height: window.innerHeight});
 
@@ -40,6 +50,10 @@ const MapPage = () =>
     const [tileSize, setTileSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(baseTileSize).tileX, y: getScaledGridAndTileSizes(baseTileSize).tileY});
 
     const [zoomLevel, setZoomLevel] = useState<number>(1); // 1 = 100%, REMOVE?????????
+    const [currentTile, setCurrentTile] = useState<TileType>(); // store city name instead of entire tile???
+    const [currentCity, setCurrentCity] = useState<TileType>();
+
+    const [cityBoundaryTiles, setCityBoundaryTiles] = useState<TileType[]>([]); // city name, boundary tiles (List since city can own up to 36 tiles and boundary tiles should be way less than that)
 
     /**
      * - Shifting hex img's by the subtraction seen in drawMap() keeps correct oddr coordinate detection but visuals will break
@@ -48,7 +62,7 @@ const MapPage = () =>
     const hexMapOffset = {x: tileSize.x * 2, y: tileSize.y * 2};
 
     const theCanvas = useRef<HTMLCanvasElement>(null);
-    const imageCache = useRef<Map<string, {img: HTMLImageElement, tile: TileType}>>(new Map());
+    const imageCache = useRef<Map<string, {img: HTMLImageElement, tile: TileType}>>(new Map()); // oddr coords, {image, tile}
     const scrollRef = useRef<HTMLDivElement>(null);
 
     function getTextWidth(text: string, font: string)
@@ -65,7 +79,7 @@ const MapPage = () =>
     }
 
     /**
-     * SHOULD save before calling this functiuon and restore after calling this function.
+     * SHOULD save context before calling this function and restore context after calling this function.
      * @param context 2D canvas context.
      * @param px X & y coordinates of the text box. Assumes that the hexmap has flipped y coordinates.
      * @param text 
@@ -259,14 +273,30 @@ const MapPage = () =>
             context.scale(1, -1);
             context.translate(0, -gridSize.y);
 
-            context.globalAlpha = (oddrCoord.col === col && oddrCoord.row === row) ? opacity : 1;
-            context.drawImage(value.img, px.x - drawWidth / 2, px.y - drawHeight / 2, drawWidth, drawHeight);
+            context.globalAlpha = 1;
 
-            if (oddrCoord.col === col && oddrCoord.row === row && value.tile.IsCity)
+            if (oddrCoord.col === col && oddrCoord.row === row)
             {  
-                textBoxPos = {x: px.x, y: px.y};
-                textBoxText = value.tile.CityName;
+                if (value.tile.IsCity)
+                {
+                    textBoxPos = {x: px.x, y: px.y};
+                    textBoxText = value.tile.CityName;
+                }
+
+                context.globalAlpha = opacity;
+                setCurrentTile(value.tile);
             }
+
+            for (let i = 0; i < cityBoundaryTiles.length; i++)
+            {
+                if (cityBoundaryTiles[i].X === col && cityBoundaryTiles[i].Y === row)
+                {
+                    context.globalAlpha = opacity;
+                    break;
+                }
+            }
+
+            context.drawImage(value.img, px.x - drawWidth / 2, px.y - drawHeight / 2, drawWidth, drawHeight);
 
             context.restore();
         });
@@ -294,28 +324,126 @@ const MapPage = () =>
         {
             drawMapWithHoveredTile(context, oddrCoord, 0.25);
         }
-    }, [tileSize, gridSize]); // to ensure latest values are used
+    }, [tileSize, gridSize, cityBoundaryTiles]); // to ensure latest values are used
 
-    const handleMouseMove = useCallback((e: MouseEvent) => 
+    function getMousePos(e: MouseEvent): {x: number, y: number} | undefined
     {
         const rect = theCanvas.current?.getBoundingClientRect();
-        if (!rect || !theCanvas.current) return;
+        if (!rect || !theCanvas.current) return undefined;
 
         const xPos = (e.clientX - rect.left) / (rect.right - rect.left) * theCanvas.current.width;
         const rawY = ((e.pageY - rect.top) / (rect.bottom - rect.top) * theCanvas.current.height) - window.scrollY;
         const yPos = theCanvas.current.height - rawY; // because map is flipped to make it look like the game
 
-        const oddrCoord = pixelToOddr({ x: xPos, y: yPos }, tileSize);
-        const key = `${oddrCoord.col},${oddrCoord.row}`;
+        return {x: xPos, y: yPos};
+    }
 
-        handleMouseHover(key, oddrCoord);
+    const handleMouseMove = useCallback((e: MouseEvent) => 
+    {
+        const mousePos = getMousePos(e);
+
+        if (mousePos)
+        {
+            const oddrCoord = pixelToOddr(mousePos, tileSize);
+            const key = `${oddrCoord.col},${oddrCoord.row}`;
+
+            handleMouseHover(key, oddrCoord);
+        }
     }, [handleMouseHover]); // add function like handleMouseHover as functions can change due to the function's dependencies
+
+    const handleMouseClick = useCallback((e: MouseEvent) => 
+    {
+        const { minX, maxX, minY, maxY } = minAndMaxCoords.current;
+        const mousePos = getMousePos(e);
+
+        if (mousePos && scrollRef.current)
+        {
+            const { clientX, clientY } = e;
+
+            const divRect = scrollRef.current.getBoundingClientRect(); // size will always be the same regardless of scroll
+            const inDivBounds = clientX >= divRect.left && clientX <= divRect.right && clientY >= divRect.top && clientY <= divRect.bottom;
+
+            const oddrCoord = pixelToOddr(mousePos, tileSize);
+            const outOfHexBounds = oddrCoord.col < minX || oddrCoord.col > maxX || oddrCoord.row < minY || oddrCoord.row > maxY;
+
+            // dont reset the clicked city stuff if click is out of bounds - only want to reset when click on the visible hexmap
+            if (!inDivBounds || outOfHexBounds)
+                return;
+            
+            if (currentTile && currentTile.IsCity)
+            {
+                if (!currentCity || (currentCity && currentCity.CityName !== currentTile.CityName))
+                {
+                    setCurrentCity(currentTile);
+
+                    const neighborOffsetsEven = [[1,  0], [0, 1],   [-1, 1],
+                                                [-1,  0], [-1, -1], [0, -1]];
+                    const neighborOffsetsOdd  = [[1,  0], [1, 1],   [0, 1],
+                                                [-1,  0], [0, -1],  [1, -1]];
+
+                    let boundaryList: TileType[] = [];
+                    imageCache.current.forEach((value, oddr) => 
+                    {
+                        const [col, row] = oddr.split(',').map(Number);
+
+                        let bordersNonOwnedTiles = false;
+                        if (value.tile.TileCity === currentTile.CityName)
+                        {
+                            if (row % 2 == 0)
+                            {
+                                neighborOffsetsEven.forEach((neighbor) => 
+                                {
+                                    let neighborCoord = {x: col + neighbor[0], y: row + neighbor[1]};
+                                    let stringCoord = `${neighborCoord.x},${neighborCoord.y}`;
+                                    let cacheTile = imageCache.current.get(stringCoord);
+                                    if (cacheTile && cacheTile.tile.TileCity !== currentTile.CityName)
+                                        bordersNonOwnedTiles = true;
+                                });
+                            }
+                            else
+                            {
+                                neighborOffsetsOdd.forEach((neighbor) => 
+                                {
+                                    let neighborCoord = {x: col + neighbor[0], y: row + neighbor[1]};
+                                    let stringCoord = `${neighborCoord.x},${neighborCoord.y}`;
+                                    let cacheTile = imageCache.current.get(stringCoord);
+                                    if (cacheTile && cacheTile.tile.TileCity !== currentTile.CityName)
+                                        bordersNonOwnedTiles = true;
+                                });
+                            }
+                        }
+
+                        if (bordersNonOwnedTiles)
+                            boundaryList.push(value.tile);
+                    });
+
+                    setCityBoundaryTiles(boundaryList);
+                }
+                else if (currentCity && currentCity.CityName === currentTile.CityName)
+                {
+                    setCityBoundaryTiles([]);
+                    setCurrentCity(undefined);
+                }
+            }
+            else
+            {
+                setCityBoundaryTiles([]);
+                setCurrentCity(undefined);
+            }
+        }
+    }, [tileSize, gridSize, currentTile, currentCity]);
 
     useEffect(() => 
     {
         window.addEventListener('mousemove', handleMouseMove);
-        return () => window.removeEventListener('mousemove', handleMouseMove);
-    }, [handleMouseMove]);
+        window.addEventListener('mousedown', handleMouseClick);
+
+        return () => 
+        {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mousedown', handleMouseClick)
+        };
+    }, [handleMouseMove, handleMouseClick]);
 
     useEffect(() => 
     {
@@ -386,6 +514,15 @@ const MapPage = () =>
                             const drawWidth = tileW * scale.scaleW;
                             const drawHeight = tileH * scale.scaleH;
 
+                            for (let i = 0; i < cityBoundaryTiles.length; i++)
+                            {
+                                if (cityBoundaryTiles[i].X === value.tile.X && cityBoundaryTiles[i].Y === value.tile.X)
+                                {
+                                    context.globalAlpha = 0.25;
+                                    break;
+                                }
+                            }
+
                             context.drawImage(
                                 value.img,
                                 pixel.x - drawWidth / 2,
@@ -406,7 +543,7 @@ const MapPage = () =>
                 }
             };
         });
-    }, [tileSize, gridSize]);
+    }, [tileSize, gridSize, cityBoundaryTiles]);
 
     const drawMapFromCache = useCallback((context: CanvasRenderingContext2D) =>
     {
@@ -427,12 +564,21 @@ const MapPage = () =>
             context.scale(1, -1);
             context.translate(0, -gridSize.y);
 
+            for (let i = 0; i < cityBoundaryTiles.length; i++)
+            {
+                if (cityBoundaryTiles[i].X === value.tile.X && cityBoundaryTiles[i].Y === value.tile.Y)
+                {
+                    context.globalAlpha = 0.25;
+                    break;
+                }
+            }
+
             context.drawImage(value.img, px.x - drawWidth / 2, px.y - drawHeight / 2, drawWidth, drawHeight);
             context.restore();
         });
 
         drawRiversFromCache(context);
-    }, [tileSize, gridSize]);
+    }, [tileSize, gridSize, cityBoundaryTiles]);
 
     useEffect(() => 
     {
@@ -615,7 +761,7 @@ const MapPage = () =>
 
     function getTileScaleOddr(): number 
     {
-        const { minX, maxX, minY, maxY } = getMinMaxXY();
+        const { minX, maxX, minY, maxY } = minAndMaxCoords.current;
 
         const mapCols = maxX - minX + 1;
         const mapRows = maxY - minY + 1;
@@ -635,7 +781,7 @@ const MapPage = () =>
         const tileW = baseTileSize * scale;
         const tileH = baseTileSize * scale;
 
-        const { minX, maxX, minY, maxY } = getMinMaxXY();
+        const { minX, maxX, minY, maxY } = minAndMaxCoords.current;
 
         const mapCols = maxX - minX + 1;
         const mapRows = maxY - minY + 1;

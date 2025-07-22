@@ -1,9 +1,8 @@
 import React, {useEffect, useState, useRef, useCallback} from 'react';
 import { Link } from 'react-router-dom';
-import { HexGrid, Layout, Hexagon} from 'react-hexgrid';
 import './mapPage.css'
 import './allPages.css';
-import mapData from '../json/duel.json'
+import mapData from '../json/test.json'
 import {HexType, RiverDirections, TileType} from '../utils/types'
 
 // terrain images
@@ -12,23 +11,18 @@ import {coast, desert_hills, desert_mountain, desert, grass_hills, grass_mountai
 import {aqueduct_district, aerodome_district, center_district, commercial_district, encampment_district, entertainment_district, faith_district, harbor_district, industrial_district, neighborhood_district, rocket_district, science_district, theater_district} from '../images/districtImport'
 // natural wonder images
 import { cliffs_of_dover, crater_lake, dead_sea, galapagos_islands, great_barrier_reef, mount_everest, mount_lilimanjaro, pantanal, piopiotahi, torres_del_paine, tsingy_de_bemaraha, yosemite } from '../images/naturalWondersImport';
-import { hover } from '@testing-library/user-event/dist/hover';
+// wonder images
+import {alhambra, big_ben, bolshoi_theatre, broadway, chichen_itza, colosseum, colossus, cristo_redentor, eiffel_tower, estadio_do_maracana, forbidden_city, great_library, great_zimbabwe, great_lighthouse, hagia_sophia, hanging_gardens, hermitage, huey_teocalli, mahabodhi_temple, mont_st_michel, oracle, oxford_university, petra, potala_palace, pyramids, ruhr_valley, stonehenge, sydney_opera_house, terracotta_army, venetian_arsenal} from '../images/wondersImport'
 
 /*
 /////////////////////////////////////////////////////////////////
-
-TODO: Allow user to click on a city to focus on it and see city boundaries. CHANGE BOUNDARY OPACITY TO DRAW LINES. Change cityBoundaryTiles to a SET.
-TODO: Checking adjacent tiles based on even or odd (for boundary) is correct??????????
-
-TODO: Zoom breaks when resizing window!!
+TODO: Include UNIQUE districts of civs.
 
 TODO: Add loading warning/prompt when map is being drawn
 
-TODO: Add wonders - district
-
 TODO: Add toggable hover with tile data and resize if too long with max width
 
-TODO: Make toolbar on right of map. Change zoom to insert any value like textbox with limit of -50% to 150%?
+TODO: Make toolbar on right of map. Fix weird display of the zoom box.
 
 TODO: Parse and save mapData to modify it so users can save their map? Change imageCache or minAndMaxCoords to useState since users can load new map?
 
@@ -43,17 +37,20 @@ const MapPage = () =>
 
     const minAndMaxCoords = useRef<{minX: number, maxX: number, minY: number, maxY: number}>(getMinMaxXY()); // coords never change
 
-    const [debugBool, setDebugBool] = useState<Boolean>(false); 
     const [winSize, setWinSize] = useState<{width: number, height: number}>({width: window.innerWidth, height: window.innerHeight});
 
+    const [visualZoomInput, setVisualZoomInput] = useState<number>(100);
+
+    const [originalGridSize, setOriginalGridSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(baseTileSize).tileX, y: getScaledGridAndTileSizes(baseTileSize).tileY}); 
     const [gridSize, setGridSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(baseTileSize).gridX, y: getScaledGridAndTileSizes(baseTileSize).gridY});
+    
+    const [originalTileSize, setOriginalTileSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(baseTileSize).tileX, y: getScaledGridAndTileSizes(baseTileSize).tileY});
     const [tileSize, setTileSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(baseTileSize).tileX, y: getScaledGridAndTileSizes(baseTileSize).tileY});
 
-    const [zoomLevel, setZoomLevel] = useState<number>(1); // 1 = 100%, REMOVE?????????
     const [currentTile, setCurrentTile] = useState<TileType>(); // store city name instead of entire tile???
     const [currentCity, setCurrentCity] = useState<TileType>();
 
-    const [cityBoundaryTiles, setCityBoundaryTiles] = useState<TileType[]>([]); // city name, boundary tiles (List since city can own up to 36 tiles and boundary tiles should be way less than that)
+    const [cityBoundaryTiles, setCityBoundaryTiles] = useState<Map<string, string[]>>(new Map()); // <tile with boundary lines, neighboring tiles> - Uses the oddr coords
 
     /**
      * - Shifting hex img's by the subtraction seen in drawMap() keeps correct oddr coordinate detection but visuals will break
@@ -64,6 +61,7 @@ const MapPage = () =>
     const theCanvas = useRef<HTMLCanvasElement>(null);
     const imageCache = useRef<Map<string, {img: HTMLImageElement, tile: TileType}>>(new Map()); // oddr coords, {image, tile}
     const scrollRef = useRef<HTMLDivElement>(null);
+    const zoomInputRef = useRef<HTMLInputElement>(null);
 
     function getTextWidth(text: string, font: string)
     {
@@ -251,6 +249,56 @@ const MapPage = () =>
         });
     }
 
+    /**
+     * Assume drawn using the cache as hovering over a tile (necessary for click) only considers drawing from the cache. 
+     * @param context 
+     */
+    function drawBorderLines(context: CanvasRenderingContext2D) 
+    {
+        cityBoundaryTiles.forEach((neighbors, tileKey) => 
+        {
+            const [col, row] = tileKey.split(',').map(Number);
+            const center = oddrToPixel(col, row, tileSize.x, tileSize.y);
+
+            // check against all hex edges
+            const offsets = (row % 2 === 0) ? [[1, 0], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1]] : [[1, 0], [1, 1], [0, 1], [-1, 0], [0, -1], [1, -1]];
+
+            offsets.forEach(([dx, dy], i) => 
+            {
+                const neighborKey = `${col + dx},${row + dy}`;
+                if (!neighbors.includes(neighborKey)) return; // if hex edge has neighbor not owned by city = draw on that edge
+
+                const start = getHexPoint(i, center);
+                const end = getHexPoint((i + 1) % 6, center);
+
+                drawLine(context, start, end, '#f0ff00', Math.min(tileSize.x, tileSize.y) / 20);
+            });
+        });
+    }
+
+    function drawHexImage(context: CanvasRenderingContext2D, tile: TileType, opacity: number, img: HTMLImageElement)
+    {
+        const px = oddrToPixel(tile.X, tile.Y, tileSize.x, tileSize.y);
+        const imgAttributes = getImageAttributes(tile);
+        const scale = getScaleFromType(imgAttributes.scaleType);
+
+        const drawWidth = tileSize.x * scale.scaleW;
+        const drawHeight = tileSize.y * scale.scaleH;
+
+        context.save();
+        // flip y coords to make everything look like in-game civ6
+        context.scale(1, -1);
+        context.translate(0, -gridSize.y);
+
+        context.globalAlpha = opacity;
+
+        context.drawImage(img, px.x - drawWidth / 2, px.y - drawHeight / 2, drawWidth, drawHeight);
+
+        context.globalAlpha = 1;
+
+        context.restore();
+    }
+
     function drawMapWithHoveredTile(context: CanvasRenderingContext2D, oddrCoord: {col: number, row: number}, opacity: number)
     {
         context.clearRect(0, 0, gridSize.x, gridSize.y);
@@ -261,47 +309,28 @@ const MapPage = () =>
         imageCache.current.forEach((value, oddr) => 
         {
             const [col, row] = oddr.split(',').map(Number);
-            const imgAttributes = getImageAttributes(value.tile);
-            const scale = getScaleFromType(imgAttributes.scaleType);
-
-            const drawWidth = tileSize.x * scale.scaleW;
-            const drawHeight = tileSize.y * scale.scaleH;
             const px = oddrToPixel(col, row, tileSize.x, tileSize.y);
-
-            context.save();
-
-            context.scale(1, -1);
-            context.translate(0, -gridSize.y);
-
-            context.globalAlpha = 1;
 
             if (oddrCoord.col === col && oddrCoord.row === row)
             {  
+                drawHexImage(context, value.tile, opacity, value.img);
+
                 if (value.tile.IsCity)
                 {
                     textBoxPos = {x: px.x, y: px.y};
                     textBoxText = value.tile.CityName;
                 }
 
-                context.globalAlpha = opacity;
                 setCurrentTile(value.tile);
             }
-
-            for (let i = 0; i < cityBoundaryTiles.length; i++)
+            else
             {
-                if (cityBoundaryTiles[i].X === col && cityBoundaryTiles[i].Y === row)
-                {
-                    context.globalAlpha = opacity;
-                    break;
-                }
+                drawHexImage(context, value.tile, 1, value.img);
             }
-
-            context.drawImage(value.img, px.x - drawWidth / 2, px.y - drawHeight / 2, drawWidth, drawHeight);
-
-            context.restore();
         });
 
         drawRiversFromCache(context);
+        drawBorderLines(context);
 
         context.save();
 
@@ -376,58 +405,43 @@ const MapPage = () =>
                 {
                     setCurrentCity(currentTile);
 
-                    const neighborOffsetsEven = [[1,  0], [0, 1],   [-1, 1],
-                                                [-1,  0], [-1, -1], [0, -1]];
-                    const neighborOffsetsOdd  = [[1,  0], [1, 1],   [0, 1],
-                                                [-1,  0], [0, -1],  [1, -1]];
-
-                    let boundaryList: TileType[] = [];
+                    let tempMap = new Map<string, string[]>();
                     imageCache.current.forEach((value, oddr) => 
                     {
                         const [col, row] = oddr.split(',').map(Number);
 
-                        let bordersNonOwnedTiles = false;
+                        let neighborList: string[] = [];
                         if (value.tile.TileCity === currentTile.CityName)
                         {
-                            if (row % 2 == 0)
+                            const offsets = (row % 2 === 0) ? [[1, 0], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1]] : [[1, 0], [1, 1], [0, 1], [-1, 0], [0, -1], [1, -1]];
+                            offsets.forEach((neighbor) => 
                             {
-                                neighborOffsetsEven.forEach((neighbor) => 
+                                let neighborCoord = {x: col + neighbor[0], y: row + neighbor[1]};
+                                let neighborStringCoord = `${neighborCoord.x},${neighborCoord.y}`;
+                                let cacheTile = imageCache.current.get(neighborStringCoord);
+
+                                if (cacheTile && cacheTile.tile.TileCity !== currentTile.CityName)
                                 {
-                                    let neighborCoord = {x: col + neighbor[0], y: row + neighbor[1]};
-                                    let stringCoord = `${neighborCoord.x},${neighborCoord.y}`;
-                                    let cacheTile = imageCache.current.get(stringCoord);
-                                    if (cacheTile && cacheTile.tile.TileCity !== currentTile.CityName)
-                                        bordersNonOwnedTiles = true;
-                                });
-                            }
-                            else
-                            {
-                                neighborOffsetsOdd.forEach((neighbor) => 
-                                {
-                                    let neighborCoord = {x: col + neighbor[0], y: row + neighbor[1]};
-                                    let stringCoord = `${neighborCoord.x},${neighborCoord.y}`;
-                                    let cacheTile = imageCache.current.get(stringCoord);
-                                    if (cacheTile && cacheTile.tile.TileCity !== currentTile.CityName)
-                                        bordersNonOwnedTiles = true;
-                                });
-                            }
+                                    neighborList.push(neighborStringCoord);
+                                }
+                            });
                         }
 
-                        if (bordersNonOwnedTiles)
-                            boundaryList.push(value.tile);
+                        if (neighborList.length > 0)
+                            tempMap.set(oddr, neighborList);
                     });
 
-                    setCityBoundaryTiles(boundaryList);
+                    setCityBoundaryTiles(tempMap);
                 }
                 else if (currentCity && currentCity.CityName === currentTile.CityName)
                 {
-                    setCityBoundaryTiles([]);
+                    setCityBoundaryTiles(new Map());
                     setCurrentCity(undefined);
                 }
             }
             else
             {
-                setCityBoundaryTiles([]);
+                setCityBoundaryTiles(new Map());
                 setCurrentCity(undefined);
             }
         }
@@ -447,7 +461,10 @@ const MapPage = () =>
 
     useEffect(() => 
     {
-        const handleResize = () => setWinSize({ width: window.innerWidth, height: window.innerHeight });
+        const handleResize = () => 
+        {
+            setWinSize({ width: window.innerWidth, height: window.innerHeight })
+        };
         window.addEventListener('resize', handleResize);
 
         return () => window.removeEventListener('resize', handleResize);
@@ -456,8 +473,8 @@ const MapPage = () =>
     useEffect(() => 
     {
         const sizes = getScaledGridAndTileSizes(baseTileSize);
-        setTileSize({ x: sizes.tileX, y: sizes.tileY });
-        setGridSize({ x: sizes.gridX, y: sizes.gridY });
+        setOriginalTileSize({ x: sizes.tileX, y: sizes.tileY });
+        setOriginalGridSize({ x: sizes.gridX, y: sizes.gridY });
     }, [winSize]);
 
     const drawMapNoCache = useCallback((context: CanvasRenderingContext2D) => 
@@ -467,9 +484,6 @@ const MapPage = () =>
         const imageCacheOther = new Map<string, { img: HTMLImageElement, tile: TileType }>();
 
         context.clearRect(0, 0, context.canvas.width, context.canvas.height);
-
-        const tileW = tileSize.x;
-        const tileH = tileSize.y;
 
         let loadCount = 0;
         let totalTiles = mapData.length;
@@ -502,36 +516,7 @@ const MapPage = () =>
                         {
                             imageCacheTemp.set(key, value);
 
-                            const imgAttributes = getImageAttributes(value.tile);
-                            const scale = getScaleFromType(imgAttributes.scaleType);
-                            const pixel = oddrToPixel(value.tile.X, value.tile.Y, tileW, tileH);
-
-                            context.save();
-                            // flip y coords to make everything look like in-game civ6
-                            context.scale(1, -1);
-                            context.translate(0, -gridSize.y);
-
-                            const drawWidth = tileW * scale.scaleW;
-                            const drawHeight = tileH * scale.scaleH;
-
-                            for (let i = 0; i < cityBoundaryTiles.length; i++)
-                            {
-                                if (cityBoundaryTiles[i].X === value.tile.X && cityBoundaryTiles[i].Y === value.tile.X)
-                                {
-                                    context.globalAlpha = 0.25;
-                                    break;
-                                }
-                            }
-
-                            context.drawImage(
-                                value.img,
-                                pixel.x - drawWidth / 2,
-                                pixel.y - drawHeight / 2,
-                                drawWidth,
-                                drawHeight
-                            );
-
-                            context.restore();
+                            drawHexImage(context, value.tile, 1, value.img);
                         });
                     };
 
@@ -551,33 +536,11 @@ const MapPage = () =>
 
         imageCache.current.forEach((value, oddr) => 
         {
-            const [col, row] = oddr.split(',').map(Number);
-            const imgAttributes = getImageAttributes(value.tile);
-            const scale = getScaleFromType(imgAttributes.scaleType);
-
-            const drawWidth = tileSize.x * scale.scaleW;
-            const drawHeight = tileSize.y * scale.scaleH;
-            const px = oddrToPixel(col, row, tileSize.x, tileSize.y);
-
-            context.save();
-
-            context.scale(1, -1);
-            context.translate(0, -gridSize.y);
-
-            for (let i = 0; i < cityBoundaryTiles.length; i++)
-            {
-                if (cityBoundaryTiles[i].X === value.tile.X && cityBoundaryTiles[i].Y === value.tile.Y)
-                {
-                    context.globalAlpha = 0.25;
-                    break;
-                }
-            }
-
-            context.drawImage(value.img, px.x - drawWidth / 2, px.y - drawHeight / 2, drawWidth, drawHeight);
-            context.restore();
+            drawHexImage(context, value.tile, 1, value.img);
         });
 
         drawRiversFromCache(context);
+        drawBorderLines(context);
     }, [tileSize, gridSize, cityBoundaryTiles]);
 
     useEffect(() => 
@@ -591,6 +554,54 @@ const MapPage = () =>
                 drawMapFromCache(context);
         }
     }, [drawMapNoCache, drawMapFromCache]);
+
+    const handleZoomChange = useCallback((zoomLevel: number) =>
+    {
+        let theZoom = zoomLevel;
+        if (theZoom < 50)
+        {
+            theZoom = 50;
+            setVisualZoomInput(50);
+        }
+        else if (theZoom > 200)
+        {
+            theZoom = 200;
+            setVisualZoomInput(200);
+        }
+
+        const multiplier = Math.abs(theZoom) / 100.0;
+
+        const newTileSize = 
+        {
+            x: originalTileSize.x * multiplier,
+            y: originalTileSize.y * multiplier
+        };
+
+        setTileSize(newTileSize);
+
+        // update gridSize (canvas size) to match enlarged map
+        // since tiles got bigger
+        // otherwise scroll won't show
+        const sizes = getScaledGridSizesFromTile(newTileSize);
+        setGridSize({ x: sizes.gridX, y: sizes.gridY });
+    }, [originalGridSize, originalTileSize]);
+
+    function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) 
+    {
+        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') 
+        {
+            zoomInputRef.current?.focus();
+        }
+        else if (e.key === 'Enter')
+        {
+            zoomInputRef.current?.blur();
+        }
+    }
+
+    function handleClick(e: React.MouseEvent<HTMLInputElement>) 
+    {
+        zoomInputRef.current?.focus();
+    };
 
     return (
         <div style={{display: 'flex'}}>
@@ -610,8 +621,20 @@ const MapPage = () =>
                 />
             </div>
 
-            <button onClick={() => {increaseZoom(1.1)}}>ZOOM</button>
-            <button onClick={() => {decreaseZoom(1.1)}}>UN-ZOOM</button>
+            <div style={{display: 'block grid'}}>
+                <span>Zoom Level</span>
+                <input 
+                    onKeyDown={e => handleKeyDown(e)} 
+                    onClick={e => handleClick(e)} 
+                    ref={zoomInputRef} 
+                    type='number' 
+                    min={50} 
+                    max={200} 
+                    value={visualZoomInput} 
+                    onChange={e => setVisualZoomInput(Number(e.target.value))} 
+                    onBlur={e => handleZoomChange(Number(e.target.value))}
+                />
+            </div>
 
             <div>
                 <select></select>
@@ -644,49 +667,6 @@ const MapPage = () =>
         const gridH = tileSize.y * 3/2 * (mapRows + 2);
 
         return { gridX: gridW, gridY: gridH };
-    }
-
-    function increaseZoom(zoomMultiplier: number) 
-    {
-        const theZoom = zoomLevel * zoomMultiplier;
-
-        if (theZoom <= 2) 
-        {
-            const newTileSize = 
-            {
-                x: tileSize.x * zoomMultiplier,
-                y: tileSize.y * zoomMultiplier
-            };
-
-            setZoomLevel(theZoom);
-            setTileSize(newTileSize);
-
-            // update gridSize (canvas size) to match enlarged map
-            // since tiles got bigger
-            // otherwise scroll won't show
-            const sizes = getScaledGridSizesFromTile(newTileSize);
-            setGridSize({ x: sizes.gridX, y: sizes.gridY });
-        }
-    }
-
-    function decreaseZoom(zoomDivider: number) 
-    {
-        const theZoom = zoomLevel / zoomDivider;
-
-        if (theZoom >= 0.5) 
-        {
-            const newTileSize = 
-            {
-                x: tileSize.x / zoomDivider,
-                y: tileSize.y / zoomDivider
-            };
-
-            setZoomLevel(theZoom);
-            setTileSize(newTileSize);
-
-            const sizes = getScaledGridSizesFromTile(newTileSize);
-            setGridSize({ x: sizes.gridX, y: sizes.gridY });
-        }
     }
 
     // https://www.redblobgames.com/grids/hexagons/#hex-to-pixel
@@ -800,10 +780,11 @@ const MapPage = () =>
      * @param tile 
      * Hex tile of TileType.
      * @returns 
-     * The image type where imageType is the path to the actual image and scaleType returns the generic kind of image that will be displayed. Districts and natural wonders will take priority over terrain. Returns an empty string if the tile cannot be resolved.
+     * The image type where imageType is the path to the actual image and scaleType returns the generic kind of image that will be displayed. Districts, wonders, and natural wonders will take priority over terrain. Returns an empty string if the tile cannot be resolved.
      */
     function getImageAttributes(tile: TileType): {imagePath: string, scaleType: number}
     {    
+        /*************************************************************  natural wonders **************************************************************/
         if (tile.FeatureType === "Cliffs of Dover")                                             return {imagePath: cliffs_of_dover, scaleType: HexType.TERRAIN};
         else if (tile.FeatureType === "Mount Kilimanjaro")                                      return {imagePath: mount_lilimanjaro, scaleType: HexType.TERRAIN};
         else if (tile.FeatureType === "Crater Lake")                                            return {imagePath: crater_lake, scaleType: HexType.TERRAIN};
@@ -814,6 +795,38 @@ const MapPage = () =>
         else if (tile.FeatureType === "Torres del Paine")                                       return {imagePath: torres_del_paine, scaleType: HexType.TERRAIN};
         else if (tile.FeatureType === "Tsingy de Bemaraha")                                     return {imagePath: tsingy_de_bemaraha, scaleType: HexType.TERRAIN};
         else if (tile.FeatureType === "Yosemite")                                               return {imagePath: yosemite, scaleType: HexType.TERRAIN};
+        /*************************************************************  wonders        ****************************************************************/
+        else if (tile.Wonder === "BUILDING_ALHAMBRA")                                           return {imagePath: alhambra, scaleType: HexType.DISTRICT};
+        else if (tile.Wonder === "BUILDING_BIG_BEN")                                            return {imagePath: big_ben, scaleType: HexType.DISTRICT};
+        else if (tile.Wonder === "BUILDING_BOLSHOI_THEATRE")                                    return {imagePath: bolshoi_theatre, scaleType: HexType.DISTRICT};
+        else if (tile.Wonder === "BUILDING_BROADWAY")                                           return {imagePath: broadway, scaleType: HexType.DISTRICT};
+        else if (tile.Wonder === "BUILDING_CHICHEN_ITZA")                                       return {imagePath: chichen_itza, scaleType: HexType.DISTRICT};
+        else if (tile.Wonder === "BUILDING_COLOSSEUM")                                          return {imagePath: colosseum, scaleType: HexType.DISTRICT};
+        else if (tile.Wonder === "BUILDING_COLOSSUS")                                           return {imagePath: colossus, scaleType: HexType.DISTRICT};
+        else if (tile.Wonder === "BUILDING_CRISTO_REDENTOR")                                    return {imagePath: cristo_redentor, scaleType: HexType.DISTRICT};
+        else if (tile.Wonder === "BUILDING_EIFFEL_TOWER")                                       return {imagePath: eiffel_tower, scaleType: HexType.DISTRICT};
+        else if (tile.Wonder === "BUILDING_ESTADIO_DO_MARACANA")                                return {imagePath: estadio_do_maracana, scaleType: HexType.DISTRICT};
+        else if (tile.Wonder === "BUILDING_FORBIDDEN_CITY")                                     return {imagePath: forbidden_city, scaleType: HexType.DISTRICT};
+        else if (tile.Wonder === "BUILDING_GREAT_LIBRARY")                                      return {imagePath: great_library, scaleType: HexType.DISTRICT};
+        else if (tile.Wonder === "BUILDING_GREAT_LIGHTHOUSE")                                   return {imagePath: great_lighthouse, scaleType: HexType.DISTRICT};
+        else if (tile.Wonder === "BUILDING_GREAT_ZIMBABWE")                                     return {imagePath: great_zimbabwe, scaleType: HexType.DISTRICT};
+        else if (tile.Wonder === "BUILDING_HAGIA_SOPHIA")                                       return {imagePath: hagia_sophia, scaleType: HexType.DISTRICT};
+        else if (tile.Wonder === "BUILDING_HANGING_GARDENS")                                    return {imagePath: hanging_gardens, scaleType: HexType.DISTRICT};
+        else if (tile.Wonder === "BUILDING_HERMITAGE")                                          return {imagePath: hermitage, scaleType: HexType.DISTRICT};
+        else if (tile.Wonder === "BUILDING_HUEY_TEOCALLI")                                      return {imagePath: huey_teocalli, scaleType: HexType.DISTRICT};
+        else if (tile.Wonder === "BUILDING_MAHABODHI_TEMPLE")                                   return {imagePath: mahabodhi_temple, scaleType: HexType.DISTRICT};
+        else if (tile.Wonder === "BUILDING_MONT_ST_MICHEL")                                     return {imagePath: mont_st_michel, scaleType: HexType.DISTRICT};
+        else if (tile.Wonder === "BUILDING_ORACLE")                                             return {imagePath: oracle, scaleType: HexType.DISTRICT};
+        else if (tile.Wonder === "BUILDING_OXFORD_UNIVERSITY")                                  return {imagePath: oxford_university, scaleType: HexType.DISTRICT};
+        else if (tile.Wonder === "BUILDING_PETRA")                                              return {imagePath: petra, scaleType: HexType.DISTRICT};
+        else if (tile.Wonder === "BUILDING_POTALA_PALACE")                                      return {imagePath: potala_palace, scaleType: HexType.DISTRICT};
+        else if (tile.Wonder === "BUILDING_PYRAMIDS")                                           return {imagePath: pyramids, scaleType: HexType.DISTRICT};
+        else if (tile.Wonder === "BUILDING_RUHR_VALLEY")                                        return {imagePath: ruhr_valley, scaleType: HexType.DISTRICT};
+        else if (tile.Wonder === "BUILDING_STONEHENGE")                                         return {imagePath: stonehenge, scaleType: HexType.DISTRICT};
+        else if (tile.Wonder === "BUILDING_SYDNEY_OPERA_HOUSE")                                 return {imagePath: sydney_opera_house, scaleType: HexType.DISTRICT};
+        else if (tile.Wonder === "BUILDING_TERRACOTTA_ARMY")                                    return {imagePath: terracotta_army, scaleType: HexType.DISTRICT};
+        else if (tile.Wonder === "BUILDING_VENETIAN_ARSENAL")                                   return {imagePath: venetian_arsenal, scaleType: HexType.DISTRICT};
+        /*************************************************************  districts      ****************************************************************/
         else if (tile.District === "DISTRICT_CITY_CENTER")                                      return {imagePath: center_district, scaleType: HexType.DISTRICT};
         else if (tile.District === "DISTRICT_COMMERCIAL_HUB")                                   return {imagePath: commercial_district, scaleType: HexType.DISTRICT};
         else if (tile.District === "DISTRICT_ENCAMPMENT")                                       return {imagePath: encampment_district, scaleType: HexType.DISTRICT};
@@ -821,10 +834,12 @@ const MapPage = () =>
         else if (tile.District === "DISTRICT_HARBOR")                                           return {imagePath: harbor_district, scaleType: HexType.DISTRICT};
         else if (tile.District === "DISTRICT_HOLY_SITE")                                        return {imagePath: faith_district, scaleType: HexType.DISTRICT};
         else if (tile.District === "DISTRICT_THEATER")                                          return {imagePath: theater_district, scaleType: HexType.DISTRICT};
-        else if (tile.District === "DISTRICT_INDUSTRIAL_ZONE")                                  return {imagePath: industrial_district, scaleType: HexType.DISTRICT};
+        else if (tile.District === "DISTRICT_INDUSTRIAL_ZONE" || 
+                 tile.District === "DISTRICT_HANSA")                                            return {imagePath: industrial_district, scaleType: HexType.DISTRICT};
         else if (tile.District === "DISTRICT_NEIGHBORHOOD")                                     return {imagePath: neighborhood_district, scaleType: HexType.DISTRICT};
         else if (tile.District === "DISTRICT_AQUEDUCT")                                         return {imagePath: aqueduct_district, scaleType: HexType.DISTRICT};
         else if (tile.District === "DISTRICT_SPACEPORT")                                        return {imagePath: rocket_district, scaleType: HexType.DISTRICT};
+        /*************************************************************  terrain       ******************************************************************/
         else if (tile.TerrainType === "Ocean")                                                  return {imagePath: ocean, scaleType: HexType.TERRAIN};
         else if (tile.TerrainType === "Coast and Lake")                                         return {imagePath: coast, scaleType: HexType.TERRAIN};
         else if (tile.TerrainType === "Plains" && tile.FeatureType === "Rainforest")            return {imagePath: plains_jungle, scaleType: HexType.TERRAIN};

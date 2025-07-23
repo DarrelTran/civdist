@@ -16,25 +16,28 @@ import {alhambra, big_ben, bolshoi_theatre, broadway, chichen_itza, colosseum, c
 
 /*
 /////////////////////////////////////////////////////////////////
-TODO: Include UNIQUE districts of civs.
-
 TODO: Add loading warning/prompt when map is being drawn
+
+TODO: Diplomatic quarter not in base game???
 
 TODO: Add toggable hover with tile data and resize if too long with max width
 
 TODO: Make toolbar on right of map. Fix weird display of the zoom box.
 
-TODO: Parse and save mapData to modify it so users can save their map? Change imageCache or minAndMaxCoords to useState since users can load new map?
+TODO: Parse and save mapData to modify it so users can save their map? Change imageCache or minAndMaxCoords to useState since users can load new map? Make dropdown lists change content when new map is loaded.
 
 TODO: Refactor code to make it nicer. Probably refactor drawing functions to make the more generic????
+
+TODO: Read random comments to see if any extra issues need fixing.
 
 /////////////////////////////////////////////////////////////////
 */
 
+const baseTileSize : number = 10;
+const allPossibleDistricts = ["Campus", "Theater", "Holy Site", "Encampment", "Commercial Hub", "Harbor", "Industrial Zone", "Preserve", "Entertainment Complex", "Aqueduct", "Neighborhood", "Aerodome", "Spaceport", "Diplomatic Quarter"];
+
 const MapPage = () => 
 {
-    const baseTileSize : number = 10;
-
     const minAndMaxCoords = useRef<{minX: number, maxX: number, minY: number, maxY: number}>(getMinMaxXY()); // coords never change
 
     const [winSize, setWinSize] = useState<{width: number, height: number}>({width: window.innerWidth, height: window.innerHeight});
@@ -51,6 +54,10 @@ const MapPage = () =>
     const [currentCity, setCurrentCity] = useState<TileType>();
 
     const [cityBoundaryTiles, setCityBoundaryTiles] = useState<Map<string, string[]>>(new Map()); // <tile with boundary lines, neighboring tiles> - Uses the oddr coords
+
+    // assuming civ has at least one city
+    const [uniqueCivilizations, setUniqueCivilizations] = useState<Set<string>>(new Set());
+    const [uniqueCities, setUniqueCities] = useState<Set<string>>(new Set());
 
     /**
      * - Shifting hex img's by the subtraction seen in drawMap() keeps correct oddr coordinate detection but visuals will break
@@ -467,6 +474,19 @@ const MapPage = () =>
         };
         window.addEventListener('resize', handleResize);
 
+        let tempCivSet = new Set<string>();
+        let tempCitySet = new Set<string>();
+        mapData.forEach((tile) => 
+        {
+            if (tile.Civilization !== "NONE")
+                tempCivSet.add(tile.Civilization);
+
+            if (tile.IsCity)
+                tempCitySet.add(tile.CityName);
+        })
+        setUniqueCivilizations(tempCivSet);
+        setUniqueCities(tempCitySet);
+
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
@@ -475,6 +495,12 @@ const MapPage = () =>
         const sizes = getScaledGridAndTileSizes(baseTileSize);
         setOriginalTileSize({ x: sizes.tileX, y: sizes.tileY });
         setOriginalGridSize({ x: sizes.gridX, y: sizes.gridY });
+
+        if (visualZoomInput === 100) 
+        {
+            setTileSize({x: sizes.tileX, y: sizes.tileY});
+            setGridSize({x: sizes.gridX, y: sizes.gridY});
+        }
     }, [winSize]);
 
     const drawMapNoCache = useCallback((context: CanvasRenderingContext2D) => 
@@ -606,41 +632,74 @@ const MapPage = () =>
     return (
         <div style={{display: 'flex'}}>
             <div
-                style=
-                {{
-                    overflow: 'scroll',
+                ref={scrollRef}
+                style={{
+                    overflow: 'auto',
                     border: '1px solid black'
                 }}
-                ref={scrollRef}
             >
                 <canvas
                     ref={theCanvas}
                     width={gridSize.x}
                     height={gridSize.y}
-                    style={{display: 'block'}}
+                    style={{ display: 'block' }}
                 />
             </div>
 
-            <div style={{display: 'block grid'}}>
-                <span>Zoom Level</span>
-                <input 
-                    onKeyDown={e => handleKeyDown(e)} 
-                    onClick={e => handleClick(e)} 
-                    ref={zoomInputRef} 
-                    type='number' 
-                    min={50} 
-                    max={200} 
-                    value={visualZoomInput} 
-                    onChange={e => setVisualZoomInput(Number(e.target.value))} 
-                    onBlur={e => handleZoomChange(Number(e.target.value))}
-                />
+            <div style={{alignContent: 'center'}}>
+                {/*Select Civilization*/}
+                <select>
+                {
+                    Array.from(uniqueCivilizations).map((value, index) => 
+                    (
+                        <option value={value} key={index}>{value}</option>
+                    ))
+                }
+                </select> 
+                <div>
+                    {/*Select City*/}
+                    <select>
+                        {
+                            Array.from(uniqueCities).map((value, index) => 
+                            (
+                                <option value={value} key={index}>{value}</option>
+                            ))
+                        }
+                    </select> 
+                    <div>
+                        {/*Select District Type*/}
+                        <select>
+                            {
+                                allPossibleDistricts.map((value, index) => 
+                                (
+                                    <option value={value} key={index}>{value}</option>
+                                ))
+                            }
+                        </select> 
+                        <button>ADD</button>
+                    </div>
+                    <div>
+                        Zoom Level
+                        <input 
+                            onKeyDown={e => handleKeyDown(e)} 
+                            onClick={e => handleClick(e)} 
+                            ref={zoomInputRef} 
+                            type='number' 
+                            min={50} 
+                            max={200} 
+                            value={visualZoomInput} 
+                            onChange={e => setVisualZoomInput(Number(e.target.value))} 
+                            onBlur={e => handleZoomChange(Number(e.target.value))}
+                        />
+                    </div>
+                    <div style={{display: 'inline-block'}}>
+                        <button>SAVE</button> 
+                        <button>LOAD</button>
+                    </div>
+                </div>
             </div>
 
-            <div>
-                <select></select>
-            </div>
-
-            {<button onClick={testStuff}>TEST BUTTON</button>}
+            {/*<button onClick={testStuff}>TEST BUTTON</button>*/}
         </div>
     );
 
@@ -830,14 +889,20 @@ const MapPage = () =>
         else if (tile.District === "DISTRICT_CITY_CENTER")                                      return {imagePath: center_district, scaleType: HexType.DISTRICT};
         else if (tile.District === "DISTRICT_COMMERCIAL_HUB")                                   return {imagePath: commercial_district, scaleType: HexType.DISTRICT};
         else if (tile.District === "DISTRICT_ENCAMPMENT")                                       return {imagePath: encampment_district, scaleType: HexType.DISTRICT};
-        else if (tile.District === "DISTRICT_ENTERTAINMENT_COMPLEX")                            return {imagePath: entertainment_district, scaleType: HexType.DISTRICT};
-        else if (tile.District === "DISTRICT_HARBOR")                                           return {imagePath: harbor_district, scaleType: HexType.DISTRICT};
-        else if (tile.District === "DISTRICT_HOLY_SITE")                                        return {imagePath: faith_district, scaleType: HexType.DISTRICT};
-        else if (tile.District === "DISTRICT_THEATER")                                          return {imagePath: theater_district, scaleType: HexType.DISTRICT};
+        else if (tile.District === "DISTRICT_ENTERTAINMENT_COMPLEX" || 
+                 tile.District === "DISTRICT_STREET_CARNIVAL")                                  return {imagePath: entertainment_district, scaleType: HexType.DISTRICT};
+        else if (tile.District === "DISTRICT_HARBOR" || 
+                 tile.District === "DISTRICT_ROYAL_NAVY_DOCKYARD")                              return {imagePath: harbor_district, scaleType: HexType.DISTRICT};
+        else if (tile.District === "DISTRICT_HOLY_SITE" || 
+                 tile.District === "DISTRICT_LAVRA")                                            return {imagePath: faith_district, scaleType: HexType.DISTRICT};
+        else if (tile.District === "DISTRICT_THEATER" || 
+                 tile.District === "DISTRICT_ACROPOLIS")                                        return {imagePath: theater_district, scaleType: HexType.DISTRICT};
         else if (tile.District === "DISTRICT_INDUSTRIAL_ZONE" || 
                  tile.District === "DISTRICT_HANSA")                                            return {imagePath: industrial_district, scaleType: HexType.DISTRICT};
-        else if (tile.District === "DISTRICT_NEIGHBORHOOD")                                     return {imagePath: neighborhood_district, scaleType: HexType.DISTRICT};
-        else if (tile.District === "DISTRICT_AQUEDUCT")                                         return {imagePath: aqueduct_district, scaleType: HexType.DISTRICT};
+        else if (tile.District === "DISTRICT_NEIGHBORHOOD" || 
+                 tile.District === "DISTRICT_MBANZA")                                           return {imagePath: neighborhood_district, scaleType: HexType.DISTRICT};
+        else if (tile.District === "DISTRICT_AQUEDUCT" || 
+                 tile.District === "DISTRICT_BATH")                                             return {imagePath: aqueduct_district, scaleType: HexType.DISTRICT};
         else if (tile.District === "DISTRICT_SPACEPORT")                                        return {imagePath: rocket_district, scaleType: HexType.DISTRICT};
         /*************************************************************  terrain       ******************************************************************/
         else if (tile.TerrainType === "Ocean")                                                  return {imagePath: ocean, scaleType: HexType.TERRAIN};

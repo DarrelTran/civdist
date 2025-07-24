@@ -1,8 +1,8 @@
-import React, {useEffect, useState, useRef, useCallback} from 'react';
+import React, {useEffect, useState, useRef, useCallback, JSX} from 'react';
 import { Link } from 'react-router-dom';
 import './mapPage.css'
 import './allPages.css';
-import mapData from '../json/test.json'
+import mapData from '../json/test2.json'
 import {HexType, RiverDirections, TileType} from '../utils/types'
 
 // terrain images
@@ -57,7 +57,10 @@ const MapPage = () =>
 
     // assuming civ has at least one city
     const [uniqueCivilizations, setUniqueCivilizations] = useState<Set<string>>(new Set());
-    const [uniqueCities, setUniqueCities] = useState<Set<string>>(new Set());
+    const [uniqueCities, setUniqueCities] = useState<Map<string, string[]>>(new Map()); // <civilization, cities>
+    const [dropdownCiv, setDropdownCiv] = useState<string>();
+    const [includeCityStates, setIncludeCityStates] = useState<boolean>(false);
+    const [dropdownCity, setDropdownCity] = useState<string>();
 
     /**
      * - Shifting hex img's by the subtraction seen in drawMap() keeps correct oddr coordinate detection but visuals will break
@@ -69,6 +72,8 @@ const MapPage = () =>
     const imageCache = useRef<Map<string, {img: HTMLImageElement, tile: TileType}>>(new Map()); // oddr coords, {image, tile}
     const scrollRef = useRef<HTMLDivElement>(null);
     const zoomInputRef = useRef<HTMLInputElement>(null);
+    const civDropdownRef = useRef<HTMLSelectElement>(null);
+    const cityDropdownRef = useRef<HTMLSelectElement>(null);
 
     function getTextWidth(text: string, font: string)
     {
@@ -256,6 +261,21 @@ const MapPage = () =>
         });
     }
 
+    function wrapCol(x: number)
+    {
+        const { minX, maxX } = minAndMaxCoords.current;
+        const width = maxX - minX + 1;
+        // assuming min starts at 0
+        return ((x + width) % width);
+    };
+
+    function wrapRow(y: number)
+    {
+        const { minY, maxY } = minAndMaxCoords.current;
+        const height = maxY - minY + 1;
+        return ((y + height) % height);
+    };
+
     /**
      * Assume drawn using the cache as hovering over a tile (necessary for click) only considers drawing from the cache. 
      * @param context 
@@ -272,7 +292,7 @@ const MapPage = () =>
 
             offsets.forEach(([dx, dy], i) => 
             {
-                const neighborKey = `${col + dx},${row + dy}`;
+                const neighborKey = `${wrapCol(col + dx)},${wrapRow(row + dy)}`;
                 if (!neighbors.includes(neighborKey)) return; // if hex edge has neighbor not owned by city = draw on that edge
 
                 const start = getHexPoint(i, center);
@@ -313,6 +333,8 @@ const MapPage = () =>
         let textBoxPos = {x: -1, y: -1};
         let textBoxText = '';
 
+        let theOpacity = opacity;
+
         imageCache.current.forEach((value, oddr) => 
         {
             const [col, row] = oddr.split(',').map(Number);
@@ -320,7 +342,7 @@ const MapPage = () =>
 
             if (oddrCoord.col === col && oddrCoord.row === row)
             {  
-                drawHexImage(context, value.tile, opacity, value.img);
+                theOpacity = opacity;
 
                 if (value.tile.IsCity)
                 {
@@ -330,10 +352,16 @@ const MapPage = () =>
 
                 setCurrentTile(value.tile);
             }
+            else if (value.tile.IsCity && value.tile.CityName === dropdownCity)
+            {
+                theOpacity = 0.25;
+            }
             else
             {
-                drawHexImage(context, value.tile, 1, value.img);
+                theOpacity = 1;
             }
+
+            drawHexImage(context, value.tile, theOpacity, value.img);
         });
 
         drawRiversFromCache(context);
@@ -358,9 +386,9 @@ const MapPage = () =>
         const hoveredImg = imageCache.current.get(key);
         if (hoveredImg && context && hoveredImg.img) 
         {
-            drawMapWithHoveredTile(context, oddrCoord, 0.25);
+            drawMapWithHoveredTile(context, oddrCoord, 0.3);
         }
-    }, [tileSize, gridSize, cityBoundaryTiles]); // to ensure latest values are used
+    }, [tileSize, gridSize, cityBoundaryTiles, dropdownCity]); // to ensure latest values are used
 
     function getMousePos(e: MouseEvent): {x: number, y: number} | undefined
     {
@@ -423,7 +451,7 @@ const MapPage = () =>
                             const offsets = (row % 2 === 0) ? [[1, 0], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1]] : [[1, 0], [1, 1], [0, 1], [-1, 0], [0, -1], [1, -1]];
                             offsets.forEach((neighbor) => 
                             {
-                                let neighborCoord = {x: col + neighbor[0], y: row + neighbor[1]};
+                                let neighborCoord = {x: wrapCol(col + neighbor[0]), y: wrapRow(row + neighbor[1])};
                                 let neighborStringCoord = `${neighborCoord.x},${neighborCoord.y}`;
                                 let cacheTile = imageCache.current.get(neighborStringCoord);
 
@@ -466,6 +494,58 @@ const MapPage = () =>
         };
     }, [handleMouseMove, handleMouseClick]);
 
+    function setDropdownValues()
+    {
+        let tempCivSet = new Set<string>();
+        let tempCitySet = new Map<string, string[]>();
+
+        let firstCiv = undefined;
+        let firstCity = undefined;
+
+        for (let i = 0; i < mapData.length; i++)
+        {
+            const tile = mapData[i];
+            if (tile.Civilization !== "NONE")
+            {
+                tempCivSet.add(tile.Civilization);
+
+                if (tile.IsCity)
+                {
+                    let cityList = tempCitySet.get(tile.Civilization);
+                    if (cityList)
+                    {
+                        cityList.push(tile.CityName);
+                        tempCitySet.set(tile.Civilization, cityList);
+                    }
+                    else
+                    {
+                        tempCitySet.set(tile.Civilization, [tile.CityName]);
+                    }
+                    
+                    if (includeCityStates || (!includeCityStates && !tile.Civilization.includes("city-state")))
+                    {
+                        if (!firstCiv)
+                            firstCiv = tile.Civilization;
+                        if (!firstCity)
+                            firstCity = tile.CityName;
+                    }
+                }
+            }
+        }
+
+        setDropdownCiv(firstCiv);
+        setDropdownCity(firstCity);
+        setUniqueCivilizations(tempCivSet);
+        setUniqueCities(tempCitySet);
+    }
+
+    useEffect(() => 
+    {
+        // get latest values
+        setDropdownCiv(civDropdownRef.current ? civDropdownRef.current.value : undefined);
+        setDropdownCity(cityDropdownRef.current ? cityDropdownRef.current.value : undefined);
+    }, [includeCityStates, dropdownCity, dropdownCiv]) 
+
     useEffect(() => 
     {
         const handleResize = () => 
@@ -474,18 +554,7 @@ const MapPage = () =>
         };
         window.addEventListener('resize', handleResize);
 
-        let tempCivSet = new Set<string>();
-        let tempCitySet = new Set<string>();
-        mapData.forEach((tile) => 
-        {
-            if (tile.Civilization !== "NONE")
-                tempCivSet.add(tile.Civilization);
-
-            if (tile.IsCity)
-                tempCitySet.add(tile.CityName);
-        })
-        setUniqueCivilizations(tempCivSet);
-        setUniqueCities(tempCitySet);
+        setDropdownValues();
 
         return () => window.removeEventListener('resize', handleResize);
     }, []);
@@ -503,21 +572,38 @@ const MapPage = () =>
         }
     }, [winSize]);
 
-    const drawMapNoCache = useCallback((context: CanvasRenderingContext2D) => 
+    const drawMapFromCache = useCallback((context: CanvasRenderingContext2D) =>
+    {
+        context.clearRect(0, 0, context.canvas.width, context.canvas.height);
+
+        imageCache.current.forEach((value, oddr) => 
+        {
+            let theOpacity = 1;
+            if (value.tile.IsCity && dropdownCity && value.tile.CityName === dropdownCity)
+                theOpacity = 0.25;
+
+            drawHexImage(context, value.tile, theOpacity, value.img);
+        });
+
+        drawRiversFromCache(context);
+        drawBorderLines(context);
+    }, [tileSize, gridSize, cityBoundaryTiles, dropdownCity]);
+
+    const initImageCache = useCallback(() => 
     {
         const imageCacheTemp = new Map<string, { img: HTMLImageElement, tile: TileType }>();
         const imageCacheMountains = new Map<string, { img: HTMLImageElement, tile: TileType }>();
         const imageCacheOther = new Map<string, { img: HTMLImageElement, tile: TileType }>();
 
-        context.clearRect(0, 0, context.canvas.width, context.canvas.height);
-
         let loadCount = 0;
         let totalTiles = mapData.length;
+
+        const context = theCanvas.current?.getContext('2d');
+        if (!context) return;
 
         mapData.forEach(tile => 
         {
             const imgAttributes = getImageAttributes(tile);
-
             const img = new Image();
             img.src = imgAttributes.imagePath;
 
@@ -533,53 +619,35 @@ const MapPage = () =>
 
                 loadCount++;
 
-                // .onload is asynchronous so wait for the last image to load and then draw everything
                 if (loadCount === totalTiles) 
                 {
-                    const drawImages = (cache: Map<string, { img: HTMLImageElement, tile: TileType }>) => 
-                    {
-                        cache.forEach((value, key) => 
-                        {
-                            imageCacheTemp.set(key, value);
-
-                            drawHexImage(context, value.tile, 1, value.img);
-                        });
-                    };
-
-                    drawImages(imageCacheOther);     
-                    drawImages(imageCacheMountains); // draw mountains last so overlapping parts show up
+                    imageCacheOther.forEach((value, key) => imageCacheTemp.set(key, value));
+                    // mountains last will go on top
+                    imageCacheMountains.forEach((value, key) => imageCacheTemp.set(key, value));
                     imageCache.current = imageCacheTemp;
 
-                    drawRiversNoCache(context);
+                    drawMapFromCache(context);
                 }
             };
         });
-    }, [tileSize, gridSize, cityBoundaryTiles]);
-
-    const drawMapFromCache = useCallback((context: CanvasRenderingContext2D) =>
-    {
-        context.clearRect(0, 0, context.canvas.width, context.canvas.height);
-
-        imageCache.current.forEach((value, oddr) => 
-        {
-            drawHexImage(context, value.tile, 1, value.img);
-        });
-
-        drawRiversFromCache(context);
-        drawBorderLines(context);
-    }, [tileSize, gridSize, cityBoundaryTiles]);
+    }, [drawMapFromCache]);
 
     useEffect(() => 
     {
-        const context = theCanvas.current?.getContext('2d');
-        if (context)
+        // wait until the dropdown city is ready
+        if (!dropdownCity) return;
+
+        if (imageCache.current.size === 0) 
         {
-            if (imageCache.current.size <= 0)
-                drawMapNoCache(context);
-            else
+            initImageCache();
+        } 
+        else 
+        {
+            const context = theCanvas.current?.getContext('2d');
+            if (context) 
                 drawMapFromCache(context);
         }
-    }, [drawMapNoCache, drawMapFromCache]);
+    }, [dropdownCity, initImageCache, drawMapFromCache]);
 
     const handleZoomChange = useCallback((zoomLevel: number) =>
     {
@@ -647,24 +715,60 @@ const MapPage = () =>
             </div>
 
             <div style={{alignContent: 'center'}}>
-                {/*Select Civilization*/}
-                <select>
-                {
-                    Array.from(uniqueCivilizations).map((value, index) => 
-                    (
-                        <option value={value} key={index}>{value}</option>
-                    ))
-                }
-                </select> 
+                <div style={{display: 'grid'}}>
+                    <div style={{display: 'block'}}>
+                        Include City States
+                        <input type='checkbox' onChange={(e) => {setIncludeCityStates(e.target.checked)}}/>
+                    </div>
+                    {/*Select Civilization*/}
+                    <select ref={civDropdownRef} onChange={(e) => {setDropdownCiv(e.target.value)}}>
+                        {(
+                            () => 
+                            {
+                                const civArr = Array.from(uniqueCivilizations);
+                                const elements: JSX.Element[] = [];
+                                
+                                for (let i = 0; i < civArr.length; i++)
+                                {
+                                    let civ = civArr[i];
+                                    if (includeCityStates || (!includeCityStates && !civ.includes("city-state")))
+                                    {
+                                        elements.push(<option value={civ} key={i}>{civ}</option>);
+                                    }
+                                }
+
+                                if (elements.length > 0)
+                                    return elements;
+                                else
+                                    return <option>UNKNOWN</option>
+                            }
+                        )()}
+                    </select> 
+                </div>
                 <div>
                     {/*Select City*/}
-                    <select>
-                        {
-                            Array.from(uniqueCities).map((value, index) => 
-                            (
-                                <option value={value} key={index}>{value}</option>
-                            ))
-                        }
+                    <select ref={cityDropdownRef} onChange={(e) => {setDropdownCity(e.target.value)}}>
+                        {(
+                            () => 
+                            {
+                                // can't use civDropdownRef as this select doesnt know when to re-render compared to something like an useEffect
+                                if (dropdownCiv)
+                                {
+                                    let cityList = uniqueCities.get(dropdownCiv);
+                                    if (cityList)
+                                    {
+                                        return cityList.map((city, index) => 
+                                        (
+                                            <option value={city} key={index}>{city}</option>
+                                        ))
+                                    }
+                                }
+                                else
+                                {
+                                    return <option>UNKNOWN</option>
+                                }
+                            }
+                        )()}
                     </select> 
                     <div>
                         {/*Select District Type*/}

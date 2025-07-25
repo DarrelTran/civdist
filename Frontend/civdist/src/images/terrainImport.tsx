@@ -24,33 +24,34 @@ import tundra_mountain from './terrain/tundra_mountain.png';
 import tundra_forest from './terrain/tundra_forest.png'
 import tundra_hills_forest from './terrain/tundra_hills_forest.png'
 import tundra from './terrain/tundra.png';
+import { ImageTerrainType } from '../utils/types';
 
-export 
+export const allTerrainImages: Record<ImageTerrainType, string> = 
 {
-  coast,
-  desert_hills,
-  desert_mountain,
-  desert,
-  grass_hills,
-  grass_mountain,
-  grass_forest,
-  grass_hills_forest,
-  grass,
-  ocean,
-  plains_hills,
-  plains_mountain,
-  plains_forest,
-  plains_hills_forest,
-  plains_jungle,
-  plains_hills_jungle,
-  plains,
-  river,
-  snow_hills,
-  snow_mountain,
-  snow,
-  tundra_hills,
-  tundra_mountain,
-  tundra_forest,
-  tundra_hills_forest,
-  tundra
+  [ImageTerrainType.COAST]: coast,
+  [ImageTerrainType.DESERT_HILLS]: desert_hills,
+  [ImageTerrainType.DESERT_MOUNTAIN]: desert_mountain,
+  [ImageTerrainType.DESERT]: desert,
+  [ImageTerrainType.GRASS_HILLS]: grass_hills,
+  [ImageTerrainType.GRASS_MOUNTAIN]: grass_mountain,
+  [ImageTerrainType.GRASS_FOREST]: grass_forest,
+  [ImageTerrainType.GRASS_HILLS_FOREST]: grass_hills_forest,
+  [ImageTerrainType.GRASS]: grass,
+  [ImageTerrainType.OCEAN]: ocean,
+  [ImageTerrainType.PLAINS_HILLS]: plains_hills,
+  [ImageTerrainType.PLAINS_MOUNTAIN]: plains_mountain,
+  [ImageTerrainType.PLAINS_FOREST]: plains_forest,
+  [ImageTerrainType.PLAINS_HILLS_FOREST]: plains_hills_forest,
+  [ImageTerrainType.PLAINS_JUNGLE]: plains_jungle,
+  [ImageTerrainType.PLAINS_HILLS_JUNGLE]: plains_hills_jungle,
+  [ImageTerrainType.PLAINS]: plains,
+  [ImageTerrainType.RIVER]: river,
+  [ImageTerrainType.SNOW_HILLS]: snow_hills,
+  [ImageTerrainType.SNOW_MOUNTAIN]: snow_mountain,
+  [ImageTerrainType.SNOW]: snow,
+  [ImageTerrainType.TUNDRA_HILLS]: tundra_hills,
+  [ImageTerrainType.TUNDRA_MOUNTAIN]: tundra_mountain,
+  [ImageTerrainType.TUNDRA_FOREST]: tundra_forest,
+  [ImageTerrainType.TUNDRA_HILLS_FOREST]: tundra_hills_forest,
+  [ImageTerrainType.TUNDRA]: tundra
 };

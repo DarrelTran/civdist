@@ -10,20 +10,20 @@ import piopiotahi from './natural_wonders/piopiotahi2.png'
 import torres_del_paine from './natural_wonders/torres_del_paine2.png'
 import tsingy_de_bemaraha from './natural_wonders/tsingy_de_bemaraha2.png'
 import yosemite from './natural_wonders/yosemite2.png'
+import { ImageNaturalWondersType } from '../utils/types'
 
-
-export 
+export const allNaturalWonderImages: Record<ImageNaturalWondersType, string> = 
 {
-  cliffs_of_dover,
-  crater_lake,
-  dead_sea,
-  galapagos_islands,
-  great_barrier_reef,
-  mount_everest,
-  mount_lilimanjaro,
-  pantanal,
-  piopiotahi,
-  torres_del_paine,
-  tsingy_de_bemaraha,
-  yosemite
+  [ImageNaturalWondersType.CLIFFS_OF_DOVER]: cliffs_of_dover,
+  [ImageNaturalWondersType.CRATER_LAKE]: crater_lake,
+  [ImageNaturalWondersType.DEAD_SEA]: dead_sea,
+  [ImageNaturalWondersType.GALAPAGOS_ISLANDS]: galapagos_islands,
+  [ImageNaturalWondersType.GREAT_BARRIER_REEF]: great_barrier_reef,
+  [ImageNaturalWondersType.MOUNT_EVEREST]: mount_everest,
+  [ImageNaturalWondersType.MOUNT_LILIMANJARO]: mount_lilimanjaro,
+  [ImageNaturalWondersType.PANTANAL]: pantanal,
+  [ImageNaturalWondersType.PIOPIOTAHI]: piopiotahi,
+  [ImageNaturalWondersType.TORRES_DEL_PAINE]: torres_del_paine,
+  [ImageNaturalWondersType.TSINGY_DE_BEMARAHA]: tsingy_de_bemaraha,
+  [ImageNaturalWondersType.YOSEMITE]: yosemite
 };

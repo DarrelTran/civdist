@@ -11,20 +11,21 @@ import neighborhood_district from './districts/neighborhood_district2.png';
 import rocket_district from './districts/rocket_district2.png';
 import science_district from './districts/science_district2.png';
 import theater_district from './districts/theater_district2.png';
+import { ImageDistrictType } from '../utils/types';
 
-export 
+export const allDistrictImages: Record<ImageDistrictType, string> = 
 {
-  aqueduct_district,
-  aerodome_district,
-  center_district,
-  commercial_district,
-  encampment_district,
-  entertainment_district,
-  faith_district,
-  harbor_district,
-  industrial_district,
-  neighborhood_district,
-  rocket_district,
-  science_district,
-  theater_district
+  [ImageDistrictType.AQUEDUCT_DISTRICT]: aqueduct_district,
+  [ImageDistrictType.AERODOME_DISTRICT]: aerodome_district,
+  [ImageDistrictType.CENTER_DISTRICT]: center_district,
+  [ImageDistrictType.COMMERCIAL_DISTRICT]: commercial_district,
+  [ImageDistrictType.ENCAMPMENT_DISTRICT]: encampment_district,
+  [ImageDistrictType.ENTERTAINMENT_DISTRICT]: entertainment_district,
+  [ImageDistrictType.FAITH_DISTRICT]: faith_district,
+  [ImageDistrictType.HARBOR_DISTRICT]: harbor_district,
+  [ImageDistrictType.INDUSTRIAL_DISTRICT]: industrial_district,
+  [ImageDistrictType.NEIGHBORHOOD_DISTRICT]: neighborhood_district,
+  [ImageDistrictType.ROCKET_DISTRICT]: rocket_district,
+  [ImageDistrictType.SCIENCE_DISTRICT]: science_district,
+  [ImageDistrictType.THEATER_DISTRICT]: theater_district
 };

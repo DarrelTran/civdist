@@ -1,21 +1,17 @@
-import React, {useEffect, useState, useRef, useCallback, JSX} from 'react';
+import React, {useEffect, useState, useRef, useCallback, JSX, cache} from 'react';
 import { Link } from 'react-router-dom';
 import './mapPage.css'
 import './allPages.css';
 import mapData from '../json/test2.json'
-import {HexType, RiverDirections, TileType} from '../utils/types'
+import {Civ6Names, HexType, ImageDistrictType, ImageNaturalWondersType, ImageTerrainType, ImageWondersType, RiverDirections, TileType} from '../utils/types'
 
-// terrain images
-import {coast, desert_hills, desert_mountain, desert, grass_hills, grass_mountain, grass_forest, grass_hills_forest, grass, ocean, plains_hills, plains_mountain, plains_forest, plains_hills_forest, plains_jungle, plains_hills_jungle, plains, river, snow_hills, snow_mountain, snow, tundra_hills, tundra_mountain, tundra_forest, tundra_hills_forest, tundra} from '../images/terrainImport'
-// district images
-import {aqueduct_district, aerodome_district, center_district, commercial_district, encampment_district, entertainment_district, faith_district, harbor_district, industrial_district, neighborhood_district, rocket_district, science_district, theater_district} from '../images/districtImport'
-// natural wonder images
-import { cliffs_of_dover, crater_lake, dead_sea, galapagos_islands, great_barrier_reef, mount_everest, mount_lilimanjaro, pantanal, piopiotahi, torres_del_paine, tsingy_de_bemaraha, yosemite } from '../images/naturalWondersImport';
-// wonder images
-import {alhambra, big_ben, bolshoi_theatre, broadway, chichen_itza, colosseum, colossus, cristo_redentor, eiffel_tower, estadio_do_maracana, forbidden_city, great_library, great_zimbabwe, great_lighthouse, hagia_sophia, hanging_gardens, hermitage, huey_teocalli, mahabodhi_temple, mont_st_michel, oracle, oxford_university, petra, potala_palace, pyramids, ruhr_valley, stonehenge, sydney_opera_house, terracotta_army, venetian_arsenal} from '../images/wondersImport'
+import { loadDistrictImages, loadNaturalWonderImages, loadTerrainImages, loadWonderImages } from '../utils/imageLoaders';
+import { getTerrain, getDistrict, getNaturalWonder, getWonder } from '../utils/imageAttributeFinders';
 
 /*
 /////////////////////////////////////////////////////////////////
+TODO: Add minimum grid/map size.
+
 TODO: Add loading warning/prompt when map is being drawn
 
 TODO: Diplomatic quarter not in base game???
@@ -28,7 +24,7 @@ TODO: Parse and save mapData to modify it so users can save their map? Change im
 
 TODO: Refactor code to make it nicer. Probably refactor drawing functions to make the more generic????
 
-TODO: Read random comments to see if any extra issues need fixing.
+TODO: Add documentation to functions. Read random comments to see if any extra issues need fixing.
 
 /////////////////////////////////////////////////////////////////
 */
@@ -68,12 +64,31 @@ const MapPage = () =>
      */
     const hexMapOffset = {x: tileSize.x * 2, y: tileSize.y * 2};
 
+    const imageCache = useRef<Map<string, TileType>>(new Map()); // oddr coords, {image, tile}
+    const cacheVersion = useState<number>(0);
+
     const theCanvas = useRef<HTMLCanvasElement>(null);
-    const imageCache = useRef<Map<string, {img: HTMLImageElement, tile: TileType}>>(new Map()); // oddr coords, {image, tile}
     const scrollRef = useRef<HTMLDivElement>(null);
     const zoomInputRef = useRef<HTMLInputElement>(null);
     const civDropdownRef = useRef<HTMLSelectElement>(null);
     const cityDropdownRef = useRef<HTMLSelectElement>(null);
+
+    const terrainImagesCache = useRef<Map<ImageTerrainType, HTMLImageElement>>(new Map());
+    const wondersImagesCache = useRef<Map<ImageWondersType, HTMLImageElement>>(new Map());
+    const naturalWondersImagesCache = useRef<Map<ImageNaturalWondersType, HTMLImageElement>>(new Map());
+    const districtsImagesCache = useRef<Map<ImageDistrictType, HTMLImageElement>>(new Map());
+
+    const [areImagesLoaded, setAreImagesLoaded] = useState<boolean>(false);
+
+    async function loadAllImages()
+    {
+        await loadTerrainImages(terrainImagesCache.current);
+        await loadWonderImages(wondersImagesCache.current);
+        await loadNaturalWonderImages(naturalWondersImagesCache.current);
+        await loadDistrictImages(districtsImagesCache.current);
+
+        setAreImagesLoaded(true);
+    }
 
     function getTextWidth(text: string, font: string)
     {
@@ -192,45 +207,10 @@ const MapPage = () =>
 
     function drawRiversFromCache(context: CanvasRenderingContext2D)
     {
-        imageCache.current.forEach((value, oddr) => 
+        imageCache.current.forEach((tile, oddr) => 
         {
             const [col, row] = oddr.split(',').map(Number);
             const px = oddrToPixel(col, row, tileSize.x, tileSize.y);
-
-            let RiverEFlow = value.tile.RiverEFlow;
-            let RiverSEFlow = value.tile.RiverSEFlow;
-            let RiverSWFlow = value.tile.RiverSWFlow;
-
-            let IsNEOfRiver = value.tile.IsNEOfRiver;
-            let IsNWOfRiver = value.tile.IsNWOfRiver;
-            let IsWOfRiver = value.tile.IsWOfRiver;
-
-            context.globalAlpha = 0.75;
-
-            if (RiverEFlow !== "NONE")
-                drawRiver6PossibleDirections(context, RiverDirections.EAST, px);
-            if (RiverSEFlow !== "NONE")
-                drawRiver6PossibleDirections(context, RiverDirections.SOUTHEAST, px);
-            if (RiverSWFlow !== "NONE")
-                drawRiver6PossibleDirections(context, RiverDirections.SOUTHWEST, px);
-
-            // draw missing rivers
-            if (IsNEOfRiver)
-                drawRiver6PossibleDirections(context, RiverDirections.SOUTHWEST, px);
-            if (IsNWOfRiver)
-                drawRiver6PossibleDirections(context, RiverDirections.SOUTHEAST, px);
-            if (IsWOfRiver)
-                drawRiver6PossibleDirections(context, RiverDirections.EAST, px);
-
-            context.globalAlpha = 1;
-        });
-    }
-
-    function drawRiversNoCache(context: CanvasRenderingContext2D)
-    {
-        mapData.forEach(tile => 
-        {
-            const px = oddrToPixel(tile.X, tile.Y, tileSize.x, tileSize.y);
 
             let RiverEFlow = tile.RiverEFlow;
             let RiverSEFlow = tile.RiverSEFlow;
@@ -298,7 +278,7 @@ const MapPage = () =>
                 const start = getHexPoint(i, center);
                 const end = getHexPoint((i + 1) % 6, center);
 
-                drawLine(context, start, end, '#f0ff00', Math.min(tileSize.x, tileSize.y) / 20);
+                drawLine(context, start, end, 'yellow', Math.min(tileSize.x, tileSize.y) / 20);
             });
         });
     }
@@ -335,7 +315,7 @@ const MapPage = () =>
 
         let theOpacity = opacity;
 
-        imageCache.current.forEach((value, oddr) => 
+        imageCache.current.forEach((tile, oddr) => 
         {
             const [col, row] = oddr.split(',').map(Number);
             const px = oddrToPixel(col, row, tileSize.x, tileSize.y);
@@ -344,15 +324,15 @@ const MapPage = () =>
             {  
                 theOpacity = opacity;
 
-                if (value.tile.IsCity)
+                if (tile.IsCity)
                 {
                     textBoxPos = {x: px.x, y: px.y};
-                    textBoxText = value.tile.CityName;
+                    textBoxText = tile.CityName;
                 }
 
-                setCurrentTile(value.tile);
+                setCurrentTile(tile);
             }
-            else if (value.tile.IsCity && value.tile.CityName === dropdownCity)
+            else if (tile.IsCity && tile.CityName === dropdownCity)
             {
                 theOpacity = 0.25;
             }
@@ -361,7 +341,9 @@ const MapPage = () =>
                 theOpacity = 1;
             }
 
-            drawHexImage(context, value.tile, theOpacity, value.img);
+            const theImage = getImageAttributes(tile).imgElement;
+            if (theImage)
+                drawHexImage(context, tile, theOpacity, theImage);
         });
 
         drawRiversFromCache(context);
@@ -384,7 +366,7 @@ const MapPage = () =>
     {
         const context = theCanvas.current?.getContext('2d');
         const hoveredImg = imageCache.current.get(key);
-        if (hoveredImg && context && hoveredImg.img) 
+        if (hoveredImg && context) 
         {
             drawMapWithHoveredTile(context, oddrCoord, 0.3);
         }
@@ -441,12 +423,12 @@ const MapPage = () =>
                     setCurrentCity(currentTile);
 
                     let tempMap = new Map<string, string[]>();
-                    imageCache.current.forEach((value, oddr) => 
+                    imageCache.current.forEach((tile, oddr) => 
                     {
                         const [col, row] = oddr.split(',').map(Number);
 
                         let neighborList: string[] = [];
-                        if (value.tile.TileCity === currentTile.CityName)
+                        if (tile.TileCity === currentTile.CityName)
                         {
                             const offsets = (row % 2 === 0) ? [[1, 0], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1]] : [[1, 0], [1, 1], [0, 1], [-1, 0], [0, -1], [1, -1]];
                             offsets.forEach((neighbor) => 
@@ -455,7 +437,7 @@ const MapPage = () =>
                                 let neighborStringCoord = `${neighborCoord.x},${neighborCoord.y}`;
                                 let cacheTile = imageCache.current.get(neighborStringCoord);
 
-                                if (cacheTile && cacheTile.tile.TileCity !== currentTile.CityName)
+                                if (cacheTile && cacheTile.TileCity !== currentTile.CityName)
                                 {
                                     neighborList.push(neighborStringCoord);
                                 }
@@ -554,6 +536,8 @@ const MapPage = () =>
         };
         window.addEventListener('resize', handleResize);
 
+        loadAllImages();
+
         setDropdownValues();
 
         return () => window.removeEventListener('resize', handleResize);
@@ -576,24 +560,26 @@ const MapPage = () =>
     {
         context.clearRect(0, 0, context.canvas.width, context.canvas.height);
 
-        imageCache.current.forEach((value, oddr) => 
+        imageCache.current.forEach((tile, oddr) => 
         {
             let theOpacity = 1;
-            if (value.tile.IsCity && dropdownCity && value.tile.CityName === dropdownCity)
+            if (tile.IsCity && dropdownCity && tile.CityName === dropdownCity)
                 theOpacity = 0.25;
 
-            drawHexImage(context, value.tile, theOpacity, value.img);
+            const theImage = getImageAttributes(tile).imgElement;
+            if (theImage)
+                drawHexImage(context, tile, theOpacity, theImage);
         });
 
         drawRiversFromCache(context);
         drawBorderLines(context);
-    }, [tileSize, gridSize, cityBoundaryTiles, dropdownCity]);
+    }, [tileSize, gridSize, cityBoundaryTiles, dropdownCity, areImagesLoaded]);
 
     const initImageCache = useCallback(() => 
     {
-        const imageCacheTemp = new Map<string, { img: HTMLImageElement, tile: TileType }>();
-        const imageCacheMountains = new Map<string, { img: HTMLImageElement, tile: TileType }>();
-        const imageCacheOther = new Map<string, { img: HTMLImageElement, tile: TileType }>();
+        const imageCacheTemp = new Map<string, TileType>();
+        const imageCacheMountains = new Map<string, TileType>();
+        const imageCacheOther = new Map<string, TileType>();
 
         let loadCount = 0;
         let totalTiles = mapData.length;
@@ -604,18 +590,16 @@ const MapPage = () =>
         mapData.forEach(tile => 
         {
             const imgAttributes = getImageAttributes(tile);
-            const img = new Image();
-            img.src = imgAttributes.imagePath;
+            const img = imgAttributes.imgElement;
 
-            img.onload = () => 
+            if (img)
             {
                 const key = `${tile.X},${tile.Y}`;
-                const entry = { img, tile };
 
                 if (tile.TerrainType?.includes("Mountain"))
-                    imageCacheMountains.set(key, entry);
+                    imageCacheMountains.set(key, tile);
                 else
-                    imageCacheOther.set(key, entry);
+                    imageCacheOther.set(key, tile);
 
                 loadCount++;
 
@@ -628,7 +612,7 @@ const MapPage = () =>
 
                     drawMapFromCache(context);
                 }
-            };
+            }
         });
     }, [drawMapFromCache]);
 
@@ -647,7 +631,7 @@ const MapPage = () =>
             if (context) 
                 drawMapFromCache(context);
         }
-    }, [dropdownCity, initImageCache, drawMapFromCache]);
+    }, [dropdownCity, areImagesLoaded, initImageCache, drawMapFromCache]);
 
     const handleZoomChange = useCallback((zoomLevel: number) =>
     {
@@ -714,9 +698,9 @@ const MapPage = () =>
                 />
             </div>
 
-            <div style={{alignContent: 'center'}}>
+            <div style={{alignContent: 'center', marginLeft: '10px', paddingLeft: '5px', paddingRight: '5px', marginRight: '10px', border: '1px solid black'}}>
                 <div style={{display: 'grid'}}>
-                    <div style={{display: 'block'}}>
+                    <div style={{display: 'flex'}}>
                         Include City States
                         <input type='checkbox' onChange={(e) => {setIncludeCityStates(e.target.checked)}}/>
                     </div>
@@ -783,7 +767,7 @@ const MapPage = () =>
                         <button>ADD</button>
                     </div>
                     <div>
-                        Zoom Level
+                        <span style={{paddingRight: '5px'}}>Zoom Level:</span>
                         <input 
                             onKeyDown={e => handleKeyDown(e)} 
                             onClick={e => handleClick(e)} 
@@ -796,14 +780,20 @@ const MapPage = () =>
                             onBlur={e => handleZoomChange(Number(e.target.value))}
                         />
                     </div>
-                    <div style={{display: 'inline-block'}}>
-                        <button>SAVE</button> 
-                        <button>LOAD</button>
+                    <div style={{display: 'grid'}}>
+                        <div style={{display: 'flex', alignItems: 'center'}}>
+                            <label style={{width: '50px'}}>SAVE:</label>
+                            <input type='file' id='saveFile'/>
+                        </div>
+                        <div style={{display: 'flex', alignItems: 'center'}}>
+                            <label style={{width: '50px'}}>LOAD:</label>
+                            <input type='file' id='loadFile'/>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/*<button onClick={testStuff}>TEST BUTTON</button>*/}
+            {<button onClick={testStuff}>TEST BUTTON</button>}
         </div>
     );
 
@@ -943,99 +933,28 @@ const MapPage = () =>
      * @param tile 
      * Hex tile of TileType.
      * @returns 
-     * The image type where imageType is the path to the actual image and scaleType returns the generic kind of image that will be displayed. Districts, wonders, and natural wonders will take priority over terrain. Returns an empty string if the tile cannot be resolved.
+     * The image type where imageType is the path to the actual image and scaleType returns the generic kind of image that will be displayed.
+     * Returns an empty string if the tile cannot be resolved.
+     * Assumes that the terrain, district, wonder, and natural wonder maps are already initialized.
+     * - Prioritization: Natural wonders > wonders > districts > terrain
      */
-    function getImageAttributes(tile: TileType): {imagePath: string, scaleType: number}
+    function getImageAttributes(tile: TileType): {imgElement: HTMLImageElement | undefined, scaleType: number}
     {    
-        /*************************************************************  natural wonders **************************************************************/
-        if (tile.FeatureType === "Cliffs of Dover")                                             return {imagePath: cliffs_of_dover, scaleType: HexType.TERRAIN};
-        else if (tile.FeatureType === "Mount Kilimanjaro")                                      return {imagePath: mount_lilimanjaro, scaleType: HexType.TERRAIN};
-        else if (tile.FeatureType === "Crater Lake")                                            return {imagePath: crater_lake, scaleType: HexType.TERRAIN};
-        else if (tile.FeatureType === "Dead Sea")                                               return {imagePath: dead_sea, scaleType: HexType.TERRAIN};
-        else if (tile.FeatureType === "Galápagos Islands")                                      return {imagePath: galapagos_islands, scaleType: HexType.TERRAIN};
-        else if (tile.FeatureType === "Pantanal")                                               return {imagePath: pantanal, scaleType: HexType.TERRAIN};
-        else if (tile.FeatureType === "Piopiotahi")                                             return {imagePath: piopiotahi, scaleType: HexType.TERRAIN};
-        else if (tile.FeatureType === "Torres del Paine")                                       return {imagePath: torres_del_paine, scaleType: HexType.TERRAIN};
-        else if (tile.FeatureType === "Tsingy de Bemaraha")                                     return {imagePath: tsingy_de_bemaraha, scaleType: HexType.TERRAIN};
-        else if (tile.FeatureType === "Yosemite")                                               return {imagePath: yosemite, scaleType: HexType.TERRAIN};
-        /*************************************************************  wonders        ****************************************************************/
-        else if (tile.Wonder === "BUILDING_ALHAMBRA")                                           return {imagePath: alhambra, scaleType: HexType.DISTRICT};
-        else if (tile.Wonder === "BUILDING_BIG_BEN")                                            return {imagePath: big_ben, scaleType: HexType.DISTRICT};
-        else if (tile.Wonder === "BUILDING_BOLSHOI_THEATRE")                                    return {imagePath: bolshoi_theatre, scaleType: HexType.DISTRICT};
-        else if (tile.Wonder === "BUILDING_BROADWAY")                                           return {imagePath: broadway, scaleType: HexType.DISTRICT};
-        else if (tile.Wonder === "BUILDING_CHICHEN_ITZA")                                       return {imagePath: chichen_itza, scaleType: HexType.DISTRICT};
-        else if (tile.Wonder === "BUILDING_COLOSSEUM")                                          return {imagePath: colosseum, scaleType: HexType.DISTRICT};
-        else if (tile.Wonder === "BUILDING_COLOSSUS")                                           return {imagePath: colossus, scaleType: HexType.DISTRICT};
-        else if (tile.Wonder === "BUILDING_CRISTO_REDENTOR")                                    return {imagePath: cristo_redentor, scaleType: HexType.DISTRICT};
-        else if (tile.Wonder === "BUILDING_EIFFEL_TOWER")                                       return {imagePath: eiffel_tower, scaleType: HexType.DISTRICT};
-        else if (tile.Wonder === "BUILDING_ESTADIO_DO_MARACANA")                                return {imagePath: estadio_do_maracana, scaleType: HexType.DISTRICT};
-        else if (tile.Wonder === "BUILDING_FORBIDDEN_CITY")                                     return {imagePath: forbidden_city, scaleType: HexType.DISTRICT};
-        else if (tile.Wonder === "BUILDING_GREAT_LIBRARY")                                      return {imagePath: great_library, scaleType: HexType.DISTRICT};
-        else if (tile.Wonder === "BUILDING_GREAT_LIGHTHOUSE")                                   return {imagePath: great_lighthouse, scaleType: HexType.DISTRICT};
-        else if (tile.Wonder === "BUILDING_GREAT_ZIMBABWE")                                     return {imagePath: great_zimbabwe, scaleType: HexType.DISTRICT};
-        else if (tile.Wonder === "BUILDING_HAGIA_SOPHIA")                                       return {imagePath: hagia_sophia, scaleType: HexType.DISTRICT};
-        else if (tile.Wonder === "BUILDING_HANGING_GARDENS")                                    return {imagePath: hanging_gardens, scaleType: HexType.DISTRICT};
-        else if (tile.Wonder === "BUILDING_HERMITAGE")                                          return {imagePath: hermitage, scaleType: HexType.DISTRICT};
-        else if (tile.Wonder === "BUILDING_HUEY_TEOCALLI")                                      return {imagePath: huey_teocalli, scaleType: HexType.DISTRICT};
-        else if (tile.Wonder === "BUILDING_MAHABODHI_TEMPLE")                                   return {imagePath: mahabodhi_temple, scaleType: HexType.DISTRICT};
-        else if (tile.Wonder === "BUILDING_MONT_ST_MICHEL")                                     return {imagePath: mont_st_michel, scaleType: HexType.DISTRICT};
-        else if (tile.Wonder === "BUILDING_ORACLE")                                             return {imagePath: oracle, scaleType: HexType.DISTRICT};
-        else if (tile.Wonder === "BUILDING_OXFORD_UNIVERSITY")                                  return {imagePath: oxford_university, scaleType: HexType.DISTRICT};
-        else if (tile.Wonder === "BUILDING_PETRA")                                              return {imagePath: petra, scaleType: HexType.DISTRICT};
-        else if (tile.Wonder === "BUILDING_POTALA_PALACE")                                      return {imagePath: potala_palace, scaleType: HexType.DISTRICT};
-        else if (tile.Wonder === "BUILDING_PYRAMIDS")                                           return {imagePath: pyramids, scaleType: HexType.DISTRICT};
-        else if (tile.Wonder === "BUILDING_RUHR_VALLEY")                                        return {imagePath: ruhr_valley, scaleType: HexType.DISTRICT};
-        else if (tile.Wonder === "BUILDING_STONEHENGE")                                         return {imagePath: stonehenge, scaleType: HexType.DISTRICT};
-        else if (tile.Wonder === "BUILDING_SYDNEY_OPERA_HOUSE")                                 return {imagePath: sydney_opera_house, scaleType: HexType.DISTRICT};
-        else if (tile.Wonder === "BUILDING_TERRACOTTA_ARMY")                                    return {imagePath: terracotta_army, scaleType: HexType.DISTRICT};
-        else if (tile.Wonder === "BUILDING_VENETIAN_ARSENAL")                                   return {imagePath: venetian_arsenal, scaleType: HexType.DISTRICT};
-        /*************************************************************  districts      ****************************************************************/
-        else if (tile.District === "DISTRICT_CITY_CENTER")                                      return {imagePath: center_district, scaleType: HexType.DISTRICT};
-        else if (tile.District === "DISTRICT_COMMERCIAL_HUB")                                   return {imagePath: commercial_district, scaleType: HexType.DISTRICT};
-        else if (tile.District === "DISTRICT_ENCAMPMENT")                                       return {imagePath: encampment_district, scaleType: HexType.DISTRICT};
-        else if (tile.District === "DISTRICT_ENTERTAINMENT_COMPLEX" || 
-                 tile.District === "DISTRICT_STREET_CARNIVAL")                                  return {imagePath: entertainment_district, scaleType: HexType.DISTRICT};
-        else if (tile.District === "DISTRICT_HARBOR" || 
-                 tile.District === "DISTRICT_ROYAL_NAVY_DOCKYARD")                              return {imagePath: harbor_district, scaleType: HexType.DISTRICT};
-        else if (tile.District === "DISTRICT_HOLY_SITE" || 
-                 tile.District === "DISTRICT_LAVRA")                                            return {imagePath: faith_district, scaleType: HexType.DISTRICT};
-        else if (tile.District === "DISTRICT_THEATER" || 
-                 tile.District === "DISTRICT_ACROPOLIS")                                        return {imagePath: theater_district, scaleType: HexType.DISTRICT};
-        else if (tile.District === "DISTRICT_INDUSTRIAL_ZONE" || 
-                 tile.District === "DISTRICT_HANSA")                                            return {imagePath: industrial_district, scaleType: HexType.DISTRICT};
-        else if (tile.District === "DISTRICT_NEIGHBORHOOD" || 
-                 tile.District === "DISTRICT_MBANZA")                                           return {imagePath: neighborhood_district, scaleType: HexType.DISTRICT};
-        else if (tile.District === "DISTRICT_AQUEDUCT" || 
-                 tile.District === "DISTRICT_BATH")                                             return {imagePath: aqueduct_district, scaleType: HexType.DISTRICT};
-        else if (tile.District === "DISTRICT_SPACEPORT")                                        return {imagePath: rocket_district, scaleType: HexType.DISTRICT};
-        /*************************************************************  terrain       ******************************************************************/
-        else if (tile.TerrainType === "Ocean")                                                  return {imagePath: ocean, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Coast and Lake")                                         return {imagePath: coast, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Plains" && tile.FeatureType === "Rainforest")            return {imagePath: plains_jungle, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Plains" && tile.FeatureType === "Woods")                 return {imagePath: plains_forest, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Plains")                                                 return {imagePath: plains, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Plains (Hills)" && tile.FeatureType === "Rainforest")    return {imagePath: plains_hills_jungle, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Plains (Hills)" && tile.FeatureType === "Woods")         return {imagePath: plains_hills_forest, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Plains (Hills)")                                         return {imagePath: plains_hills, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Plains (Mountain)")                                      return {imagePath: plains_mountain, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Grassland" && tile.FeatureType === "Woods")              return {imagePath: grass_forest, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Grassland")                                              return {imagePath: grass, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Grassland (Hills)" && tile.FeatureType === "Woods")      return {imagePath: grass_hills_forest, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Grassland (Hills)")                                      return {imagePath: grass_hills, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Grassland (Mountain)")                                   return {imagePath: grass_mountain, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Desert")                                                 return {imagePath: desert, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Desert (Hills)")                                         return {imagePath: desert_hills, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Desert (Mountain)")                                      return {imagePath: desert_mountain, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Tundra" && tile.FeatureType === "Woods")                 return {imagePath: tundra_forest, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Tundra")                                                 return {imagePath: tundra, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Tundra (Hills)" && tile.FeatureType === "Woods")         return {imagePath: tundra_hills_forest, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Tundra (Hills)")                                         return {imagePath: tundra_hills, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Tundra (Mountain)")                                      return {imagePath: tundra_mountain, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Snow")                                                   return {imagePath: snow, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Snow (Hills)")                                           return {imagePath: snow_hills, scaleType: HexType.TERRAIN};
-        else if (tile.TerrainType === "Snow (Mountain)")                                        return {imagePath: snow_mountain, scaleType: HexType.TERRAIN};
+        const natWonder = getNaturalWonder(tile, naturalWondersImagesCache.current);
+        const wonder = getWonder(tile, wondersImagesCache.current);
+        const district = getDistrict(tile, districtsImagesCache.current);
+        const terrain = getTerrain(tile, terrainImagesCache.current);
 
-        return {imagePath: "", scaleType: -1};
+        if (natWonder.imgElement && natWonder.scaleType !== -1)
+            return natWonder;
+        else if (wonder.imgElement && wonder.scaleType !== -1)
+            return wonder;
+        else if (district.imgElement && district.scaleType !== -1)
+            return district;
+        else if (terrain.imgElement && terrain.scaleType !== -1)
+            return terrain;
+
+        return {imgElement: undefined, scaleType: -1};
     }
 
     /**
@@ -1087,7 +1006,7 @@ const MapPage = () =>
 
     function testStuff()
     {
-        console.log('winX: ' + gridSize.x + ' winY: ' + gridSize.y)
+        console.log(districtsImagesCache.current.size)
     }
 };
 

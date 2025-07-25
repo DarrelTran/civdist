@@ -1,0 +1,2 @@
+export const baseTileSize : number = 10;
+export const allPossibleDistricts = ["Campus", "Theater", "Holy Site", "Encampment", "Commercial Hub", "Harbor", "Industrial Zone", "Entertainment Complex", "Aqueduct", "Neighborhood", "Aerodome", "Spaceport"];

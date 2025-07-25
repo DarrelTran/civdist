@@ -2,39 +2,35 @@ import React, {useEffect, useState, useRef, useCallback, JSX, cache} from 'react
 import { Link } from 'react-router-dom';
 import './mapPage.css'
 import './allPages.css';
-import mapData from '../json/test2.json'
 import {Civ6Names, HexType, ImageDistrictType, ImageNaturalWondersType, ImageTerrainType, ImageWondersType, RiverDirections, TileType} from '../utils/types'
-
 import { loadDistrictImages, loadNaturalWonderImages, loadTerrainImages, loadWonderImages } from '../utils/imageLoaders';
 import { getTerrain, getDistrict, getNaturalWonder, getWonder } from '../utils/imageAttributeFinders';
+import { baseTileSize, allPossibleDistricts } from '../utils/constants';
+import { uglifyDistrictNames } from '../utils/localizeCivText';
 
 /*
 /////////////////////////////////////////////////////////////////
-TODO: Add minimum grid/map size.
-
 TODO: Add loading warning/prompt when map is being drawn
 
-TODO: Diplomatic quarter not in base game???
+TODO: Save map JSON to backend/database.
 
-TODO: Add toggable hover with tile data and resize if too long with max width
-
-TODO: Make toolbar on right of map. Fix weird display of the zoom box.
-
-TODO: Parse and save mapData to modify it so users can save their map? Change imageCache or minAndMaxCoords to useState since users can load new map? Make dropdown lists change content when new map is loaded.
+TODO: Retrieve all saved JSON maps from player profile. Max 5?
 
 TODO: Refactor code to make it nicer. Probably refactor drawing functions to make the more generic????
 
 TODO: Add documentation to functions. Read random comments to see if any extra issues need fixing.
 
+TODO: Add toggable hover with tile data and resize if too long with max width
+
 /////////////////////////////////////////////////////////////////
 */
 
-const baseTileSize : number = 10;
-const allPossibleDistricts = ["Campus", "Theater", "Holy Site", "Encampment", "Commercial Hub", "Harbor", "Industrial Zone", "Preserve", "Entertainment Complex", "Aqueduct", "Neighborhood", "Aerodome", "Spaceport", "Diplomatic Quarter"];
-
 const MapPage = () => 
 {
-    const minAndMaxCoords = useRef<{minX: number, maxX: number, minY: number, maxY: number}>(getMinMaxXY()); // coords never change
+    const imageCache = useRef<Map<string, TileType>>(new Map()); // oddr coords, {image, tile}
+    const [mapJSON, setMapJSON] = useState<TileType[]>([]);
+
+    const [minAndMaxCoords, setMinAndMaxCoords] = useState(getMinMaxXY(mapJSON));
 
     const [winSize, setWinSize] = useState<{width: number, height: number}>({width: window.innerWidth, height: window.innerHeight});
 
@@ -57,6 +53,7 @@ const MapPage = () =>
     const [dropdownCiv, setDropdownCiv] = useState<string>();
     const [includeCityStates, setIncludeCityStates] = useState<boolean>(false);
     const [dropdownCity, setDropdownCity] = useState<string>();
+    const [dropdownDistrict, setDropdownDistrict] = useState<string>(allPossibleDistricts[0]);
 
     /**
      * - Shifting hex img's by the subtraction seen in drawMap() keeps correct oddr coordinate detection but visuals will break
@@ -64,14 +61,12 @@ const MapPage = () =>
      */
     const hexMapOffset = {x: tileSize.x * 2, y: tileSize.y * 2};
 
-    const imageCache = useRef<Map<string, TileType>>(new Map()); // oddr coords, {image, tile}
-    const cacheVersion = useState<number>(0);
-
     const theCanvas = useRef<HTMLCanvasElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const zoomInputRef = useRef<HTMLInputElement>(null);
     const civDropdownRef = useRef<HTMLSelectElement>(null);
     const cityDropdownRef = useRef<HTMLSelectElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const terrainImagesCache = useRef<Map<ImageTerrainType, HTMLImageElement>>(new Map());
     const wondersImagesCache = useRef<Map<ImageWondersType, HTMLImageElement>>(new Map());
@@ -243,7 +238,7 @@ const MapPage = () =>
 
     function wrapCol(x: number)
     {
-        const { minX, maxX } = minAndMaxCoords.current;
+        const { minX, maxX } = minAndMaxCoords;
         const width = maxX - minX + 1;
         // assuming min starts at 0
         return ((x + width) % width);
@@ -251,7 +246,7 @@ const MapPage = () =>
 
     function wrapRow(y: number)
     {
-        const { minY, maxY } = minAndMaxCoords.current;
+        const { minY, maxY } = minAndMaxCoords;
         const height = maxY - minY + 1;
         return ((y + height) % height);
     };
@@ -399,7 +394,7 @@ const MapPage = () =>
 
     const handleMouseClick = useCallback((e: MouseEvent) => 
     {
-        const { minX, maxX, minY, maxY } = minAndMaxCoords.current;
+        const { minX, maxX, minY, maxY } = minAndMaxCoords;
         const mousePos = getMousePos(e);
 
         if (mousePos && scrollRef.current)
@@ -420,7 +415,8 @@ const MapPage = () =>
             {
                 if (!currentCity || (currentCity && currentCity.CityName !== currentTile.CityName))
                 {
-                    setCurrentCity(currentTile);
+                    if (currentCity && currentCity.CityName !== currentTile.CityName)
+                        setCurrentCity(currentTile);
 
                     let tempMap = new Map<string, string[]>();
                     imageCache.current.forEach((tile, oddr) => 
@@ -476,7 +472,7 @@ const MapPage = () =>
         };
     }, [handleMouseMove, handleMouseClick]);
 
-    function setDropdownValues()
+    function setDropdownValues(theJSON: TileType[])
     {
         let tempCivSet = new Set<string>();
         let tempCitySet = new Map<string, string[]>();
@@ -484,9 +480,9 @@ const MapPage = () =>
         let firstCiv = undefined;
         let firstCity = undefined;
 
-        for (let i = 0; i < mapData.length; i++)
+        for (let i = 0; i < theJSON.length; i++)
         {
-            const tile = mapData[i];
+            const tile = theJSON[i];
             if (tile.Civilization !== "NONE")
             {
                 tempCivSet.add(tile.Civilization);
@@ -523,9 +519,15 @@ const MapPage = () =>
 
     useEffect(() => 
     {
+        const civVal = civDropdownRef.current ? civDropdownRef.current.value : undefined;
+        const cityVal = cityDropdownRef.current ? cityDropdownRef.current.value : undefined;
+
         // get latest values
-        setDropdownCiv(civDropdownRef.current ? civDropdownRef.current.value : undefined);
-        setDropdownCity(cityDropdownRef.current ? cityDropdownRef.current.value : undefined);
+        if (civVal !== dropdownCiv)
+            setDropdownCiv(civVal);
+
+        if (cityVal !== dropdownCity)
+            setDropdownCity(cityVal);
     }, [includeCityStates, dropdownCity, dropdownCiv]) 
 
     useEffect(() => 
@@ -538,7 +540,8 @@ const MapPage = () =>
 
         loadAllImages();
 
-        setDropdownValues();
+        if (mapJSON)
+            setDropdownValues(mapJSON);
 
         return () => window.removeEventListener('resize', handleResize);
     }, []);
@@ -554,7 +557,7 @@ const MapPage = () =>
             setTileSize({x: sizes.tileX, y: sizes.tileY});
             setGridSize({x: sizes.gridX, y: sizes.gridY});
         }
-    }, [winSize]);
+    }, [winSize, minAndMaxCoords]);
 
     const drawMapFromCache = useCallback((context: CanvasRenderingContext2D) =>
     {
@@ -573,7 +576,7 @@ const MapPage = () =>
 
         drawRiversFromCache(context);
         drawBorderLines(context);
-    }, [tileSize, gridSize, cityBoundaryTiles, dropdownCity, areImagesLoaded]);
+    }, [tileSize, gridSize, cityBoundaryTiles, dropdownCity, areImagesLoaded, mapJSON]);
 
     const initImageCache = useCallback(() => 
     {
@@ -582,12 +585,12 @@ const MapPage = () =>
         const imageCacheOther = new Map<string, TileType>();
 
         let loadCount = 0;
-        let totalTiles = mapData.length;
+        let totalTiles = mapJSON.length;
 
         const context = theCanvas.current?.getContext('2d');
         if (!context) return;
 
-        mapData.forEach(tile => 
+        mapJSON.forEach(tile => 
         {
             const imgAttributes = getImageAttributes(tile);
             const img = imgAttributes.imgElement;
@@ -614,12 +617,12 @@ const MapPage = () =>
                 }
             }
         });
-    }, [drawMapFromCache]);
+    }, [drawMapFromCache, mapJSON]);
 
     useEffect(() => 
     {
-        // wait until the dropdown city is ready
-        if (!dropdownCity) return;
+        // wait until the necessary data is ready
+        if (!dropdownCity || !areImagesLoaded || mapJSON.length === 0) return;
 
         if (imageCache.current.size === 0) 
         {
@@ -631,7 +634,7 @@ const MapPage = () =>
             if (context) 
                 drawMapFromCache(context);
         }
-    }, [dropdownCity, areImagesLoaded, initImageCache, drawMapFromCache]);
+    }, [dropdownCity, areImagesLoaded, mapJSON, minAndMaxCoords, initImageCache, drawMapFromCache]);
 
     const handleZoomChange = useCallback((zoomLevel: number) =>
     {
@@ -664,7 +667,7 @@ const MapPage = () =>
         setGridSize({ x: sizes.gridX, y: sizes.gridY });
     }, [originalGridSize, originalTileSize]);
 
-    function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) 
+    function handleZoomKeyDown(e: React.KeyboardEvent<HTMLDivElement>) 
     {
         if (e.key === 'ArrowUp' || e.key === 'ArrowDown') 
         {
@@ -676,10 +679,58 @@ const MapPage = () =>
         }
     }
 
-    function handleClick(e: React.MouseEvent<HTMLInputElement>) 
+    function handleZoomClick(e: React.MouseEvent<HTMLInputElement>) 
     {
         zoomInputRef.current?.focus();
     };
+
+    function handleInputButtonClick()
+    {
+        fileInputRef.current?.click();
+    }
+
+    function resetInitialValues(theJSON: TileType[])
+    {
+        setDropdownValues(theJSON);
+        setMapJSON(theJSON);
+        setMinAndMaxCoords(getMinMaxXY(theJSON));
+        setCurrentTile(undefined);
+        setCurrentCity(undefined);
+        setCityBoundaryTiles(new Map());
+        setVisualZoomInput(100);
+    }
+
+    function handleInputChange(e: React.ChangeEvent<HTMLInputElement>)
+    {
+        const file = e.target.files?.[0];
+
+        if (imageCache && file)
+        {
+            imageCache.current = new Map();
+
+            const reader = new FileReader();
+
+            reader.onload = () => 
+            {
+                try
+                {
+                    const json = JSON.parse(reader.result as string);
+                    resetInitialValues(json);
+                }
+                catch(error)
+                {
+                    console.log(error)
+                }
+            }
+
+            reader.readAsText(file);
+        }
+    }   
+
+    const handleAddButton = useCallback(() => 
+    {
+        console.log('dist: ' + dropdownDistrict)
+    }, [dropdownDistrict])
 
     return (
         <div style={{display: 'flex'}}>
@@ -724,7 +775,7 @@ const MapPage = () =>
                                 if (elements.length > 0)
                                     return elements;
                                 else
-                                    return <option>UNKNOWN</option>
+                                    return <option>Unknown Civilization</option>
                             }
                         )()}
                     </select> 
@@ -749,14 +800,14 @@ const MapPage = () =>
                                 }
                                 else
                                 {
-                                    return <option>UNKNOWN</option>
+                                    return <option>Unknown City</option>
                                 }
                             }
                         )()}
                     </select> 
                     <div>
                         {/*Select District Type*/}
-                        <select>
+                        <select onChange={e => {setDropdownDistrict(e.target.value)}}>
                             {
                                 allPossibleDistricts.map((value, index) => 
                                 (
@@ -764,13 +815,13 @@ const MapPage = () =>
                                 ))
                             }
                         </select> 
-                        <button>ADD</button>
+                        <button onClick={handleAddButton}>ADD</button>
                     </div>
                     <div>
                         <span style={{paddingRight: '5px'}}>Zoom Level:</span>
                         <input 
-                            onKeyDown={e => handleKeyDown(e)} 
-                            onClick={e => handleClick(e)} 
+                            onKeyDown={e => handleZoomKeyDown(e)} 
+                            onClick={e => handleZoomClick(e)} 
                             ref={zoomInputRef} 
                             type='number' 
                             min={50} 
@@ -782,12 +833,18 @@ const MapPage = () =>
                     </div>
                     <div style={{display: 'grid'}}>
                         <div style={{display: 'flex', alignItems: 'center'}}>
-                            <label style={{width: '50px'}}>SAVE:</label>
-                            <input type='file' id='saveFile'/>
+                            <button>SAVE</button>
                         </div>
                         <div style={{display: 'flex', alignItems: 'center'}}>
-                            <label style={{width: '50px'}}>LOAD:</label>
-                            <input type='file' id='loadFile'/>
+                            <button onClick={handleInputButtonClick}>LOAD FROM DISK</button>
+                            <input style={{display: 'none'}} type='file' ref={fileInputRef} onChange={e => handleInputChange(e)} accept='.json'/>
+                        </div>
+                        <div style={{display: 'flex', alignItems: 'center'}}>
+                            <label>LOAD FROM PROFILE
+                                <select>
+
+                                </select>
+                            </label>
                         </div>
                     </div>
                 </div>
@@ -812,7 +869,7 @@ const MapPage = () =>
 
     function getScaledGridSizesFromTile(tileSize: {x: number, y: number}) 
     {
-        const { minX, maxX, minY, maxY } = getMinMaxXY();
+        const { minX, maxX, minY, maxY } = getMinMaxXY(mapJSON);
         const mapCols = maxX - minX + 1;
         const mapRows = maxY - minY + 1;
 
@@ -879,10 +936,10 @@ const MapPage = () =>
         return axialToOddr(pixelToAxial(point, size));
     }
 
-    function getMinMaxXY() 
+    function getMinMaxXY(theJSON: TileType[]) 
     {
-        const allX = mapData.map(tile => tile.X);
-        const allY = mapData.map(tile => tile.Y);
+        const allX = theJSON.map(tile => tile.X);
+        const allY = theJSON.map(tile => tile.Y);
 
         return {
             minX: Math.min(...allX),
@@ -894,7 +951,7 @@ const MapPage = () =>
 
     function getTileScaleOddr(): number 
     {
-        const { minX, maxX, minY, maxY } = minAndMaxCoords.current;
+        const { minX, maxX, minY, maxY } = minAndMaxCoords;
 
         const mapCols = maxX - minX + 1;
         const mapRows = maxY - minY + 1;
@@ -911,10 +968,18 @@ const MapPage = () =>
     function getScaledGridAndTileSizes(baseTileSize: number): { tileX: number, tileY: number, gridX: number, gridY: number } 
     {
         const scale = getTileScaleOddr();
-        const tileW = baseTileSize * scale;
-        const tileH = baseTileSize * scale;
+        let tileW = baseTileSize * scale;
+        let tileH = baseTileSize * scale;
 
-        const { minX, maxX, minY, maxY } = minAndMaxCoords.current;
+        const minTileW = 8;
+        const minTileH = 8;
+
+        if (tileW < minTileW)
+            tileW = minTileW;
+        if (tileH < minTileH)
+            tileH = minTileH;
+
+        const { minX, maxX, minY, maxY } = minAndMaxCoords;
 
         const mapCols = maxX - minX + 1;
         const mapRows = maxY - minY + 1;
@@ -1006,7 +1071,7 @@ const MapPage = () =>
 
     function testStuff()
     {
-        console.log(districtsImagesCache.current.size)
+        console.log('gridX: ' + gridSize.x + ' gridY ' + gridSize.y + ' and tileX ' + tileSize.x + ' and tileY ' + tileSize.y)
     }
 };
 

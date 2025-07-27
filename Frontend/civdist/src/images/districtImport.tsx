@@ -16,7 +16,7 @@ import { ImageDistrictType } from '../utils/types';
 export const allDistrictImages: Record<ImageDistrictType, string> = 
 {
   [ImageDistrictType.AQUEDUCT_DISTRICT]: aqueduct_district,
-  [ImageDistrictType.AERODOME_DISTRICT]: aerodome_district,
+  [ImageDistrictType.AERODROME_DISTRICT]: aerodome_district,
   [ImageDistrictType.CENTER_DISTRICT]: center_district,
   [ImageDistrictType.COMMERCIAL_DISTRICT]: commercial_district,
   [ImageDistrictType.ENCAMPMENT_DISTRICT]: encampment_district,

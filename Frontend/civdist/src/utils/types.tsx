@@ -133,7 +133,7 @@ export enum ImageNaturalWondersType
 export enum ImageDistrictType
 {
   AQUEDUCT_DISTRICT = 'AQUEDUCT_DISTRICT',
-  AERODOME_DISTRICT = 'AERODOME_DISTRICT',
+  AERODROME_DISTRICT = 'AERODROME_DISTRICT',
   CENTER_DISTRICT = 'CENTER_DISTRICT',
   COMMERCIAL_DISTRICT = 'COMMERCIAL_DISTRICT',
   ENCAMPMENT_DISTRICT = 'ENCAMPMENT_DISTRICT',
@@ -147,7 +147,7 @@ export enum ImageDistrictType
   THEATER_DISTRICT = 'THEATER_DISTRICT'
 }
 
-export enum Civ6Names
+export enum TileNames
 {
   CLIFFS_OF_DOVER = 'Cliffs of Dover',
   CRATER_LAKE = 'CRATER_LAKE',
@@ -195,7 +195,7 @@ export enum Civ6Names
 
   AQUEDUCT_DISTRICT = 'DISTRICT_AQUEDUCT',
   BATH_DISTRICT = 'DISTRICT_BATH',
-  AERODOME_DISTRICT = 'DISTRICT_AERODROME',
+  AERODROME_DISTRICT = 'DISTRICT_AERODROME',
   CENTER_DISTRICT = 'DISTRICT_CITY_CENTER',
   COMMERCIAL_DISTRICT = 'DISTRICT_COMMERCIAL_HUB',
   ENCAMPMENT_DISTRICT = 'DISTRICT_ENCAMPMENT',
@@ -234,4 +234,28 @@ export enum Civ6Names
 
   RAINFOREST = 'Rainforest',
   WOODS = 'Woods'
+}
+
+export enum LeaderName
+{
+  TEDDY_ROOSEVELT = "Teddy Roosevelt",
+  SALADIN = "Saladin",
+  PEDRO_II = "Pedro II",
+  QIN_SHI_HUANG = "Qin Shi Huang",
+  CLEOPATRA = "Cleopatra",
+  VICTORIA = "Victoria",
+  CATHERINE_DE_MEDICI = "Catherine de Medici",
+  FREDERICK_BARBAROSSA = "Frederick Barbarossa",
+  PERICLES = "Pericles",
+  GORGO = "Gorgo",
+  GANDHI = "Gandhi",
+  HOJO_TOKIMUNE = "Hojo Tokimune",
+  MVEMBA_A_NZINGA = "Mvemba a Nzinga",
+  PETER_THE_GREAT = "Peter the Great",
+  TOMYRIS = "Tomyris",
+  GILGAMESH = "Gilgamesh",
+  PHILIP_II = "Philip II",
+  HARALD_HARDRADA = "Harald Hardrada",
+  TRAJAN = "Trajan",
+  MONTEZUMA_I = "Montezuma I"
 }

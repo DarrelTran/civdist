@@ -2,32 +2,41 @@ import React, {useEffect, useState, useRef, useCallback, JSX, cache} from 'react
 import { Link } from 'react-router-dom';
 import './mapPage.css'
 import './allPages.css';
-import {Civ6Names, HexType, ImageDistrictType, ImageNaturalWondersType, ImageTerrainType, ImageWondersType, RiverDirections, TileType} from '../utils/types'
+import {TileNames, HexType, ImageDistrictType, ImageNaturalWondersType, ImageTerrainType, ImageWondersType, RiverDirections, TileType} from '../utils/types'
 import { loadDistrictImages, loadNaturalWonderImages, loadTerrainImages, loadWonderImages } from '../utils/imageLoaders';
 import { getTerrain, getDistrict, getNaturalWonder, getWonder } from '../utils/imageAttributeFinders';
 import { baseTileSize, allPossibleDistricts } from '../utils/constants';
 import { uglifyDistrictNames } from '../utils/localizeCivText';
 
+/***********  USING ODDR INSTEAD OF WHAT LOOKS LIKE EVENR BECAUSE Y IS FLIPPED ***********/
+
 /*
 /////////////////////////////////////////////////////////////////
 TODO: Add loading warning/prompt when map is being drawn
+
+TODO: Check bonuses in buildings/unique buildings too
+
+TODO: When getting entertainment/encampment/aqueduct/neighborhood/aerodrome/spaceport, check if it gets more adjacency for other districts and for encampment if its closer to a civ??
 
 TODO: Save map JSON to backend/database.
 
 TODO: Retrieve all saved JSON maps from player profile. Max 5?
 
-TODO: Refactor code to make it nicer. Probably refactor drawing functions to make the more generic????
+TODO: Refactor code to make it nicer/more organized and remove redundancies. Remove unnecessary useCallbacks. Remove unnecessary dependencies or refactor them.
 
 TODO: Add documentation to functions. Read random comments to see if any extra issues need fixing.
 
 TODO: Add toggable hover with tile data and resize if too long with max width
+
+TODO: Can civ6 cities have same name??
 
 /////////////////////////////////////////////////////////////////
 */
 
 const MapPage = () => 
 {
-    const imageCache = useRef<Map<string, TileType>>(new Map()); // oddr coords, {image, tile}
+    const hexmapCache = useRef<Map<string, TileType>>(new Map()); // oddr coords, tile
+    const [mapCacheVersion, setMapCacheVersion] = useState<number>(0);
     const [mapJSON, setMapJSON] = useState<TileType[]>([]);
 
     const [minAndMaxCoords, setMinAndMaxCoords] = useState(getMinMaxXY(mapJSON));
@@ -46,6 +55,7 @@ const MapPage = () =>
     const [currentCity, setCurrentCity] = useState<TileType>();
 
     const [cityBoundaryTiles, setCityBoundaryTiles] = useState<Map<string, string[]>>(new Map()); // <tile with boundary lines, neighboring tiles> - Uses the oddr coords
+    const [cityOwnedTiles, setCityOwnedTiles] = useState<Map<string, TileType[]>>(new Map()); // <city, city's tiles> - owned tiles should have a maximum limit of 36 tiles per city
 
     // assuming civ has at least one city
     const [uniqueCivilizations, setUniqueCivilizations] = useState<Set<string>>(new Set());
@@ -202,7 +212,7 @@ const MapPage = () =>
 
     function drawRiversFromCache(context: CanvasRenderingContext2D)
     {
-        imageCache.current.forEach((tile, oddr) => 
+        hexmapCache.current.forEach((tile, oddr) => 
         {
             const [col, row] = oddr.split(',').map(Number);
             const px = oddrToPixel(col, row, tileSize.x, tileSize.y);
@@ -310,7 +320,7 @@ const MapPage = () =>
 
         let theOpacity = opacity;
 
-        imageCache.current.forEach((tile, oddr) => 
+        hexmapCache.current.forEach((tile, oddr) => 
         {
             const [col, row] = oddr.split(',').map(Number);
             const px = oddrToPixel(col, row, tileSize.x, tileSize.y);
@@ -360,7 +370,7 @@ const MapPage = () =>
     const handleMouseHover = useCallback((key: string, oddrCoord: { col: number, row: number }) => 
     {
         const context = theCanvas.current?.getContext('2d');
-        const hoveredImg = imageCache.current.get(key);
+        const hoveredImg = hexmapCache.current.get(key);
         if (hoveredImg && context) 
         {
             drawMapWithHoveredTile(context, oddrCoord, 0.3);
@@ -419,7 +429,7 @@ const MapPage = () =>
                         setCurrentCity(currentTile);
 
                     let tempMap = new Map<string, string[]>();
-                    imageCache.current.forEach((tile, oddr) => 
+                    hexmapCache.current.forEach((tile, oddr) => 
                     {
                         const [col, row] = oddr.split(',').map(Number);
 
@@ -431,7 +441,7 @@ const MapPage = () =>
                             {
                                 let neighborCoord = {x: wrapCol(col + neighbor[0]), y: wrapRow(row + neighbor[1])};
                                 let neighborStringCoord = `${neighborCoord.x},${neighborCoord.y}`;
-                                let cacheTile = imageCache.current.get(neighborStringCoord);
+                                let cacheTile = hexmapCache.current.get(neighborStringCoord);
 
                                 if (cacheTile && cacheTile.TileCity !== currentTile.CityName)
                                 {
@@ -563,7 +573,7 @@ const MapPage = () =>
     {
         context.clearRect(0, 0, context.canvas.width, context.canvas.height);
 
-        imageCache.current.forEach((tile, oddr) => 
+        hexmapCache.current.forEach((tile, oddr) => 
         {
             let theOpacity = 1;
             if (tile.IsCity && dropdownCity && tile.CityName === dropdownCity)
@@ -576,13 +586,14 @@ const MapPage = () =>
 
         drawRiversFromCache(context);
         drawBorderLines(context);
-    }, [tileSize, gridSize, cityBoundaryTiles, dropdownCity, areImagesLoaded, mapJSON]);
+    }, [tileSize, gridSize, cityBoundaryTiles, dropdownCity, areImagesLoaded, mapJSON, mapCacheVersion]);
 
-    const initImageCache = useCallback(() => 
+    const initHexmapCache = useCallback(() => 
     {
-        const imageCacheTemp = new Map<string, TileType>();
-        const imageCacheMountains = new Map<string, TileType>();
-        const imageCacheOther = new Map<string, TileType>();
+        const hexmapCacheTemp = new Map<string, TileType>();
+        const mountainCache = new Map<string, TileType>();
+        const otherCache = new Map<string, TileType>();
+        const cityTiles = new Map<string, TileType[]>();
 
         let loadCount = 0;
         let totalTiles = mapJSON.length;
@@ -600,23 +611,39 @@ const MapPage = () =>
                 const key = `${tile.X},${tile.Y}`;
 
                 if (tile.TerrainType?.includes("Mountain"))
-                    imageCacheMountains.set(key, tile);
+                    mountainCache.set(key, tile);
                 else
-                    imageCacheOther.set(key, tile);
+                    otherCache.set(key, tile);
 
                 loadCount++;
 
+                if (tile.TileCity !== "NONE")
+                {
+                    const tileDatas = cityTiles.get(tile.TileCity);
+                    if (tileDatas)
+                    {
+                        tileDatas.push(tile);
+                        cityTiles.set(tile.TileCity, tileDatas);
+                    }
+                    else
+                    {
+                        cityTiles.set(tile.TileCity, []);
+                    }
+                }
+
                 if (loadCount === totalTiles) 
                 {
-                    imageCacheOther.forEach((value, key) => imageCacheTemp.set(key, value));
+                    otherCache.forEach((value, key) => hexmapCacheTemp.set(key, value));
                     // mountains last will go on top
-                    imageCacheMountains.forEach((value, key) => imageCacheTemp.set(key, value));
-                    imageCache.current = imageCacheTemp;
+                    mountainCache.forEach((value, key) => hexmapCacheTemp.set(key, value));
+                    hexmapCache.current = hexmapCacheTemp;
 
                     drawMapFromCache(context);
                 }
             }
         });
+
+        setCityOwnedTiles(cityTiles);
     }, [drawMapFromCache, mapJSON]);
 
     useEffect(() => 
@@ -624,9 +651,9 @@ const MapPage = () =>
         // wait until the necessary data is ready
         if (!dropdownCity || !areImagesLoaded || mapJSON.length === 0) return;
 
-        if (imageCache.current.size === 0) 
+        if (hexmapCache.current.size === 0) 
         {
-            initImageCache();
+            initHexmapCache();
         } 
         else 
         {
@@ -634,7 +661,7 @@ const MapPage = () =>
             if (context) 
                 drawMapFromCache(context);
         }
-    }, [dropdownCity, areImagesLoaded, mapJSON, minAndMaxCoords, initImageCache, drawMapFromCache]);
+    }, [dropdownCity, areImagesLoaded, mapJSON, minAndMaxCoords, mapCacheVersion, initHexmapCache, drawMapFromCache]);
 
     const handleZoomChange = useCallback((zoomLevel: number) =>
     {
@@ -704,9 +731,9 @@ const MapPage = () =>
     {
         const file = e.target.files?.[0];
 
-        if (imageCache && file)
+        if (hexmapCache && file)
         {
-            imageCache.current = new Map();
+            hexmapCache.current = new Map();
 
             const reader = new FileReader();
 
@@ -727,10 +754,17 @@ const MapPage = () =>
         }
     }   
 
-    const handleAddButton = useCallback(() => 
+    function handleAddButton()
     {
-        console.log('dist: ' + dropdownDistrict)
-    }, [dropdownDistrict])
+        const oddr = `${12},${14}`
+        const temp = hexmapCache.current.get(oddr);
+        if (temp && dropdownCiv)
+        {
+            temp.District = uglifyDistrictNames(dropdownDistrict, dropdownCiv);
+            hexmapCache.current.set(oddr, temp);
+            setMapCacheVersion(mapCacheVersion + 1);
+        }
+    }
 
     return (
         <div style={{display: 'flex'}}>
@@ -1071,7 +1105,15 @@ const MapPage = () =>
 
     function testStuff()
     {
-        console.log('gridX: ' + gridSize.x + ' gridY ' + gridSize.y + ' and tileX ' + tileSize.x + ' and tileY ' + tileSize.y)
+        const temp = cityOwnedTiles.get("Aachen");
+        if (temp)
+        {
+            console.log('Aachen has tiles: ')
+            temp.forEach((tile) => 
+            {
+                console.log(tile)
+            })
+        }
     }
 };
 

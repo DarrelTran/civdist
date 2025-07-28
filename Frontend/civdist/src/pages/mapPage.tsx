@@ -2,21 +2,25 @@ import React, {useEffect, useState, useRef, useCallback, JSX, cache} from 'react
 import { Link } from 'react-router-dom';
 import './mapPage.css'
 import './allPages.css';
-import {TileNames, HexType, ImageDistrictType, ImageNaturalWondersType, ImageTerrainType, ImageWondersType, RiverDirections, TileType} from '../utils/types'
+import {TileNames, HexType, ImageDistrictType, ImageNaturalWondersType, ImageTerrainType, ImageWondersType, RiverDirections, TileType, LeaderName} from '../utils/types'
 import { loadDistrictImages, loadNaturalWonderImages, loadTerrainImages, loadWonderImages } from '../utils/imageLoaders';
 import { getTerrain, getDistrict, getNaturalWonder, getWonder } from '../utils/imageAttributeFinders';
 import { baseTileSize, allPossibleDistricts } from '../utils/constants';
 import { uglifyDistrictNames } from '../utils/localizeCivText';
+import { Civilization, America } from '../utils/civilizations';
 
 /***********  USING ODDR INSTEAD OF WHAT LOOKS LIKE EVENR BECAUSE Y IS FLIPPED ***********/
 
 /*
 /////////////////////////////////////////////////////////////////
-TODO: Add loading warning/prompt when map is being drawn
+
+TODO: Update hexmapCache and cityOwnedTiles when adding new district - WHEN ADDING DISTRICT ACCOUNT FOR EFFECTS OF DISTRICT LIKE THEATER ADDING APPEAL TO ADJ OR REMOVING STUFF LIKE IMPROVEMENTS
 
 TODO: Check bonuses in buildings/unique buildings too
 
 TODO: When getting entertainment/encampment/aqueduct/neighborhood/aerodrome/spaceport, check if it gets more adjacency for other districts and for encampment if its closer to a civ??
+
+TODO: Add loading warning/prompt when map is being drawn
 
 TODO: Save map JSON to backend/database.
 
@@ -384,7 +388,7 @@ const MapPage = () =>
 
         const xPos = (e.clientX - rect.left) / (rect.right - rect.left) * theCanvas.current.width;
         const rawY = ((e.pageY - rect.top) / (rect.bottom - rect.top) * theCanvas.current.height) - window.scrollY;
-        const yPos = theCanvas.current.height - rawY; // because map is flipped to make it look like the game
+        const yPos = theCanvas.current.height - rawY; // because map is flipped to make it look like the game!!!!
 
         return {x: xPos, y: yPos};
     }
@@ -416,6 +420,8 @@ const MapPage = () =>
 
             const oddrCoord = pixelToOddr(mousePos, tileSize);
             const outOfHexBounds = oddrCoord.col < minX || oddrCoord.col > maxX || oddrCoord.row < minY || oddrCoord.row > maxY;
+
+            console.log('click at ' + oddrCoord.col + ' and ' + oddrCoord.row)
 
             // dont reset the clicked city stuff if click is out of bounds - only want to reset when click on the visible hexmap
             if (!inDivBounds || outOfHexBounds)
@@ -1105,15 +1111,16 @@ const MapPage = () =>
 
     function testStuff()
     {
-        const temp = cityOwnedTiles.get("Aachen");
-        if (temp)
+        /*
+        const temp = new America(LeaderName.TEDDY_ROOSEVELT);
+        const aach = cityOwnedTiles.get("Aachen");
+        const c = hexmapCache.current.get('12,16')
+        if (aach && c)
         {
-            console.log('Aachen has tiles: ')
-            temp.forEach((tile) => 
-            {
-                console.log(tile)
-            })
+            const v = temp.getCampusBonuses(c, aach);
+            console.log('12,16 has ' + v + ' campus bonus')
         }
+        */
     }
 };
 

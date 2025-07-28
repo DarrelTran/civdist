@@ -17,6 +17,7 @@ export type TileType =
   IsWater: boolean,
   IsCity: boolean,
   TileCity: string,
+  CityPantheon: string,
   IsRiver: boolean,
   IsNEOfRiver: boolean,
   IsWOfRiver: boolean,
@@ -149,6 +150,7 @@ export enum ImageDistrictType
 
 export enum TileNames
 {
+  /* NATURAL WONDERS */
   CLIFFS_OF_DOVER = 'Cliffs of Dover',
   CRATER_LAKE = 'CRATER_LAKE',
   DEAD_SEA = 'Dead Sea',
@@ -162,6 +164,7 @@ export enum TileNames
   TSINGY_DE_BEMARAHA = 'Tsingy de Bemaraha',
   YOSEMITE = 'Yosemite',
 
+  /* WONDERS */
   ALHAMBRA = 'BUILDING_ALHAMBRA',
   BIG_BEN = 'BUILDING_BIG_BEN',
   BOLSHOI_THEATRE = 'BUILDING_BOLSHOI_THEATRE',
@@ -193,6 +196,7 @@ export enum TileNames
   TERRACOTTA_ARMY = 'BUILDING_TERRACOTTA_ARMY',
   VENETIAN_ARSENAL = 'BUILDING_VENETIAN_ARSENAL',
 
+  /* DISTRICTS */
   AQUEDUCT_DISTRICT = 'DISTRICT_AQUEDUCT',
   BATH_DISTRICT = 'DISTRICT_BATH',
   AERODROME_DISTRICT = 'DISTRICT_AERODROME',
@@ -214,6 +218,7 @@ export enum TileNames
   THEATER_DISTRICT = 'DISTRICT_THEATER',
   ACROPOLIS_DISTRICT = 'DISTRICT_ACROPOLIS',
 
+  /* TERRAIN */
   OCEAN = 'Ocean',
   COAST = 'Coast and Lake',
   PLAINS = 'Plains',
@@ -232,8 +237,96 @@ export enum TileNames
   SNOW_HILLS = 'Snow (Hills)',
   SNOW_MOUNTAIN = 'Snow (Mountain)',
 
+  /* FEATURES */
   RAINFOREST = 'Rainforest',
-  WOODS = 'Woods'
+  WOODS = 'Woods',
+
+  /* IMPROVEMENTS */
+  FARM = 'Farm',
+  MINE = 'Mine',
+  QUARRY = 'Quarry',
+  FISHING_BOATS = 'Fishing Boats',
+  PASTURE = 'Pasture',
+  PLANTATION = 'Plantation',
+  CAMP = 'Camp',
+  LUMBER_MILL = 'Lumber Mill',
+  OIL_WELL = 'Oil Well',
+  OFFSHORE_OIL_RIG = 'Offshore Oil Rig',
+  SEASIDE_RESORT = 'Seaside Resort',
+  FORT = 'Fort',
+  AIRSTRIP = 'Airstrip',
+  CHATEAU = 'Château',
+  COLOSSAL_HEAD = 'Colossal Head',
+  GREAT_WALL = 'Great Wall',
+  KURGAN = 'Kurgan',
+  MISSION = 'Mission',
+  ROMAN_FORT = 'Roman Fort',
+  SPHINX = 'Sphinx',
+  STEPWELL = 'Stepwell',
+  ZIGGURAT = 'Ziggurat',
+  MISSILE_SILO = 'Missile Silo',
+
+  /* BONUS RESOURCES */
+  BANANAS = 'Bananas',
+  CATTLE = 'Cattle',
+  COPPER = 'Copper',
+  CRABS = 'Crabs',
+  DEER = 'Deer',
+  FISH = 'Fish',
+  RICE = 'Rice',
+  SHEEP = 'Sheep',
+  STONE = 'Stone',
+  WHEAT = 'Wheat',
+
+  /* LUXURY RESOURCES */
+  CITRUS = 'Citrus',
+  COCOA = 'Cocoa',
+  COFFEE = 'Coffee',
+  COTTON = 'Cotton',
+  DIAMONDS = 'Diamonds',
+  DYES = 'Dyes',
+  FURS = 'Furs',
+  GYPSUM = 'Gypsum',
+  INCENSE = 'Incense',
+  IVORY = 'Ivory',
+  JADE = 'Jade',
+  MARBLE = 'Marble',
+  MERCURY = 'Mercury',
+  PEARLS = 'Pearls',
+  SALT = 'Salt',
+  SILK = 'Silk',
+  SILVER = 'Silver',
+  SPICES = 'Spices',
+  SUGAR = 'Sugar',
+  TEA = 'Tea',
+  TRUFFLES = 'Truffles',
+  TOBACCO = 'Tobacco',
+  WHALES = 'Whales',
+  WINE = 'Wine',
+  JEANS = 'Jeans',
+  PERFUME = 'Perfume',
+  COSMETICS = 'Cosmetics',
+  TOYS = 'Toys',
+  CINNAMON = 'Cinnamon',
+  CLOVES = 'Cloves',
+
+  /* STRATEGIC RESOURCES */
+  ALUMINUM = 'Aluminum',
+  COAL = 'Coal',
+  HORSES = 'Horses',
+  IRON = 'Iron',
+  NITER = 'Niter',
+  OIL = 'Oil',
+  URANIUM = 'Uranium',
+
+  /* MISC RESOURCES */
+  ANTIQUITY_SITE = 'Antiquity Site',
+  SHIPWRECK = 'Shipwreck',
+
+  /* PANTHEONS */
+  DANCE_OF_THE_AURORA = 'Dance of the Aurora',
+  DESERT_FOLKLORE = 'Desert Folklore',
+  SACRED_PATH = 'Sacred Path'
 }
 
 export enum LeaderName

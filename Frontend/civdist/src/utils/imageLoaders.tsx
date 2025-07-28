@@ -1,27 +1,29 @@
-import {allTerrainImages} from '../images/terrainImport'
-import {allDistrictImages} from '../images/districtImport'
-import {allNaturalWonderImages} from '../images/naturalWondersImport';
-import {allWonderImages} from '../images/wondersImport'
-import { ImageTerrainType, ImageDistrictType, ImageNaturalWondersType, ImageWondersType } from './types';
+import { TileNone, TileDistricts, TileFeatures, TileTerrain, TileWonders, TileNaturalWonders, TerrainFeatureKey } from "./types";
+import { allWonderImages } from "../images/wondersImport";
+import { allDistrictImages } from "../images/districtImport";
+import { allTerrainImages } from "../images/terrainImport";
+import { allNaturalWonderImages } from "../images/naturalWondersImport";
 
-export async function loadTerrainImages(terrainMap: Map<ImageTerrainType, HTMLImageElement>)
+export async function loadTerrainImages(terrainMap: Map<string, HTMLImageElement>) 
 {
-    for (const terrain of Object.values(ImageTerrainType)) 
+    for (const key in allTerrainImages) 
     {
-        const src = allTerrainImages[terrain];
+        const src = allTerrainImages[key as TerrainFeatureKey];
         const img = new Image();
-        img.src = src;
+        if (src)
+        {
+            img.src = src;
 
-        await new Promise(resolve => (img.onload = resolve));
+            await new Promise(resolve => (img.onload = resolve));
 
-        terrainMap.set(terrain, img);
+            terrainMap.set(key, img);
+        }
     }
 }
 
-export async function loadWonderImages(wonder: Map<ImageWondersType, HTMLImageElement>)
+export async function loadWonderImages(wonder: Map<TileWonders, HTMLImageElement>)
 {
-    const wondersCache = new Map<ImageWondersType, HTMLImageElement>();
-    for (const wonders of Object.values(ImageWondersType)) 
+    for (const wonders of Object.values(TileWonders)) 
     {
         const src = allWonderImages[wonders];
         const img = new Image();
@@ -33,10 +35,9 @@ export async function loadWonderImages(wonder: Map<ImageWondersType, HTMLImageEl
     }
 }
 
-export async function loadNaturalWonderImages(nat: Map<ImageNaturalWondersType, HTMLImageElement>)
+export async function loadNaturalWonderImages(nat: Map<TileNaturalWonders, HTMLImageElement>)
 {
-    const natWondersCache = new Map<ImageNaturalWondersType, HTMLImageElement>();
-    for (const wonders of Object.values(ImageNaturalWondersType)) 
+    for (const wonders of Object.values(TileNaturalWonders)) 
     {
         const src = allNaturalWonderImages[wonders];
         const img = new Image();
@@ -48,10 +49,9 @@ export async function loadNaturalWonderImages(nat: Map<ImageNaturalWondersType, 
     }
 }
 
-export async function loadDistrictImages(dist: Map<ImageDistrictType, HTMLImageElement>)
+export async function loadDistrictImages(dist: Map<TileDistricts, HTMLImageElement>)
 {
-    const districtCache = new Map<ImageDistrictType, HTMLImageElement>();
-    for (const district of Object.values(ImageDistrictType)) 
+    for (const district of Object.values(TileDistricts)) 
     {
         const src = allDistrictImages[district];
         const img = new Image();

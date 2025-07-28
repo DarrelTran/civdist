@@ -2,14 +2,11 @@ import React, {useEffect, useState, useRef, useCallback, JSX, cache} from 'react
 import { Link } from 'react-router-dom';
 import './mapPage.css'
 import './allPages.css';
-import {TileNames, HexType, ImageDistrictType, ImageNaturalWondersType, ImageTerrainType, ImageWondersType, RiverDirections, TileType, LeaderName} from '../utils/types'
+import {HexType, TileNone, TileFeatures, TileTerrain, TileWonders, TileDistricts, TileUniqueDistricts, TileNaturalWonders, TerrainFeatureKey, RiverDirections, TileType, LeaderName} from '../utils/types'
 import { loadDistrictImages, loadNaturalWonderImages, loadTerrainImages, loadWonderImages } from '../utils/imageLoaders';
 import { getTerrain, getDistrict, getNaturalWonder, getWonder } from '../utils/imageAttributeFinders';
 import { baseTileSize, allPossibleDistricts } from '../utils/constants';
-import { uglifyDistrictNames } from '../utils/localizeCivText';
 import { Civilization, America } from '../utils/civilizations';
-
-/***********  USING ODDR INSTEAD OF WHAT LOOKS LIKE EVENR BECAUSE Y IS FLIPPED ***********/
 
 /*
 /////////////////////////////////////////////////////////////////
@@ -67,7 +64,7 @@ const MapPage = () =>
     const [dropdownCiv, setDropdownCiv] = useState<string>();
     const [includeCityStates, setIncludeCityStates] = useState<boolean>(false);
     const [dropdownCity, setDropdownCity] = useState<string>();
-    const [dropdownDistrict, setDropdownDistrict] = useState<string>(allPossibleDistricts[0]);
+    const [dropdownDistrict, setDropdownDistrict] = useState<string>(allPossibleDistricts()[0]);
 
     /**
      * - Shifting hex img's by the subtraction seen in drawMap() keeps correct oddr coordinate detection but visuals will break
@@ -82,10 +79,10 @@ const MapPage = () =>
     const cityDropdownRef = useRef<HTMLSelectElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const terrainImagesCache = useRef<Map<ImageTerrainType, HTMLImageElement>>(new Map());
-    const wondersImagesCache = useRef<Map<ImageWondersType, HTMLImageElement>>(new Map());
-    const naturalWondersImagesCache = useRef<Map<ImageNaturalWondersType, HTMLImageElement>>(new Map());
-    const districtsImagesCache = useRef<Map<ImageDistrictType, HTMLImageElement>>(new Map());
+    const terrainImagesCache = useRef<Map<TerrainFeatureKey, HTMLImageElement>>(new Map());
+    const wondersImagesCache = useRef<Map<TileWonders, HTMLImageElement>>(new Map());
+    const naturalWondersImagesCache = useRef<Map<TileNaturalWonders, HTMLImageElement>>(new Map());
+    const districtsImagesCache = useRef<Map<TileDistricts, HTMLImageElement>>(new Map());
 
     const [areImagesLoaded, setAreImagesLoaded] = useState<boolean>(false);
 
@@ -231,11 +228,11 @@ const MapPage = () =>
 
             context.globalAlpha = 0.75;
 
-            if (RiverEFlow !== "NONE")
+            if (RiverEFlow !== TileNone.NONE)
                 drawRiver6PossibleDirections(context, RiverDirections.EAST, px);
-            if (RiverSEFlow !== "NONE")
+            if (RiverSEFlow !== TileNone.NONE)
                 drawRiver6PossibleDirections(context, RiverDirections.SOUTHEAST, px);
-            if (RiverSWFlow !== "NONE")
+            if (RiverSWFlow !== TileNone.NONE)
                 drawRiver6PossibleDirections(context, RiverDirections.SOUTHWEST, px);
 
             // draw missing rivers
@@ -499,7 +496,7 @@ const MapPage = () =>
         for (let i = 0; i < theJSON.length; i++)
         {
             const tile = theJSON[i];
-            if (tile.Civilization !== "NONE")
+            if (tile.Civilization !== TileNone.NONE)
             {
                 tempCivSet.add(tile.Civilization);
 
@@ -623,7 +620,7 @@ const MapPage = () =>
 
                 loadCount++;
 
-                if (tile.TileCity !== "NONE")
+                if (tile.TileCity !== TileNone.NONE)
                 {
                     const tileDatas = cityTiles.get(tile.TileCity);
                     if (tileDatas)
@@ -760,16 +757,46 @@ const MapPage = () =>
         }
     }   
 
+    function updateTilesWithDistrict(foundTile: TileType)
+    {
+        if (currentCity)
+        {
+            const oddr = `${foundTile.X},${foundTile.Y}`;
+            hexmapCache.current.set(oddr, foundTile);
+            setMapCacheVersion(mapCacheVersion + 1);
+
+            const cityMap = new Map(cityOwnedTiles);
+            const tileList = cityMap.get(currentCity.CityName);
+            if (tileList)
+            {
+                for (let i = 0; i < tileList.length; i++)
+                {
+                    const tile = tileList[i];
+                    if (tile.X === foundTile.X && tile.Y === foundTile.Y)
+                        tileList[i] = foundTile;
+                }
+
+                cityMap.set(currentCity.CityName, tileList);
+            }
+
+            setCityOwnedTiles(cityMap);
+        }
+    }
+
     function handleAddButton()
     {
-        const oddr = `${12},${14}`
-        const temp = hexmapCache.current.get(oddr);
-        if (temp && dropdownCiv)
+        let foundTile = undefined as TileType | undefined;
+
+        if (dropdownDistrict === TileDistricts.SCIENCE_DISTRICT)
         {
-            temp.District = uglifyDistrictNames(dropdownDistrict, dropdownCiv);
-            hexmapCache.current.set(oddr, temp);
-            setMapCacheVersion(mapCacheVersion + 1);
+            const temp = new America(LeaderName.TEDDY_ROOSEVELT);
+            const temp2 = cityOwnedTiles.get('Rio de Janeiro');
+            if (temp2)
+                foundTile = temp.getCampusTile(temp2);
         }
+
+        if (foundTile)
+            updateTilesWithDistrict(foundTile);
     }
 
     return (
@@ -849,7 +876,7 @@ const MapPage = () =>
                         {/*Select District Type*/}
                         <select onChange={e => {setDropdownDistrict(e.target.value)}}>
                             {
-                                allPossibleDistricts.map((value, index) => 
+                                allPossibleDistricts().map((value, index) => 
                                 (
                                     <option value={value} key={index}>{value}</option>
                                 ))
@@ -873,18 +900,19 @@ const MapPage = () =>
                     </div>
                     <div style={{display: 'grid'}}>
                         <div style={{display: 'flex', alignItems: 'center'}}>
-                            <button>SAVE</button>
+                            <button>EXPORT</button>
                         </div>
                         <div style={{display: 'flex', alignItems: 'center'}}>
-                            <button onClick={handleInputButtonClick}>LOAD FROM DISK</button>
+                            <button onClick={handleInputButtonClick}>IMPORT</button>
                             <input style={{display: 'none'}} type='file' ref={fileInputRef} onChange={e => handleInputChange(e)} accept='.json'/>
                         </div>
                         <div style={{display: 'flex', alignItems: 'center'}}>
-                            <label>LOAD FROM PROFILE
+                            <label>LOAD
                                 <select>
 
                                 </select>
                             </label>
+                            <button>SAVE</button>
                         </div>
                     </div>
                 </div>

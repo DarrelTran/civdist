@@ -11,21 +11,21 @@ import neighborhood_district from './districts/neighborhood_district2.png';
 import rocket_district from './districts/rocket_district2.png';
 import science_district from './districts/science_district2.png';
 import theater_district from './districts/theater_district2.png';
-import { ImageDistrictType } from '../utils/types';
+import { TileDistricts } from '../utils/types';
 
-export const allDistrictImages: Record<ImageDistrictType, string> = 
+export const allDistrictImages: Record<TileDistricts, string> = 
 {
-  [ImageDistrictType.AQUEDUCT_DISTRICT]: aqueduct_district,
-  [ImageDistrictType.AERODROME_DISTRICT]: aerodome_district,
-  [ImageDistrictType.CENTER_DISTRICT]: center_district,
-  [ImageDistrictType.COMMERCIAL_DISTRICT]: commercial_district,
-  [ImageDistrictType.ENCAMPMENT_DISTRICT]: encampment_district,
-  [ImageDistrictType.ENTERTAINMENT_DISTRICT]: entertainment_district,
-  [ImageDistrictType.FAITH_DISTRICT]: faith_district,
-  [ImageDistrictType.HARBOR_DISTRICT]: harbor_district,
-  [ImageDistrictType.INDUSTRIAL_DISTRICT]: industrial_district,
-  [ImageDistrictType.NEIGHBORHOOD_DISTRICT]: neighborhood_district,
-  [ImageDistrictType.ROCKET_DISTRICT]: rocket_district,
-  [ImageDistrictType.SCIENCE_DISTRICT]: science_district,
-  [ImageDistrictType.THEATER_DISTRICT]: theater_district
+  [TileDistricts.AQUEDUCT_DISTRICT]: aqueduct_district,
+  [TileDistricts.AERODROME_DISTRICT]: aerodome_district,
+  [TileDistricts.CENTER_DISTRICT]: center_district,
+  [TileDistricts.COMMERCIAL_DISTRICT]: commercial_district,
+  [TileDistricts.ENCAMPMENT_DISTRICT]: encampment_district,
+  [TileDistricts.ENTERTAINMENT_DISTRICT]: entertainment_district,
+  [TileDistricts.FAITH_DISTRICT]: faith_district,
+  [TileDistricts.HARBOR_DISTRICT]: harbor_district,
+  [TileDistricts.INDUSTRIAL_DISTRICT]: industrial_district,
+  [TileDistricts.NEIGHBORHOOD_DISTRICT]: neighborhood_district,
+  [TileDistricts.ROCKET_DISTRICT]: rocket_district,
+  [TileDistricts.SCIENCE_DISTRICT]: science_district,
+  [TileDistricts.THEATER_DISTRICT]: theater_district
 };

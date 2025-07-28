@@ -10,20 +10,20 @@ import piopiotahi from './natural_wonders/piopiotahi2.png'
 import torres_del_paine from './natural_wonders/torres_del_paine2.png'
 import tsingy_de_bemaraha from './natural_wonders/tsingy_de_bemaraha2.png'
 import yosemite from './natural_wonders/yosemite2.png'
-import { ImageNaturalWondersType } from '../utils/types'
+import { TileNaturalWonders } from '../utils/types'
 
-export const allNaturalWonderImages: Record<ImageNaturalWondersType, string> = 
+export const allNaturalWonderImages: Record<TileNaturalWonders, string> = 
 {
-  [ImageNaturalWondersType.CLIFFS_OF_DOVER]: cliffs_of_dover,
-  [ImageNaturalWondersType.CRATER_LAKE]: crater_lake,
-  [ImageNaturalWondersType.DEAD_SEA]: dead_sea,
-  [ImageNaturalWondersType.GALAPAGOS_ISLANDS]: galapagos_islands,
-  [ImageNaturalWondersType.GREAT_BARRIER_REEF]: great_barrier_reef,
-  [ImageNaturalWondersType.MOUNT_EVEREST]: mount_everest,
-  [ImageNaturalWondersType.MOUNT_LILIMANJARO]: mount_lilimanjaro,
-  [ImageNaturalWondersType.PANTANAL]: pantanal,
-  [ImageNaturalWondersType.PIOPIOTAHI]: piopiotahi,
-  [ImageNaturalWondersType.TORRES_DEL_PAINE]: torres_del_paine,
-  [ImageNaturalWondersType.TSINGY_DE_BEMARAHA]: tsingy_de_bemaraha,
-  [ImageNaturalWondersType.YOSEMITE]: yosemite
+  [TileNaturalWonders.CLIFFS_OF_DOVER]: cliffs_of_dover,
+  [TileNaturalWonders.CRATER_LAKE]: crater_lake,
+  [TileNaturalWonders.DEAD_SEA]: dead_sea,
+  [TileNaturalWonders.GALAPAGOS_ISLANDS]: galapagos_islands,
+  [TileNaturalWonders.GREAT_BARRIER_REEF]: great_barrier_reef,
+  [TileNaturalWonders.MOUNT_EVEREST]: mount_everest,
+  [TileNaturalWonders.MOUNT_LILIMANJARO]: mount_lilimanjaro,
+  [TileNaturalWonders.PANTANAL]: pantanal,
+  [TileNaturalWonders.PIOPIOTAHI]: piopiotahi,
+  [TileNaturalWonders.TORRES_DEL_PAINE]: torres_del_paine,
+  [TileNaturalWonders.TSINGY_DE_BEMARAHA]: tsingy_de_bemaraha,
+  [TileNaturalWonders.YOSEMITE]: yosemite
 };

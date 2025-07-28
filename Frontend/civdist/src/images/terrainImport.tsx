@@ -24,34 +24,41 @@ import tundra_mountain from './terrain/tundra_mountain.png';
 import tundra_forest from './terrain/tundra_forest.png'
 import tundra_hills_forest from './terrain/tundra_hills_forest.png'
 import tundra from './terrain/tundra.png';
-import { ImageTerrainType } from '../utils/types';
+import oasis from './terrain/oasis.png';
+import marsh from './terrain/marsh.png';
+import ice from './terrain/ice.png';
+import { TileTerrain, TileFeatures, TileNone, TerrainFeatureKey } from '../utils/types';
 
-export const allTerrainImages: Record<ImageTerrainType, string> = 
+export const allTerrainImages: Partial<Record<TerrainFeatureKey, string>> = 
 {
-  [ImageTerrainType.COAST]: coast,
-  [ImageTerrainType.DESERT_HILLS]: desert_hills,
-  [ImageTerrainType.DESERT_MOUNTAIN]: desert_mountain,
-  [ImageTerrainType.DESERT]: desert,
-  [ImageTerrainType.GRASS_HILLS]: grass_hills,
-  [ImageTerrainType.GRASS_MOUNTAIN]: grass_mountain,
-  [ImageTerrainType.GRASS_FOREST]: grass_forest,
-  [ImageTerrainType.GRASS_HILLS_FOREST]: grass_hills_forest,
-  [ImageTerrainType.GRASS]: grass,
-  [ImageTerrainType.OCEAN]: ocean,
-  [ImageTerrainType.PLAINS_HILLS]: plains_hills,
-  [ImageTerrainType.PLAINS_MOUNTAIN]: plains_mountain,
-  [ImageTerrainType.PLAINS_FOREST]: plains_forest,
-  [ImageTerrainType.PLAINS_HILLS_FOREST]: plains_hills_forest,
-  [ImageTerrainType.PLAINS_JUNGLE]: plains_jungle,
-  [ImageTerrainType.PLAINS_HILLS_JUNGLE]: plains_hills_jungle,
-  [ImageTerrainType.PLAINS]: plains,
-  [ImageTerrainType.RIVER]: river,
-  [ImageTerrainType.SNOW_HILLS]: snow_hills,
-  [ImageTerrainType.SNOW_MOUNTAIN]: snow_mountain,
-  [ImageTerrainType.SNOW]: snow,
-  [ImageTerrainType.TUNDRA_HILLS]: tundra_hills,
-  [ImageTerrainType.TUNDRA_MOUNTAIN]: tundra_mountain,
-  [ImageTerrainType.TUNDRA_FOREST]: tundra_forest,
-  [ImageTerrainType.TUNDRA_HILLS_FOREST]: tundra_hills_forest,
-  [ImageTerrainType.TUNDRA]: tundra
+  [`${TileTerrain.COAST}_${TileFeatures.ICE}`]: ice,
+  [`${TileTerrain.OCEAN}_${TileFeatures.ICE}`]: ice,
+  [`${TileTerrain.COAST}_${TileNone.NONE}`]: coast,
+  [`${TileTerrain.DESERT_HILLS}_${TileNone.NONE}`]: desert_hills,
+  [`${TileTerrain.DESERT_MOUNTAIN}_${TileNone.NONE}`]: desert_mountain,
+  [`${TileTerrain.DESERT}_${TileNone.NONE}`]: desert,
+  [`${TileTerrain.DESERT}_${TileFeatures.OASIS}`]: oasis,
+  [`${TileTerrain.GRASSLAND_HILLS}_${TileNone.NONE}`]: grass_hills,
+  [`${TileTerrain.GRASSLAND_MOUNTAIN}_${TileNone.NONE}`]: grass_mountain,
+  [`${TileTerrain.GRASSLAND}_${TileFeatures.WOODS}`]: grass_forest,
+  [`${TileTerrain.GRASSLAND_HILLS}_${TileFeatures.WOODS}`]: grass_hills_forest,
+  [`${TileTerrain.GRASSLAND}_${TileNone.NONE}`]: grass,
+  [`${TileTerrain.GRASSLAND}_${TileFeatures.MARSH}`]: marsh,
+  [`${TileTerrain.OCEAN}_${TileNone.NONE}`]: ocean,
+  [`${TileTerrain.PLAINS_HILLS}_${TileNone.NONE}`]: plains_hills,
+  [`${TileTerrain.PLAINS_MOUNTAIN}_${TileNone.NONE}`]: plains_mountain,
+  [`${TileTerrain.PLAINS}_${TileFeatures.WOODS}`]: plains_forest,
+  [`${TileTerrain.PLAINS_HILLS}_${TileFeatures.WOODS}`]: plains_hills_forest,
+  [`${TileTerrain.PLAINS}_${TileFeatures.RAINFOREST}`]: plains_jungle,
+  [`${TileTerrain.PLAINS_HILLS}_${TileFeatures.RAINFOREST}`]: plains_hills_jungle,
+  [`${TileTerrain.PLAINS}_${TileNone.NONE}`]: plains,
+  [`${TileTerrain.RIVER}_${TileNone.NONE}`]: river,
+  [`${TileTerrain.SNOW_HILLS}_${TileNone.NONE}`]: snow_hills,
+  [`${TileTerrain.SNOW_MOUNTAIN}_${TileNone.NONE}`]: snow_mountain,
+  [`${TileTerrain.SNOW}_${TileNone.NONE}`]: snow,
+  [`${TileTerrain.TUNDRA_HILLS}_${TileNone.NONE}`]: tundra_hills,
+  [`${TileTerrain.TUNDRA_MOUNTAIN}_${TileNone.NONE}`]: tundra_mountain,
+  [`${TileTerrain.TUNDRA}_${TileFeatures.WOODS}`]: tundra_forest,
+  [`${TileTerrain.TUNDRA_HILLS}_${TileFeatures.WOODS}`]: tundra_hills_forest,
+  [`${TileTerrain.TUNDRA}_${TileNone.NONE}`]: tundra
 };

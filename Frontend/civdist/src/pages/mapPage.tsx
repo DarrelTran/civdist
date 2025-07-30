@@ -1,12 +1,14 @@
 import React, {useEffect, useState, useRef, useCallback, JSX, cache} from 'react';
+import Select from 'react-select'
 import { Link } from 'react-router-dom';
 import './mapPage.css'
 import './allPages.css';
-import {HexType, TileNone, TileFeatures, TileTerrain, TileWonders, TileDistricts, TileUniqueDistricts, TileNaturalWonders, TerrainFeatureKey, RiverDirections, TileType, LeaderName} from '../utils/types'
-import { loadDistrictImages, loadNaturalWonderImages, loadTerrainImages, loadWonderImages } from '../utils/imageLoaders';
+import {HexType, TileNone, TileFeatures, TileTerrain, TileWonders, TileDistricts, TileUniqueDistricts, TileNaturalWonders, TerrainFeatureKey, RiverDirections, TileType, LeaderName, TileYields} from '../utils/types'
+import { loadDistrictImages, loadNaturalWonderImages, loadTerrainImages, loadWonderImages, loadYieldImages } from '../utils/imageLoaders';
 import { getTerrain, getDistrict, getNaturalWonder, getWonder } from '../utils/imageAttributeFinders';
-import { baseTileSize, allPossibleDistricts } from '../utils/constants';
-import { Civilization, America } from '../utils/civilizations';
+import { baseTileSize, allPossibleDistricts, allPossibleYields } from '../utils/constants';
+import { getCivilization } from '../utils/civilizations';
+import { mapPageSelectStyle } from './mapPageSelectStyles';
 
 /*
 /////////////////////////////////////////////////////////////////
@@ -36,6 +38,8 @@ TODO: Can civ6 cities have same name??
 
 const MapPage = () => 
 {
+    const [errorText, setErrorText] = useState<string>("");
+
     const hexmapCache = useRef<Map<string, TileType>>(new Map()); // oddr coords, tile
     const [mapCacheVersion, setMapCacheVersion] = useState<number>(0);
     const [mapJSON, setMapJSON] = useState<TileType[]>([]);
@@ -83,6 +87,7 @@ const MapPage = () =>
     const wondersImagesCache = useRef<Map<TileWonders, HTMLImageElement>>(new Map());
     const naturalWondersImagesCache = useRef<Map<TileNaturalWonders, HTMLImageElement>>(new Map());
     const districtsImagesCache = useRef<Map<TileDistricts, HTMLImageElement>>(new Map());
+    const yieldImagesCache = useRef<Map<TileYields, HTMLImageElement>>(new Map());
 
     const [areImagesLoaded, setAreImagesLoaded] = useState<boolean>(false);
 
@@ -92,6 +97,7 @@ const MapPage = () =>
         await loadWonderImages(wondersImagesCache.current);
         await loadNaturalWonderImages(naturalWondersImagesCache.current);
         await loadDistrictImages(districtsImagesCache.current);
+        await loadYieldImages(yieldImagesCache.current);
 
         setAreImagesLoaded(true);
     }
@@ -759,14 +765,13 @@ const MapPage = () =>
 
     function updateTilesWithDistrict(foundTile: TileType)
     {
-        if (currentCity)
+        if (dropdownCity)
         {
             const oddr = `${foundTile.X},${foundTile.Y}`;
             hexmapCache.current.set(oddr, foundTile);
-            setMapCacheVersion(mapCacheVersion + 1);
 
             const cityMap = new Map(cityOwnedTiles);
-            const tileList = cityMap.get(currentCity.CityName);
+            const tileList = cityMap.get(dropdownCity);
             if (tileList)
             {
                 for (let i = 0; i < tileList.length; i++)
@@ -776,27 +781,79 @@ const MapPage = () =>
                         tileList[i] = foundTile;
                 }
 
-                cityMap.set(currentCity.CityName, tileList);
+                cityMap.set(dropdownCity, tileList);
             }
 
             setCityOwnedTiles(cityMap);
+            setMapCacheVersion(mapCacheVersion + 1);
         }
     }
 
-    function handleAddButton()
+    function findCivLeader(): LeaderName | TileNone
+    {
+        if (dropdownCity)
+        {
+            const dropdownCityOwnedTiles = cityOwnedTiles.get(dropdownCity);
+            if (dropdownCityOwnedTiles)
+                return dropdownCityOwnedTiles[0].Leader;
+        }
+
+        return TileNone.NONE;
+    }
+
+    const handleAddButton = useCallback(() => 
     {
         let foundTile = undefined as TileType | undefined;
 
         if (dropdownDistrict === TileDistricts.SCIENCE_DISTRICT)
         {
-            const temp = new America(LeaderName.TEDDY_ROOSEVELT);
-            const temp2 = cityOwnedTiles.get('Rio de Janeiro');
-            if (temp2)
-                foundTile = temp.getCampusTile(temp2);
+            const theCiv = getCivilization(findCivLeader());
+            if (dropdownCity && theCiv !== TileNone.NONE)
+            {
+                const dropdownCityOwnedTiles = cityOwnedTiles.get(dropdownCity);
+                if (dropdownCityOwnedTiles)
+                    foundTile = theCiv.getCampusTile(dropdownCityOwnedTiles);
+            }
         }
 
         if (foundTile)
             updateTilesWithDistrict(foundTile);
+        else
+        {
+            setErrorText("ERROR: Could not find optimal tile.");
+            setTimeout(() => 
+            {
+                setErrorText("");
+            }, 4000)
+        }
+    }, [cityOwnedTiles, dropdownDistrict, dropdownCity])
+
+    const getSelectionYields = useCallback(() => 
+    {
+        const allYields = allPossibleYields();
+        const tempArr: {value: string, label: string, image: HTMLImageElement}[] = [];
+
+        for (let i = 0; i < allYields.length; i++)
+        {
+            const currYield = allYields[i];
+            const currImage = yieldImagesCache.current.get(currYield);
+            if (!currImage)
+                tempArr.push({value: currYield, label: currYield, image: new Image()});
+            else
+            {
+                tempArr.push({value: currYield, label: currYield, image: currImage});
+            }
+        }
+
+        return tempArr;
+    }, [areImagesLoaded])   
+
+    function formatSelectionYields(option: {value: string, label: string, image: HTMLImageElement}): JSX.Element
+    {
+        return <div>
+            <span style={{paddingRight: '10px'}}>{option.label}</span>
+            <img src={option.image.src} width={20} height={20}/>
+        </div>
     }
 
     return (
@@ -817,6 +874,7 @@ const MapPage = () =>
             </div>
 
             <div style={{alignContent: 'center', marginLeft: '10px', paddingLeft: '5px', paddingRight: '5px', marginRight: '10px', border: '1px solid black'}}>
+                <span style={{color: 'red', fontWeight: 'bold', fontSize: '1.25em'}}>{errorText}</span>
                 <div style={{display: 'grid'}}>
                     <div style={{display: 'flex'}}>
                         Include City States
@@ -881,7 +939,14 @@ const MapPage = () =>
                                     <option value={value} key={index}>{value}</option>
                                 ))
                             }
-                        </select> 
+                        </select>
+                        <Select 
+                            options={getSelectionYields()} 
+                            isMulti 
+                            styles={mapPageSelectStyle}
+                            onChange={(e) => {e.forEach((val) => {console.log(val)})}}
+                            formatOptionLabel={formatSelectionYields}
+                        />
                         <button onClick={handleAddButton}>ADD</button>
                     </div>
                     <div>

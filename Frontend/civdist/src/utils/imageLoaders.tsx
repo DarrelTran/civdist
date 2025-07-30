@@ -1,8 +1,9 @@
-import { TileNone, TileDistricts, TileFeatures, TileTerrain, TileWonders, TileNaturalWonders, TerrainFeatureKey } from "./types";
+import { TileNone, TileDistricts, TileFeatures, TileTerrain, TileWonders, TileNaturalWonders, TerrainFeatureKey, TileYields } from "./types";
 import { allWonderImages } from "../images/wondersImport";
 import { allDistrictImages } from "../images/districtImport";
 import { allTerrainImages } from "../images/terrainImport";
 import { allNaturalWonderImages } from "../images/naturalWondersImport";
+import { allYieldImages } from "../images/yieldsImport";
 
 export async function loadTerrainImages(terrainMap: Map<string, HTMLImageElement>) 
 {
@@ -60,5 +61,19 @@ export async function loadDistrictImages(dist: Map<TileDistricts, HTMLImageEleme
         await new Promise(resolve => (img.onload = resolve));
 
         dist.set(district, img);
+    }
+}
+
+export async function loadYieldImages(yieldCache: Map<TileYields, HTMLImageElement>)
+{
+    for (const yields of Object.values(TileYields)) 
+    {
+        const src = allYieldImages[yields];
+        const img = new Image();
+        img.src = src;
+        
+        await new Promise(resolve => (img.onload = resolve));
+
+        yieldCache.set(yields, img);
     }
 }

@@ -4,43 +4,6 @@ export enum HexType
     DISTRICT
 }
 
-export type TileType =
-{
-  X: number,
-  Y: number,
-  TerrainType: string,
-  FeatureType: string,
-  ResourceType: string,
-  ImprovementType: string,
-  IsHills: boolean,
-  IsMountain: boolean,
-  IsWater: boolean,
-  IsCity: boolean,
-  TileCity: string,
-  CityPantheon: string,
-  IsRiver: boolean,
-  IsNEOfRiver: boolean,
-  IsWOfRiver: boolean,
-  IsNWOfRiver: boolean,
-  RiverSWFlow: string,
-  RiverEFlow: string,
-  RiverSEFlow: string,
-  Appeal: number,
-  Continent: string,
-  Civilization: string,
-  Leader: string,
-  CityName: string,
-  District: string,
-  Buildings: never[] | string[],
-  Wonder: string,
-  Food: number, 
-  Production: number, 
-  Gold: number, 
-  Science: number, 
-  Culture: number, 
-  Faith: number
-}
-
 export enum RiverDirections
 {
   NORTHEAST, 
@@ -58,6 +21,7 @@ export type TerrainFeatureKey = `${TileTerrain}_${TileFeatures | TileNone}`;
 export enum TileNone {NONE = "NONE"}
 /*********************** CIV TILE NAMES ***********************/
 
+/** */
 export enum TileNaturalWonders
 {
   CLIFFS_OF_DOVER = 'Cliffs of Dover',
@@ -261,6 +225,16 @@ export enum TilePantheons
   SACRED_PATH = 'Sacred Path'
 }
 
+export enum TileYields
+{
+  FOOD = 'Food', 
+  PRODUCTION = 'Production', 
+  GOLD = 'Gold', 
+  SCIENCE = 'Science', 
+  CULTURE = 'Culture', 
+  FAITH = 'Faith'
+}
+
 export enum LeaderName
 {
   TEDDY_ROOSEVELT = "Teddy Roosevelt",
@@ -283,4 +257,43 @@ export enum LeaderName
   HARALD_HARDRADA = "Harald Hardrada",
   TRAJAN = "Trajan",
   MONTEZUMA_I = "Montezuma I"
+}
+
+export type TileType =
+{
+  X: number,
+  Y: number,
+  TerrainType: TileTerrain | TileNone.NONE,
+  /** CONTAINS NATURAL WONDERS */
+  FeatureType: TileFeatures | TileNaturalWonders | TileNone.NONE,
+  ResourceType: TileBonusResources | TileStrategicResources | TileLuxuryResources | TileNone.NONE,
+  ImprovementType: TileImprovements | TileNone.NONE,
+  IsHills: boolean,
+  IsMountain: boolean,
+  IsWater: boolean,
+  IsCity: boolean,
+  TileCity: string,
+  CityPantheon: string,
+  IsRiver: boolean,
+  IsNEOfRiver: boolean,
+  IsWOfRiver: boolean,
+  IsNWOfRiver: boolean,
+  RiverSWFlow: string,
+  RiverEFlow: string,
+  RiverSEFlow: string,
+  Appeal: number,
+  Continent: string,
+  Civilization: string,
+  Leader: LeaderName,
+  CityName: string,
+  District: TileDistricts | TileUniqueDistricts | TileNone.NONE,
+  Buildings: never[] | string[],
+  /** DOES NOT CONTAIN NATURAL WONDERS */
+  Wonder: TileWonders | TileNone.NONE,
+  Food: number, 
+  Production: number, 
+  Gold: number, 
+  Science: number, 
+  Culture: number, 
+  Faith: number
 }

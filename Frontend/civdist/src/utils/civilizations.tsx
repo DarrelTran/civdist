@@ -3,10 +3,10 @@ import { TileType, LeaderName, TileNone, TileFeatures, TileTerrain, TileWonders,
 /*
 Rules:
 1) Account for civ specific stuff
-2) Get max adjacency bonus
 3) Account for building bonuses to tiles or city (like factory) or stuff that removes appeal
-3) Avoid placing district on high tile yields or improved tiles, strategic, luxury, or bonus resources
-4) Avoid tiles good for wonders
+3) Avoid placing district on high tile yields - prioritize avoiding the yields user selects as important
+4) Avoid improved tiles, strategic, luxury, or bonus resources
+5) Avoid tiles good for wonders
 */
 
 /* SEPERATE ADJACENCY BONUSES FUNCTIONS INTO CLASS??? */
@@ -16,6 +16,7 @@ const goodScore = 5;
 const mediumScore = 3;
 const lowScore = 1;
 const badScore = -2;
+const veryBadScore = -4;
 
 function getOffsets(row: number): number[][]
 {
@@ -36,13 +37,24 @@ function isSeaResource(tile: TileType): boolean
     return false;
 }
 
+function hasNaturalWonder(wonder: string): boolean
+{
+    for (const natWonder of Object.values(TileNaturalWonders)) 
+    {
+        if (wonder === natWonder)
+            return true;
+    }
+
+    return false;
+}
+
 /**
  * A tile that has no district, wonder, and is not mountainous.
  * @param tile 
  */
 function isFreeTile(tile: TileType): boolean
 {
-    if (tile.IsMountain || tile.District !== TileNone.NONE || tile.Wonder !== TileNone.NONE )
+    if (tile.IsMountain || tile.District !== TileNone.NONE || tile.Wonder !== TileNone.NONE || hasNaturalWonder(tile.FeatureType))
         return false;
 
     return true;
@@ -60,11 +72,13 @@ function getScoreFromAdj(adj: number): number
         return badScore;
 }
 
+function hasCampus(ownedTiles: readonly TileType[]): boolean
+{
+    return ownedTiles.some(tile => tile.District === TileDistricts.SCIENCE_DISTRICT);
+}
+
 export abstract class Civilization
 {
-    protected leader: LeaderName; 
-    constructor(theLeader: LeaderName) {this.leader = theLeader;};
-
     /* ADJ BONUSES */
 
     protected getCampusAdj(tile: TileType, ownedTiles: readonly TileType[]): number
@@ -81,7 +95,7 @@ export abstract class Civilization
                 const otherTile = ownedTiles[i];
                 if (otherTile.X === adjOddrX && otherTile.Y === adjOddrY)
                 {
-                    if (otherTile.Wonder === TileNaturalWonders.GREAT_BARRIER_REEF)
+                    if (otherTile.FeatureType === TileNaturalWonders.GREAT_BARRIER_REEF)
                         bonus = bonus + 2;
                     if (otherTile.IsMountain)
                         bonus = bonus + 1;
@@ -257,18 +271,21 @@ export abstract class Civilization
         let maxScore = 0;
         let returnedTile = undefined as TileType | undefined; // wtf???
 
-        ownedTiles.forEach((tile) => 
+        if (!hasCampus(ownedTiles))
         {
-            if (isFreeTile(tile))
+            ownedTiles.forEach((tile) => 
             {
-                let score = getScoreFromAdj(this.getCampusAdj(tile, ownedTiles));
-                if (score > maxScore)
+                if (isFreeTile(tile))
                 {
-                    maxScore = score;
-                    returnedTile = tile;
+                    let score = maxScore + getScoreFromAdj(this.getCampusAdj(tile, ownedTiles));
+                    if (score > maxScore)
+                    {
+                        maxScore = score;
+                        returnedTile = tile;
+                    }
                 }
-            }
-        })
+            })
+        }
 
         if (returnedTile)
             returnedTile.District = TileDistricts.SCIENCE_DISTRICT;
@@ -351,8 +368,133 @@ export abstract class Civilization
 
 export class America extends Civilization
 {
-    constructor(theLeader: LeaderName.TEDDY_ROOSEVELT)
-    {
-        super(theLeader);
-    }
+    
 }
+
+export class Arabia extends Civilization
+{
+    
+}
+
+export class Brazil extends Civilization
+{
+    
+}
+
+export class China extends Civilization
+{
+    
+}
+
+export class Egypt extends Civilization
+{
+    
+}
+
+export class England extends Civilization
+{
+    
+}
+
+export class France extends Civilization
+{
+    
+}
+
+export class Germany extends Civilization
+{
+    
+}
+
+export class Greece extends Civilization
+{
+    
+}
+
+export class India extends Civilization
+{
+    
+}
+
+export class Japan extends Civilization
+{
+    
+}
+
+export class Kongo extends Civilization
+{
+    
+}
+
+export class Russia extends Civilization
+{
+    
+}
+
+export class Scythia extends Civilization
+{
+    
+}
+
+export class Sumeria extends Civilization
+{
+    
+}
+
+export class Spain extends Civilization
+{
+    
+}
+
+export class Norway extends Civilization
+{
+    
+}
+
+export class Rome extends Civilization
+{
+    
+}
+
+export class Aztec extends Civilization
+{
+    
+}
+
+const CivRegistry: Record<LeaderName, new () => Civilization> = 
+{
+  [LeaderName.TEDDY_ROOSEVELT]: America,
+  [LeaderName.SALADIN]: America,
+  [LeaderName.PEDRO_II]: America,
+  [LeaderName.QIN_SHI_HUANG]: America,
+  [LeaderName.CLEOPATRA]: America,
+  [LeaderName.VICTORIA]: America,
+  [LeaderName.CATHERINE_DE_MEDICI]: America,
+  [LeaderName.FREDERICK_BARBAROSSA]: America,
+  [LeaderName.PERICLES]: America,
+  [LeaderName.GORGO]: America,
+  [LeaderName.GANDHI]: America,
+  [LeaderName.HOJO_TOKIMUNE]: America,
+  [LeaderName.MVEMBA_A_NZINGA]: America,
+  [LeaderName.PETER_THE_GREAT]: America,
+  [LeaderName.TOMYRIS]: America,
+  [LeaderName.GILGAMESH]: America,
+  [LeaderName.PHILIP_II]: America,
+  [LeaderName.HARALD_HARDRADA]: America,
+  [LeaderName.TRAJAN]: America,
+  [LeaderName.MONTEZUMA_I]: America
+};
+
+export function getCivilization(leaderName: LeaderName | TileNone): Civilization | TileNone
+{
+    let theCiv: Civilization | TileNone = TileNone.NONE;
+
+    if (leaderName !== TileNone.NONE)
+    {
+        const FoundCiv = CivRegistry[leaderName];
+        if (FoundCiv)
+            return new FoundCiv();
+    }
+
+    return theCiv;
+}   

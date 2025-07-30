@@ -1,4 +1,4 @@
-import { TileDistricts } from "./types";
+import { TileDistricts, TileYields } from "./types";
 
 export const baseTileSize : number = 10;
 export const allPossibleDistricts = () =>
@@ -11,4 +11,15 @@ export const allPossibleDistricts = () =>
     }
 
     return allDistricts;
+}
+export const allPossibleYields = () =>
+{
+    const allYields: TileYields[] = [];
+
+    for (const yields of Object.values(TileYields)) 
+    {
+        allYields.push(yields);
+    }
+
+    return allYields;
 }

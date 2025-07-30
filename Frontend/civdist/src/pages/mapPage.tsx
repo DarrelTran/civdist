@@ -9,6 +9,7 @@ import { getTerrain, getDistrict, getNaturalWonder, getWonder } from '../utils/i
 import { baseTileSize, allPossibleDistricts, allPossibleYields } from '../utils/constants';
 import { getCivilization } from '../utils/civilizations';
 import { mapPageSelectStyle } from './mapPageSelectStyles';
+import { compileFunction } from 'vm';
 
 /*
 /////////////////////////////////////////////////////////////////
@@ -49,6 +50,7 @@ const MapPage = () =>
     const [winSize, setWinSize] = useState<{width: number, height: number}>({width: window.innerWidth, height: window.innerHeight});
 
     const [visualZoomInput, setVisualZoomInput] = useState<number>(100);
+    const [visualYieldDropdown, setVisualYieldDropdown] = useState<{value: TileYields, label: TileYields, image: HTMLImageElement}[]>([]);
 
     const [originalGridSize, setOriginalGridSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(baseTileSize).tileX, y: getScaledGridAndTileSizes(baseTileSize).tileY}); 
     const [gridSize, setGridSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(baseTileSize).gridX, y: getScaledGridAndTileSizes(baseTileSize).gridY});
@@ -69,6 +71,7 @@ const MapPage = () =>
     const [includeCityStates, setIncludeCityStates] = useState<boolean>(false);
     const [dropdownCity, setDropdownCity] = useState<string>();
     const [dropdownDistrict, setDropdownDistrict] = useState<string>(allPossibleDistricts()[0]);
+    const [dropdownYields, setDropdownYields] = useState<TileYields[]>([]);
 
     /**
      * - Shifting hex img's by the subtraction seen in drawMap() keeps correct oddr coordinate detection but visuals will break
@@ -116,13 +119,20 @@ const MapPage = () =>
     }
 
     /**
-     * SHOULD save context before calling this function and restore context after calling this function.
      * @param context 2D canvas context.
-     * @param px X & y coordinates of the text box. Assumes that the hexmap has flipped y coordinates.
+     * @param px X & y pixel coordinates of the text box. Assumes that the hexmap has flipped y coordinates.
      * @param text 
      */
     function drawTextWithBox(context: CanvasRenderingContext2D, px: {x: number, y: number}, text: string)
     {
+        context.save();
+
+        // keep in line with the flipped hexmap
+        context.scale(1, -1);
+        context.translate(0, -gridSize.y);
+        // flip upright
+        context.scale(1, -1);
+
         const minTile = Math.min(tileSize.x, tileSize.y);
         const fontSize = minTile / 1.5;
         //const fontSize = minGrid / minTile;
@@ -162,6 +172,8 @@ const MapPage = () =>
 
             context.fillText(text, xPosText, yPosText);
         }
+
+        context.restore();
     }
 
     /**
@@ -361,17 +373,7 @@ const MapPage = () =>
         drawRiversFromCache(context);
         drawBorderLines(context);
 
-        context.save();
-
-        // keep in line with the flipped hexmap
-        context.scale(1, -1);
-        context.translate(0, -gridSize.y);
-        // flip upright
-        context.scale(1, -1);
-
         drawTextWithBox(context, {x: textBoxPos.x, y: textBoxPos.y}, textBoxText);
-
-        context.restore();
     }
     
     const handleMouseHover = useCallback((key: string, oddrCoord: { col: number, row: number }) => 
@@ -734,6 +736,7 @@ const MapPage = () =>
         setCurrentCity(undefined);
         setCityBoundaryTiles(new Map());
         setVisualZoomInput(100);
+        setVisualYieldDropdown([]);
     }
 
     function handleInputChange(e: React.ChangeEvent<HTMLInputElement>)
@@ -812,7 +815,7 @@ const MapPage = () =>
             {
                 const dropdownCityOwnedTiles = cityOwnedTiles.get(dropdownCity);
                 if (dropdownCityOwnedTiles)
-                    foundTile = theCiv.getCampusTile(dropdownCityOwnedTiles);
+                    foundTile = theCiv.getCampusTile(dropdownCityOwnedTiles, dropdownYields, hexmapCache.current);
             }
         }
 
@@ -826,12 +829,12 @@ const MapPage = () =>
                 setErrorText("");
             }, 4000)
         }
-    }, [cityOwnedTiles, dropdownDistrict, dropdownCity])
+    }, [cityOwnedTiles, dropdownDistrict, dropdownCity, dropdownYields, mapCacheVersion])
 
     const getSelectionYields = useCallback(() => 
     {
         const allYields = allPossibleYields();
-        const tempArr: {value: string, label: string, image: HTMLImageElement}[] = [];
+        const tempArr: {value: TileYields, label: TileYields, image: HTMLImageElement}[] = [];
 
         for (let i = 0; i < allYields.length; i++)
         {
@@ -848,7 +851,7 @@ const MapPage = () =>
         return tempArr;
     }, [areImagesLoaded])   
 
-    function formatSelectionYields(option: {value: string, label: string, image: HTMLImageElement}): JSX.Element
+    function formatSelectionYields(option: {value: TileYields, label: TileYields, image: HTMLImageElement}): JSX.Element
     {
         return <div>
             <span style={{paddingRight: '10px'}}>{option.label}</span>
@@ -941,10 +944,23 @@ const MapPage = () =>
                             }
                         </select>
                         <Select 
+                            value={visualYieldDropdown}
                             options={getSelectionYields()} 
                             isMulti 
                             styles={mapPageSelectStyle}
-                            onChange={(e) => {e.forEach((val) => {console.log(val)})}}
+                            onChange=
+                            {
+                                (e) => 
+                                {
+                                    const yields: TileYields[] = [];
+                                    const opts: {value: TileYields, label: TileYields, image: HTMLImageElement}[] = [];
+
+                                    e.forEach((opt) => { yields.push(opt.value); opts.push(opt);})
+
+                                    setDropdownYields(yields);
+                                    setVisualYieldDropdown(opts);
+                                }
+                            }
                             formatOptionLabel={formatSelectionYields}
                         />
                         <button onClick={handleAddButton}>ADD</button>
@@ -1204,16 +1220,7 @@ const MapPage = () =>
 
     function testStuff()
     {
-        /*
-        const temp = new America(LeaderName.TEDDY_ROOSEVELT);
-        const aach = cityOwnedTiles.get("Aachen");
-        const c = hexmapCache.current.get('12,16')
-        if (aach && c)
-        {
-            const v = temp.getCampusBonuses(c, aach);
-            console.log('12,16 has ' + v + ' campus bonus')
-        }
-        */
+        //dropdownYields.forEach((a) => {console.log(a)})
     }
 };
 

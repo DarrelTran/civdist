@@ -129,7 +129,8 @@ export enum TileFeatures
   WOODS = 'Woods',
   OASIS = 'Oasis',
   MARSH = 'Marsh',
-  ICE = 'Ice'
+  ICE = 'Ice',
+  FLOODPLAINS = 'Floodplains'
 }
 
 export enum TileImprovements

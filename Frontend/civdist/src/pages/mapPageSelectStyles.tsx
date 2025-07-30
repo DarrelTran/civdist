@@ -1,18 +1,23 @@
 import { CSSObjectWithLabel, OptionProps, StylesConfig } from "react-select";
+import { TileYields } from "../utils/types";
 
 type YieldOption = 
 {
-  value: string;
-  label: string;
+  value: TileYields;
+  label: TileYields;
   image: HTMLImageElement;
 };
 
 export const mapPageSelectStyle: StylesConfig<YieldOption, true>  = 
 {
-    control: (baseStyles: CSSObjectWithLabel) => 
+    control: (baseStyles: CSSObjectWithLabel, state) => 
     ({
         ...baseStyles,
-        backgroundColor: '#e8e8ec'
+        backgroundColor: state.isFocused ? '#d0d0d7' : '#e8e8ec',
+        ':hover': 
+        {
+            backgroundColor: '#d0d0d7'
+        }
     }),
     menu: (baseStyles: CSSObjectWithLabel) => 
     ({
@@ -41,9 +46,10 @@ export const mapPageSelectStyle: StylesConfig<YieldOption, true>  =
     multiValueLabel: (baseStyles: CSSObjectWithLabel) => 
     ({
         ...baseStyles,
-        backgroundColor: 'lightgrey'
+        backgroundColor: 'darkgrey',
+        color: 'black'
     }),
-    option: (baseStyles: CSSObjectWithLabel, state: OptionProps<YieldOption, true>) => 
+    option: (baseStyles: CSSObjectWithLabel, state) => 
     ({
         ...baseStyles,
         backgroundColor: state.isSelected ? '#edf1f2': '#edf1f2',
@@ -51,5 +57,10 @@ export const mapPageSelectStyle: StylesConfig<YieldOption, true>  =
         {
             backgroundColor: '#cfd4d6'
         }
+    }),
+    multiValueRemove: (baseStyles: CSSObjectWithLabel) => 
+    ({
+        ...baseStyles,
+        backgroundColor: 'grey'
     }),
 }

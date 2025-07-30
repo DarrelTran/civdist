@@ -1,23 +1,23 @@
-import { TileType, LeaderName, TileNone, TileFeatures, TileTerrain, TileWonders, TileDistricts, TileUniqueDistricts, TileNaturalWonders, TileBonusResources, TileLuxuryResources, TileImprovements, TileStrategicResources, TilePantheons } from "./types";
+import { TileType, LeaderName, TileNone, TileFeatures, TileTerrain, TileWonders, TileDistricts, TileUniqueDistricts, TileNaturalWonders, TileBonusResources, TileLuxuryResources, TileImprovements, TileStrategicResources, TilePantheons, TileYields } from "./types";
 
 /*
 Rules:
 1) Account for civ specific stuff
-3) Account for building bonuses to tiles or city (like factory) or stuff that removes appeal
-3) Avoid placing district on high tile yields - prioritize avoiding the yields user selects as important
-4) Avoid improved tiles, strategic, luxury, or bonus resources
+3) Account for building bonuses to tiles or city (like factory) or stuff that removes appeal when adding district
 5) Avoid tiles good for wonders
+6) Check if future districts can be placed nearby
 */
 
-/* SEPERATE ADJACENCY BONUSES FUNCTIONS INTO CLASS??? */
+const GOOD_SCORE = 5;
+const MEDIUM_SCORE = 3;
+const LOW_SCORE = 1;
+const BAD_SCORE = -2;
 
-// change?????????????????
-const goodScore = 5;
-const mediumScore = 3;
-const lowScore = 1;
-const badScore = -2;
-const veryBadScore = -4;
-
+/**
+ * Offsets are ordered counterclockwise.
+ * @param row 
+ * @returns 
+ */
 function getOffsets(row: number): number[][]
 {
     const offsets = (row % 2 === 0) ? [[1, 0], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1]] : [[1, 0], [1, 1], [0, 1], [-1, 0], [0, -1], [1, -1]];
@@ -63,13 +63,13 @@ function isFreeTile(tile: TileType): boolean
 function getScoreFromAdj(adj: number): number
 {
     if (adj >= 5) // 5 or more
-        return goodScore;
+        return GOOD_SCORE;
     else if (adj > 1 && adj < 5) // 1.5 - 4.5
-        return mediumScore;
+        return MEDIUM_SCORE;
     else if (adj > 0 && adj <= 1) // 0.5 - 1
-        return lowScore;
+        return LOW_SCORE;
     else
-        return badScore;
+        return BAD_SCORE;
 }
 
 function hasCampus(ownedTiles: readonly TileType[]): boolean
@@ -77,11 +77,152 @@ function hasCampus(ownedTiles: readonly TileType[]): boolean
     return ownedTiles.some(tile => tile.District === TileDistricts.SCIENCE_DISTRICT);
 }
 
+function getScoreFromResource(tile: TileType): number
+{
+    for (const bonus of Object.values(TileBonusResources)) 
+    {
+        if (tile.ResourceType === bonus)
+            return BAD_SCORE;
+    }
+    for (const luxury of Object.values(TileLuxuryResources)) 
+    {
+        if (tile.ResourceType === luxury)
+            return BAD_SCORE;
+    }
+    for (const strategic of Object.values(TileStrategicResources)) 
+    {
+        if (tile.ResourceType === strategic)
+            return BAD_SCORE;
+    }
+
+    return LOW_SCORE;
+}
+
+function getScoreFromImprovements(tile: TileType, mapCache: Map<string, TileType>): number // maybe a class method??
+{
+    const goodForFarm = (tile: TileType): boolean => 
+    {
+        if (tile.TerrainType === TileTerrain.GRASSLAND || 
+            tile.TerrainType === TileTerrain.GRASSLAND_HILLS || 
+            tile.TerrainType === TileTerrain.PLAINS || 
+            tile.TerrainType === TileTerrain.PLAINS_HILLS || 
+            (tile.TerrainType === TileTerrain.DESERT && tile.FeatureType === TileFeatures.FLOODPLAINS)
+           )
+            return true;
+
+        return false;
+    }
+
+    if (tile.ImprovementType !== TileNone.NONE)
+        return BAD_SCORE;
+    // check if tile has good adjacencies for farm's feudalism civic
+    else if (goodForFarm(tile))
+    {
+        const offset = getOffsets(tile.Y);
+
+        const rightOddr = `${tile.X + offset[0][0]},${tile.Y + offset[0][1]}`;
+        const topRightOddr = `${tile.X + offset[1][0]},${tile.Y + offset[1][1]}`;
+        const topLeftOddr = `${tile.X + offset[2][0]},${tile.Y + offset[2][1]}`;
+        const leftOddr = `${tile.X + offset[3][0]},${tile.Y + offset[3][1]}`;
+        const bottomLeftOddr = `${tile.X + offset[4][0]},${tile.Y + offset[4][1]}`;
+        const bottomRightOddr = `${tile.X + offset[5][0]},${tile.Y + offset[5][1]}`;
+
+        const rightTile = mapCache.get(rightOddr);
+        const topRightTile = mapCache.get(topRightOddr);
+        const topLeftTile = mapCache.get(topLeftOddr);
+        const leftTile = mapCache.get(leftOddr);
+        const bottomLeftTile = mapCache.get(bottomLeftOddr);
+        const bottomRightTile = mapCache.get(bottomRightOddr);
+
+        // northeast double
+        if (rightTile && topRightTile && goodForFarm(rightTile) && goodForFarm(topRightTile))
+            return BAD_SCORE;
+
+        // north double
+        if (topRightTile && topLeftTile && goodForFarm(topRightTile) && goodForFarm(topLeftTile))
+            return BAD_SCORE;
+
+        // north west double
+        if (topLeftTile && leftTile && goodForFarm(topLeftTile) && goodForFarm(leftTile))
+            return BAD_SCORE;
+
+        // south west double
+        if (leftTile && bottomLeftTile && goodForFarm(leftTile) && goodForFarm(bottomLeftTile))
+            return BAD_SCORE;
+
+        // south double
+        if (bottomLeftTile && bottomRightTile && goodForFarm(bottomLeftTile) && goodForFarm(bottomRightTile))
+            return BAD_SCORE;
+
+        // south east double
+        if (bottomRightTile && rightTile && goodForFarm(bottomRightTile) && goodForFarm(rightTile))
+            return BAD_SCORE;
+
+        // back slash diagonal
+        if (topLeftTile && bottomRightTile && goodForFarm(topLeftTile) && goodForFarm(bottomRightTile))
+            return BAD_SCORE;
+
+        // forward slash diagonal
+        if (topRightTile && bottomLeftTile && goodForFarm(topRightTile) && goodForFarm(bottomLeftTile))
+            return BAD_SCORE;
+
+        // horizontal 
+        if (leftTile && rightTile && goodForFarm(leftTile) && goodForFarm(rightTile))
+            return BAD_SCORE;
+
+        // backwards l-shape
+        if (topRightTile && leftTile && goodForFarm(topRightTile) && goodForFarm(leftTile))
+            return BAD_SCORE;
+
+        // l-shape
+        if (topLeftTile && rightTile && goodForFarm(topLeftTile) && goodForFarm(rightTile))
+            return BAD_SCORE;
+
+        // upside down l-shape
+        if (bottomLeftTile && rightTile && goodForFarm(bottomLeftTile) && goodForFarm(rightTile))
+            return BAD_SCORE;
+
+        // upside down backwards l-shape
+        if (bottomRightTile && leftTile && goodForFarm(bottomRightTile) && goodForFarm(leftTile))
+            return BAD_SCORE;
+    }
+
+    return LOW_SCORE;
+}
+
 export abstract class Civilization
 {
-    /* ADJ BONUSES */
+    /* Helper methods - In class because there might be civ specific stuff for them and if so, should be overwritten. */
 
-    protected getCampusAdj(tile: TileType, ownedTiles: readonly TileType[]): number
+    /**
+     * Want to avoid tiles with high yields or ones with yields preferred by the user.
+     * @param tile 
+     * @param yieldPreferences 
+     * @returns 
+     */
+    protected getScoreFromYields(tile: TileType, yieldPreferences: TileYields[]): number
+    {
+        if ((yieldPreferences.includes(TileYields.FOOD) && tile.Food > 0) || 
+            (yieldPreferences.includes(TileYields.SCIENCE) && tile.Science > 0) ||
+            (yieldPreferences.includes(TileYields.PRODUCTION) && tile.Production > 0) ||
+            (yieldPreferences.includes(TileYields.CULTURE) && tile.Culture > 0) ||
+            (yieldPreferences.includes(TileYields.FAITH) && tile.Faith > 0) ||
+            (yieldPreferences.includes(TileYields.GOLD) && tile.Gold > 0)
+           )
+            return BAD_SCORE;
+        else if (tile.Food >= 4 || 
+                 tile.Science >= 4 ||
+                 tile.Production >= 4 ||
+                 tile.Culture >= 4 ||
+                 tile.Faith >= 4 ||
+                 tile.Gold >= 4
+                )
+            return BAD_SCORE;
+        else
+            return LOW_SCORE;
+    }
+
+    protected getCampusAdj(tile: TileType, mapCache: Map<string, TileType>): number
     {
         let bonus = 0;
 
@@ -90,27 +231,25 @@ export abstract class Civilization
         {
             const adjOddrX = tile.X + dx;
             const adjOddrY = tile.Y + dy;
-            for (let i = 0; i < ownedTiles.length; i++)
-            {
-                const otherTile = ownedTiles[i];
-                if (otherTile.X === adjOddrX && otherTile.Y === adjOddrY)
-                {
-                    if (otherTile.FeatureType === TileNaturalWonders.GREAT_BARRIER_REEF)
-                        bonus = bonus + 2;
-                    if (otherTile.IsMountain)
-                        bonus = bonus + 1;
-                    if (otherTile.FeatureType === TileFeatures.RAINFOREST || (otherTile.District !== TileNone.NONE && otherTile.Wonder === TileNone.NONE)) // wonders are districts
-                        bonus = bonus + 0.5;
 
-                    break;
-                }
+            const adjOddr = `${adjOddrX},${adjOddrY}`;
+            const adjCacheTile = mapCache.get(adjOddr);
+
+            if (adjCacheTile)
+            {
+                if (adjCacheTile.FeatureType === TileNaturalWonders.GREAT_BARRIER_REEF)
+                    bonus = bonus + 2;
+                if (adjCacheTile.IsMountain)
+                    bonus = bonus + 1;
+                if (adjCacheTile.FeatureType === TileFeatures.RAINFOREST || (adjCacheTile.District !== TileNone.NONE && adjCacheTile.Wonder === TileNone.NONE)) // wonders are districts
+                    bonus = bonus + 0.5;
             }
         })
 
         return bonus;
     }
 
-    protected getTheaterAdj(tile: TileType, ownedTiles: readonly TileType[]): number
+    protected getTheaterAdj(tile: TileType, mapCache: Map<string, TileType>): number
     {
         let bonus = 0;
 
@@ -119,25 +258,23 @@ export abstract class Civilization
         {
             const adjOddrX = tile.X + dx;
             const adjOddrY = tile.Y + dy;
-            for (let i = 0; i < ownedTiles.length; i++)
-            {
-                const otherTile = ownedTiles[i];
-                if (otherTile.X === adjOddrX && otherTile.Y === adjOddrY)
-                {
-                    if (otherTile.Wonder !== TileNone.NONE)
-                        bonus = bonus + 1;
-                    if (otherTile.District !== TileNone.NONE && otherTile.Wonder === TileNone.NONE)
-                        bonus = bonus + 0.5;
 
-                    break;
-                }
+            const adjOddr = `${adjOddrX},${adjOddrY}`;
+            const adjCacheTile = mapCache.get(adjOddr);
+
+            if (adjCacheTile)
+            {   
+                if (adjCacheTile.Wonder !== TileNone.NONE)
+                    bonus = bonus + 1;
+                if (adjCacheTile.District !== TileNone.NONE && adjCacheTile.Wonder === TileNone.NONE)
+                    bonus = bonus + 0.5;
             }
         })
 
         return bonus;
     }
 
-    protected getIndustrialZoneAdj(tile: TileType, ownedTiles: readonly TileType[]): number
+    protected getIndustrialZoneAdj(tile: TileType, mapCache: Map<string, TileType>): number
     {
         let bonus = 0;
 
@@ -146,25 +283,23 @@ export abstract class Civilization
         {
             const adjOddrX = tile.X + dx;
             const adjOddrY = tile.Y + dy;
-            for (let i = 0; i < ownedTiles.length; i++)
-            {
-                const otherTile = ownedTiles[i];
-                if (otherTile.X === adjOddrX && otherTile.Y === adjOddrY)
-                {
-                    if (tile.ImprovementType === TileImprovements.MINE || tile.ImprovementType === TileImprovements.QUARRY)
-                        bonus = bonus + 1;
-                    if (otherTile.District !== TileNone.NONE && otherTile.Wonder === TileNone.NONE)
-                        bonus = bonus + 0.5;
 
-                    break;
-                }
+            const adjOddr = `${adjOddrX},${adjOddrY}`;
+            const adjCacheTile = mapCache.get(adjOddr);
+
+            if (adjCacheTile)
+            {
+                if (adjCacheTile.ImprovementType === TileImprovements.MINE || adjCacheTile.ImprovementType === TileImprovements.QUARRY)
+                    bonus = bonus + 1;
+                if (adjCacheTile.District !== TileNone.NONE && adjCacheTile.Wonder === TileNone.NONE)
+                    bonus = bonus + 0.5;
             }
         })
 
         return bonus;
     }
 
-    protected getHarborAdj(tile: TileType, ownedTiles: readonly TileType[]): number
+    protected getHarborAdj(tile: TileType, mapCache: Map<string, TileType>): number
     {
         let bonus = 0;
 
@@ -173,27 +308,25 @@ export abstract class Civilization
         {
             const adjOddrX = tile.X + dx;
             const adjOddrY = tile.Y + dy;
-            for (let i = 0; i < ownedTiles.length; i++)
+
+            const adjOddr = `${adjOddrX},${adjOddrY}`;
+            const adjCacheTile = mapCache.get(adjOddr);
+
+            if (adjCacheTile)
             {
-                const otherTile = ownedTiles[i];
-                if (otherTile.X === adjOddrX && otherTile.Y === adjOddrY)
-                {
-                    if (otherTile.District === TileDistricts.CENTER_DISTRICT)
-                        bonus = bonus + 2;
-                    if (isSeaResource(otherTile))
-                        bonus = bonus + 1;
-                    if (otherTile.District !== TileNone.NONE && otherTile.Wonder === TileNone.NONE)
-                        bonus = bonus + 0.5;
-                    
-                    break;
-                }
+                if (adjCacheTile.District === TileDistricts.CENTER_DISTRICT)
+                    bonus = bonus + 2;
+                if (isSeaResource(adjCacheTile))
+                    bonus = bonus + 1;
+                if (adjCacheTile.District !== TileNone.NONE && adjCacheTile.Wonder === TileNone.NONE)
+                    bonus = bonus + 0.5;
             }
         })
 
         return bonus;
     }
 
-    protected getCommercialHubAdj(tile: TileType, ownedTiles: readonly TileType[]): number
+    protected getCommercialHubAdj(tile: TileType, mapCache: Map<string, TileType>): number
     {
         let bonus = 0;
 
@@ -202,25 +335,26 @@ export abstract class Civilization
         {
             const adjOddrX = tile.X + dx;
             const adjOddrY = tile.Y + dy;
-            for (let i = 0; i < ownedTiles.length; i++)
+
+            const adjOddr = `${adjOddrX},${adjOddrY}`;
+            const adjCacheTile = mapCache.get(adjOddr);
+
+            if (adjCacheTile)
             {
-                const otherTile = ownedTiles[i];
-                if (otherTile.X === adjOddrX && otherTile.Y === adjOddrY)
-                {
-                    if (otherTile.IsRiver || otherTile.District === TileDistricts.HARBOR_DISTRICT)
-                        bonus = bonus + 2;
-                    if (otherTile.District !== TileNone.NONE && otherTile.Wonder === TileNone.NONE)
-                        bonus = bonus + 0.5;
-                    
-                    break;
-                }
+                if (adjCacheTile.District === TileDistricts.HARBOR_DISTRICT)
+                    bonus = bonus + 2;
+                if (adjCacheTile.District !== TileNone.NONE && adjCacheTile.Wonder === TileNone.NONE)
+                    bonus = bonus + 0.5;
             }
         })
+
+        if (tile.IsRiver) // rivers are visually between tiles but represented as tiles between the visual river
+            bonus = bonus + 2;
 
         return bonus;
     }
 
-    protected getHolySiteAdj(tile: TileType, ownedTiles: readonly TileType[]): number
+    protected getHolySiteAdj(tile: TileType, ownedTiles: readonly TileType[], mapCache: Map<string, TileType>): number
     {
         let cityPanth = "NONE";
         for (let i = 0; i < ownedTiles.length; i++)
@@ -240,24 +374,23 @@ export abstract class Civilization
         {
             const adjOddrX = tile.X + dx;
             const adjOddrY = tile.Y + dy;
-            for (let i = 0; i < ownedTiles.length; i++)
+
+            const adjOddr = `${adjOddrX},${adjOddrY}`;
+            const adjCacheTile = mapCache.get(adjOddr);
+
+            if (adjCacheTile)
             {
-                const otherTile = ownedTiles[i];
-                if (otherTile.X === adjOddrX && otherTile.Y === adjOddrY)
-                {
-                    if (otherTile.Wonder !== TileNone.NONE)
-                        bonus = bonus + 2;
-                    if (
-                        otherTile.IsMountain || 
-                        (cityPanth === TilePantheons.DANCE_OF_THE_AURORA && (otherTile.TerrainType === TileTerrain.TUNDRA || otherTile.TerrainType === TileTerrain.TUNDRA_HILLS || otherTile.TerrainType === TileTerrain.TUNDRA_MOUNTAIN)) ||
-                        (cityPanth === TilePantheons.DESERT_FOLKLORE && (otherTile.TerrainType === TileTerrain.DESERT || otherTile.TerrainType === TileTerrain.DESERT_HILLS || otherTile.TerrainType === TileTerrain.DESERT_MOUNTAIN)) ||
-                        (cityPanth === TilePantheons.SACRED_PATH && otherTile.FeatureType === TileFeatures.RAINFOREST)
-                       )
-                        bonus = bonus + 1;
-                    if ((otherTile.District !== "NONE" && otherTile.Wonder === "NONE") || otherTile.FeatureType === TileFeatures.WOODS)
-                        bonus = bonus + 0.5;
-                    break;
-                }
+                if (hasNaturalWonder(adjCacheTile.FeatureType))
+                    bonus = bonus + 2;
+                if (
+                    adjCacheTile.IsMountain || 
+                    (cityPanth === TilePantheons.DANCE_OF_THE_AURORA && (adjCacheTile.TerrainType === TileTerrain.TUNDRA || adjCacheTile.TerrainType === TileTerrain.TUNDRA_HILLS || adjCacheTile.TerrainType === TileTerrain.TUNDRA_MOUNTAIN)) ||
+                    (cityPanth === TilePantheons.DESERT_FOLKLORE && (adjCacheTile.TerrainType === TileTerrain.DESERT || adjCacheTile.TerrainType === TileTerrain.DESERT_HILLS || adjCacheTile.TerrainType === TileTerrain.DESERT_MOUNTAIN)) ||
+                    (cityPanth === TilePantheons.SACRED_PATH && adjCacheTile.FeatureType === TileFeatures.RAINFOREST)
+                    )
+                    bonus = bonus + 1;
+                if ((adjCacheTile.District !== "NONE" && adjCacheTile.Wonder === "NONE") || adjCacheTile.FeatureType === TileFeatures.WOODS)
+                    bonus = bonus + 0.5;
             }
         })
 
@@ -266,7 +399,7 @@ export abstract class Civilization
 
     /* OPTIMAL TILE PLACEMENT */
 
-    getCampusTile(ownedTiles: readonly TileType[]): TileType | undefined
+    getCampusTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>): TileType | undefined
     {
         let maxScore = 0;
         let returnedTile = undefined as TileType | undefined; // wtf???
@@ -275,9 +408,9 @@ export abstract class Civilization
         {
             ownedTiles.forEach((tile) => 
             {
-                if (isFreeTile(tile))
+                if (isFreeTile(tile) && tile.FeatureType !== TileFeatures.FLOODPLAINS)
                 {
-                    let score = maxScore + getScoreFromAdj(this.getCampusAdj(tile, ownedTiles));
+                    let score = maxScore + getScoreFromAdj(this.getCampusAdj(tile, mapCache)) + this.getScoreFromYields(tile, yieldPreferences) + getScoreFromResource(tile) + getScoreFromImprovements(tile, mapCache);
                     if (score > maxScore)
                     {
                         maxScore = score;
@@ -293,78 +426,76 @@ export abstract class Civilization
         return returnedTile;
     }
 
-    getTheaterTile(ownedTiles: readonly TileType[]): number
+    getTheaterTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>): number
     {
 
 
         return -1;
     }
 
-    getHolySiteTile(ownedTiles: readonly TileType[]): number
+    getHolySiteTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>): number
     {
 
 
         return -1;
     }   
 
-    getCommercialHubTile(ownedTiles: readonly TileType[]): number
+    getCommercialHubTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>): number
     {
 
 
         return -1;
     }
 
-    getHarborTile(ownedTiles: readonly TileType[]): number
+    getHarborTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>): number
     {
 
 
         return -1;
     }
 
-    getIndustrialZoneTile(ownedTiles: readonly TileType[]): number
+    getIndustrialZoneTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>): number
     {
 
 
         return -1;
     }   
 
-    getNeighborhoodTile(ownedTiles: readonly TileType[]): number
+    getNeighborhoodTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>): number
     {
 
 
         return -1;
     }
     
-    getAqueductTile(ownedTiles: readonly TileType[]): number
+    getAqueductTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>): number
     {
 
 
         return -1;
     }
 
-    getAerodromeTile(ownedTiles: readonly TileType[]): number
+    getAerodromeTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>): number
     {
 
 
         return -1;
     }
 
-    getEntertainmentZoneTile(ownedTiles: readonly TileType[]): number
+    getEntertainmentZoneTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>): number
     {
 
 
         return -1;
     }
 
-    getSpaceportTile(ownedTiles: readonly TileType[]): number
+    getSpaceportTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>): number
     {
 
 
         return -1;
     }
 }
-
-/* America, Arabia, Brazil, China, Egypt, England, France, Germany, Greece, India, Japan, Kongo, Russia, Scythia, Sumeria, Spain, Norway, Rome, Aztec */
 
 export class America extends Civilization
 {
@@ -464,25 +595,25 @@ export class Aztec extends Civilization
 const CivRegistry: Record<LeaderName, new () => Civilization> = 
 {
   [LeaderName.TEDDY_ROOSEVELT]: America,
-  [LeaderName.SALADIN]: America,
-  [LeaderName.PEDRO_II]: America,
-  [LeaderName.QIN_SHI_HUANG]: America,
-  [LeaderName.CLEOPATRA]: America,
-  [LeaderName.VICTORIA]: America,
-  [LeaderName.CATHERINE_DE_MEDICI]: America,
-  [LeaderName.FREDERICK_BARBAROSSA]: America,
-  [LeaderName.PERICLES]: America,
-  [LeaderName.GORGO]: America,
-  [LeaderName.GANDHI]: America,
-  [LeaderName.HOJO_TOKIMUNE]: America,
-  [LeaderName.MVEMBA_A_NZINGA]: America,
-  [LeaderName.PETER_THE_GREAT]: America,
-  [LeaderName.TOMYRIS]: America,
-  [LeaderName.GILGAMESH]: America,
-  [LeaderName.PHILIP_II]: America,
-  [LeaderName.HARALD_HARDRADA]: America,
-  [LeaderName.TRAJAN]: America,
-  [LeaderName.MONTEZUMA_I]: America
+  [LeaderName.SALADIN]: Arabia,
+  [LeaderName.PEDRO_II]: Brazil,
+  [LeaderName.QIN_SHI_HUANG]: China,
+  [LeaderName.CLEOPATRA]: Egypt,
+  [LeaderName.VICTORIA]: England,
+  [LeaderName.CATHERINE_DE_MEDICI]: France,
+  [LeaderName.FREDERICK_BARBAROSSA]: Germany,
+  [LeaderName.PERICLES]: Greece,
+  [LeaderName.GORGO]: Greece,
+  [LeaderName.GANDHI]: India,
+  [LeaderName.HOJO_TOKIMUNE]: Japan,
+  [LeaderName.MVEMBA_A_NZINGA]: Kongo,
+  [LeaderName.PETER_THE_GREAT]: Russia,
+  [LeaderName.TOMYRIS]: Scythia,
+  [LeaderName.GILGAMESH]: Sumeria,
+  [LeaderName.PHILIP_II]: Spain,
+  [LeaderName.HARALD_HARDRADA]: Norway,
+  [LeaderName.TRAJAN]: Rome,
+  [LeaderName.MONTEZUMA_I]: Aztec
 };
 
 export function getCivilization(leaderName: LeaderName | TileNone): Civilization | TileNone

@@ -2,6 +2,7 @@ import coast from './terrain/coast.png';
 import desert_hills from './terrain/desert_hills.png';
 import desert_mountain from './terrain/desert_mountain.png';
 import desert from './terrain/desert.png';
+import desert_floodplains from './terrain/desert_floodplains2.png';
 import grass_hills from './terrain/grass_hills.png';
 import grass_mountain from './terrain/grass_mountain.png';
 import grass_forest from './terrain/grass_forest.png'
@@ -24,7 +25,7 @@ import tundra_mountain from './terrain/tundra_mountain.png';
 import tundra_forest from './terrain/tundra_forest.png'
 import tundra_hills_forest from './terrain/tundra_hills_forest.png'
 import tundra from './terrain/tundra.png';
-import oasis from './terrain/oasis.png';
+import oasis from './terrain/oasis2.png';
 import marsh from './terrain/marsh.png';
 import ice from './terrain/ice.png';
 import { TileTerrain, TileFeatures, TileNone, TerrainFeatureKey } from '../utils/types';
@@ -38,6 +39,7 @@ export const allTerrainImages: Partial<Record<TerrainFeatureKey, string>> =
   [`${TileTerrain.DESERT_MOUNTAIN}_${TileNone.NONE}`]: desert_mountain,
   [`${TileTerrain.DESERT}_${TileNone.NONE}`]: desert,
   [`${TileTerrain.DESERT}_${TileFeatures.OASIS}`]: oasis,
+  [`${TileTerrain.DESERT}_${TileFeatures.FLOODPLAINS}`]: desert_floodplains,
   [`${TileTerrain.GRASSLAND_HILLS}_${TileNone.NONE}`]: grass_hills,
   [`${TileTerrain.GRASSLAND_MOUNTAIN}_${TileNone.NONE}`]: grass_mountain,
   [`${TileTerrain.GRASSLAND}_${TileFeatures.WOODS}`]: grass_forest,

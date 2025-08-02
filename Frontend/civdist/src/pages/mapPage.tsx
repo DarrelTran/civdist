@@ -4,15 +4,25 @@ import { Link } from 'react-router-dom';
 import './mapPage.css'
 import './allPages.css';
 import {HexType, TileNone, TileFeatures, TileTerrain, TileWonders, TileDistricts, TileUniqueDistricts, TileNaturalWonders, TerrainFeatureKey, RiverDirections, TileType, LeaderName, TileYields} from '../utils/types'
-import { loadDistrictImages, loadNaturalWonderImages, loadTerrainImages, loadWonderImages, loadYieldImages } from '../utils/imageLoaders';
-import { getTerrain, getDistrict, getNaturalWonder, getWonder } from '../utils/imageAttributeFinders';
-import { baseTileSize, allPossibleDistricts, allPossibleYields } from '../utils/constants';
-import { getCivilization } from '../utils/civilizations';
+import { loadDistrictImages, loadNaturalWonderImages, loadTerrainImages, loadWonderImages, loadYieldImages } from '../images/imageLoaders';
+import { getTerrain, getDistrict, getNaturalWonder, getWonder } from '../images/imageAttributeFinders';
+import { baseTileSize, allPossibleDistricts, allPossibleYields, CIV_NAME_DEFAULT, CITY_NAME_DEFAULT } from '../utils/constants';
+import { getCivilization } from '../civilization/civilizations';
 import { mapPageSelectStyle } from './mapPageSelectStyles';
-import { compileFunction } from 'vm';
+import { getMapOddrString, getOffsets } from '../utils/miscFunctions';
 
 /*
 /////////////////////////////////////////////////////////////////
+
+TODO: Change ownedTiles to include both city name and civ name.
+
+TODO: Add all pantheons to type.
+
+TODO: Get all wonders completed by the current civ.
+
+TODO: Add option to consider wonders when scoring.
+
+TODO: Fix scoring system - BROKEN????
 
 TODO: Update hexmapCache and cityOwnedTiles when adding new district - WHEN ADDING DISTRICT ACCOUNT FOR EFFECTS OF DISTRICT LIKE THEATER ADDING APPEAL TO ADJ OR REMOVING STUFF LIKE IMPROVEMENTS
 
@@ -33,6 +43,10 @@ TODO: Add documentation to functions. Read random comments to see if any extra i
 TODO: Add toggable hover with tile data and resize if too long with max width
 
 TODO: Can civ6 cities have same name??
+
+TODO: Use <br> instead of grid style
+
+TODO: Optimize wonder placements by removing check for district if corresponding building exists.
 
 /////////////////////////////////////////////////////////////////
 */
@@ -58,18 +72,19 @@ const MapPage = () =>
     const [originalTileSize, setOriginalTileSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(baseTileSize).tileX, y: getScaledGridAndTileSizes(baseTileSize).tileY});
     const [tileSize, setTileSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(baseTileSize).tileX, y: getScaledGridAndTileSizes(baseTileSize).tileY});
 
-    const [currentTile, setCurrentTile] = useState<TileType>(); // store city name instead of entire tile???
+    const [currentTile, setCurrentTile] = useState<TileType>();
     const [currentCity, setCurrentCity] = useState<TileType>();
 
     const [cityBoundaryTiles, setCityBoundaryTiles] = useState<Map<string, string[]>>(new Map()); // <tile with boundary lines, neighboring tiles> - Uses the oddr coords
-    const [cityOwnedTiles, setCityOwnedTiles] = useState<Map<string, TileType[]>>(new Map()); // <city, city's tiles> - owned tiles should have a maximum limit of 36 tiles per city
+    const [cityOwnedTiles, setCityOwnedTiles] = useState<Map<string, TileType[]>>(new Map()); // <"civ,city", city's tiles> - owned tiles should have a maximum limit of 36 tiles per city
 
     // assuming civ has at least one city
     const [uniqueCivilizations, setUniqueCivilizations] = useState<Set<string>>(new Set());
     const [uniqueCities, setUniqueCities] = useState<Map<string, string[]>>(new Map()); // <civilization, cities>
-    const [dropdownCiv, setDropdownCiv] = useState<string>();
+    const [dropdownCiv, setDropdownCiv] = useState<string>(CIV_NAME_DEFAULT);
     const [includeCityStates, setIncludeCityStates] = useState<boolean>(false);
-    const [dropdownCity, setDropdownCity] = useState<string>();
+    const [includeWonders, setIncludeWonders] = useState<boolean>(false);
+    const [dropdownCity, setDropdownCity] = useState<string>(CITY_NAME_DEFAULT);
     const [dropdownDistrict, setDropdownDistrict] = useState<string>(allPossibleDistricts()[0]);
     const [dropdownYields, setDropdownYields] = useState<TileYields[]>([]);
 
@@ -292,11 +307,11 @@ const MapPage = () =>
             const center = oddrToPixel(col, row, tileSize.x, tileSize.y);
 
             // check against all hex edges
-            const offsets = (row % 2 === 0) ? [[1, 0], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1]] : [[1, 0], [1, 1], [0, 1], [-1, 0], [0, -1], [1, -1]];
+            const offsets = getOffsets(row);
 
             offsets.forEach(([dx, dy], i) => 
             {
-                const neighborKey = `${wrapCol(col + dx)},${wrapRow(row + dy)}`;
+                const neighborKey = getMapOddrString(wrapCol(col + dx), wrapRow(row + dy));
                 if (!neighbors.includes(neighborKey)) return; // if hex edge has neighbor not owned by city = draw on that edge
 
                 const start = getHexPoint(i, center);
@@ -405,7 +420,7 @@ const MapPage = () =>
         if (mousePos)
         {
             const oddrCoord = pixelToOddr(mousePos, tileSize);
-            const key = `${oddrCoord.col},${oddrCoord.row}`;
+            const key = getMapOddrString(oddrCoord.col, oddrCoord.row);
 
             handleMouseHover(key, oddrCoord);
         }
@@ -447,11 +462,11 @@ const MapPage = () =>
                         let neighborList: string[] = [];
                         if (tile.TileCity === currentTile.CityName)
                         {
-                            const offsets = (row % 2 === 0) ? [[1, 0], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1]] : [[1, 0], [1, 1], [0, 1], [-1, 0], [0, -1], [1, -1]];
+                            const offsets = getOffsets(row);
                             offsets.forEach((neighbor) => 
                             {
                                 let neighborCoord = {x: wrapCol(col + neighbor[0]), y: wrapRow(row + neighbor[1])};
-                                let neighborStringCoord = `${neighborCoord.x},${neighborCoord.y}`;
+                                const neighborStringCoord = getMapOddrString(neighborCoord.x, neighborCoord.y);
                                 let cacheTile = hexmapCache.current.get(neighborStringCoord);
 
                                 if (cacheTile && cacheTile.TileCity !== currentTile.CityName)
@@ -498,8 +513,8 @@ const MapPage = () =>
         let tempCivSet = new Set<string>();
         let tempCitySet = new Map<string, string[]>();
 
-        let firstCiv = undefined;
-        let firstCity = undefined;
+        let firstCiv = CIV_NAME_DEFAULT;
+        let firstCity = CITY_NAME_DEFAULT;
 
         for (let i = 0; i < theJSON.length; i++)
         {
@@ -523,9 +538,9 @@ const MapPage = () =>
                     
                     if (includeCityStates || (!includeCityStates && !tile.Civilization.includes("city-state")))
                     {
-                        if (!firstCiv)
+                        if (firstCiv === CIV_NAME_DEFAULT)
                             firstCiv = tile.Civilization;
-                        if (!firstCity)
+                        if (firstCity === CITY_NAME_DEFAULT)
                             firstCity = tile.CityName;
                     }
                 }
@@ -540,8 +555,8 @@ const MapPage = () =>
 
     useEffect(() => 
     {
-        const civVal = civDropdownRef.current ? civDropdownRef.current.value : undefined;
-        const cityVal = cityDropdownRef.current ? cityDropdownRef.current.value : undefined;
+        const civVal = civDropdownRef.current ? civDropdownRef.current.value : CIV_NAME_DEFAULT;
+        const cityVal = cityDropdownRef.current ? cityDropdownRef.current.value : CITY_NAME_DEFAULT;
 
         // get latest values
         if (civVal !== dropdownCiv)
@@ -619,7 +634,7 @@ const MapPage = () =>
 
             if (img)
             {
-                const key = `${tile.X},${tile.Y}`;
+                const key = getMapOddrString(tile.X, tile.Y);
 
                 if (tile.TerrainType?.includes("Mountain"))
                     mountainCache.set(key, tile);
@@ -628,17 +643,18 @@ const MapPage = () =>
 
                 loadCount++;
 
-                if (tile.TileCity !== TileNone.NONE)
+                if (tile.TileCity !== TileNone.NONE && tile.Civilization !== TileNone.NONE)
                 {
-                    const tileDatas = cityTiles.get(tile.TileCity);
+                    const cityTilesKey = `${tile.Civilization},${tile.TileCity}`;
+                    const tileDatas = cityTiles.get(cityTilesKey);
                     if (tileDatas)
                     {
                         tileDatas.push(tile);
-                        cityTiles.set(tile.TileCity, tileDatas);
+                        cityTiles.set(cityTilesKey, tileDatas);
                     }
                     else
                     {
-                        cityTiles.set(tile.TileCity, []);
+                        cityTiles.set(cityTilesKey, []);
                     }
                 }
 
@@ -770,7 +786,7 @@ const MapPage = () =>
     {
         if (dropdownCity)
         {
-            const oddr = `${foundTile.X},${foundTile.Y}`;
+            const oddr = getMapOddrString(foundTile.X, foundTile.Y);
             hexmapCache.current.set(oddr, foundTile);
 
             const cityMap = new Map(cityOwnedTiles);
@@ -794,9 +810,9 @@ const MapPage = () =>
 
     function findCivLeader(): LeaderName | TileNone
     {
-        if (dropdownCity)
+        if (dropdownCity && dropdownCiv)
         {
-            const dropdownCityOwnedTiles = cityOwnedTiles.get(dropdownCity);
+            const dropdownCityOwnedTiles = cityOwnedTiles.get(`${dropdownCiv},${dropdownCity}`);
             if (dropdownCityOwnedTiles)
                 return dropdownCityOwnedTiles[0].Leader;
         }
@@ -806,30 +822,37 @@ const MapPage = () =>
 
     const handleAddButton = useCallback(() => 
     {
+        let theError = "";
+
         let foundTile = undefined as TileType | undefined;
 
         if (dropdownDistrict === TileDistricts.SCIENCE_DISTRICT)
         {
             const theCiv = getCivilization(findCivLeader());
-            if (dropdownCity && theCiv !== TileNone.NONE)
+            if (dropdownCity && dropdownCiv && theCiv !== TileNone.NONE)
             {
-                const dropdownCityOwnedTiles = cityOwnedTiles.get(dropdownCity);
+                const dropdownCityOwnedTiles = cityOwnedTiles.get(`${dropdownCiv},${dropdownCity}`);
                 if (dropdownCityOwnedTiles)
-                    foundTile = theCiv.getCampusTile(dropdownCityOwnedTiles, dropdownYields, hexmapCache.current);
+                    foundTile = theCiv.getCampusTile(dropdownCityOwnedTiles, dropdownYields, hexmapCache.current, includeWonders);
             }
         }
 
         if (foundTile)
             updateTilesWithDistrict(foundTile);
+        else if (dropdownCity === CITY_NAME_DEFAULT)
+            theError = "ERROR: Need to load a map first!";
         else
+            theError = "ERROR: Could not find optimal tile.";
+
+        if (theError.length > 0)
         {
-            setErrorText("ERROR: Could not find optimal tile.");
+            setErrorText(theError);
             setTimeout(() => 
             {
                 setErrorText("");
             }, 4000)
         }
-    }, [cityOwnedTiles, dropdownDistrict, dropdownCity, dropdownYields, mapCacheVersion])
+    }, [cityOwnedTiles, dropdownDistrict, dropdownCity, dropdownCiv, dropdownYields, mapCacheVersion, includeWonders])
 
     const getSelectionYields = useCallback(() => 
     {
@@ -880,7 +903,7 @@ const MapPage = () =>
                 <span style={{color: 'red', fontWeight: 'bold', fontSize: '1.25em'}}>{errorText}</span>
                 <div style={{display: 'grid'}}>
                     <div style={{display: 'flex'}}>
-                        Include City States
+                        <span>Include City States</span>
                         <input type='checkbox' onChange={(e) => {setIncludeCityStates(e.target.checked)}}/>
                     </div>
                     {/*Select Civilization*/}
@@ -903,7 +926,7 @@ const MapPage = () =>
                                 if (elements.length > 0)
                                     return elements;
                                 else
-                                    return <option>Unknown Civilization</option>
+                                    return <option>{CIV_NAME_DEFAULT}</option>
                             }
                         )()}
                     </select> 
@@ -915,7 +938,7 @@ const MapPage = () =>
                             () => 
                             {
                                 // can't use civDropdownRef as this select doesnt know when to re-render compared to something like an useEffect
-                                if (dropdownCiv)
+                                if (dropdownCiv !== CIV_NAME_DEFAULT)
                                 {
                                     let cityList = uniqueCities.get(dropdownCiv);
                                     if (cityList)
@@ -928,7 +951,7 @@ const MapPage = () =>
                                 }
                                 else
                                 {
-                                    return <option>Unknown City</option>
+                                    return <option>{CITY_NAME_DEFAULT}</option>
                                 }
                             }
                         )()}
@@ -943,6 +966,11 @@ const MapPage = () =>
                                 ))
                             }
                         </select>
+
+                        <br/>
+                        <span>Account For Possible Wonders</span>
+                        <input type='checkbox'/>
+
                         <Select 
                             value={visualYieldDropdown}
                             options={getSelectionYields()} 
@@ -1220,7 +1248,7 @@ const MapPage = () =>
 
     function testStuff()
     {
-        //dropdownYields.forEach((a) => {console.log(a)})
+        //console.log('civ ' + dropdownCiv + ' and city ' + dropdownCity)
     }
 };
 

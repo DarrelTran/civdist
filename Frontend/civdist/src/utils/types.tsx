@@ -100,6 +100,58 @@ export enum TileUniqueDistricts
   ACROPOLIS_DISTRICT = 'Acropolis'
 }
 
+export enum TileBuildings
+{
+  AIRPORT = 'Airport',
+  AMPHITHEATER = 'Amphitheater',
+  ARENA = 'Arena',
+  ARMORY = 'Armory',
+  BANK = 'Bank',
+  BARRACKS = 'Barracks',
+  BROADCAST_CENTER = 'Broadcast Center',
+  MEDIEVAL_WALLS = 'Medieval Walls',
+  CATHEDRAL = 'Cathedral',
+  DAR_E_MEHR = 'Dar-e Mehr',
+  ELECTRONICS_FACTORY = 'Electronics Factory',
+  FACTORY = 'Factory',
+  FILM_STUDIO = 'Film Studio',
+  GRANARY = 'Granary',
+  GURDWARA = 'Gurdwara',
+  HANGAR = 'Hangar',
+  LIBRARY = 'Library',
+  LIGHTHOUSE = 'Lighthouse',
+  MADRASA = 'Madrasa',
+  MARKET = 'Market',
+  MEETING_HOUSE = 'Meeting House',
+  MILITARY_ACADEMY = 'Military Academy',
+  MONUMENT = 'Monument',
+  MOSQUE = 'Mosque',
+  MUSEUM_ART = 'Art Museum',
+  ARCHAEOLOGICAL_MUSEUM = 'Archaeological Museum',
+  PAGODA = 'Pagoda',
+  PALACE = 'Palace',
+  POWER_PLANT = 'Power Plant',
+  RESEARCH_LAB = 'Research Lab',
+  SEAPORT = 'Seaport',
+  SEWER = 'Sewer',
+  SHIPYARD = 'Shipyard',
+  SHRINE = 'Shrine',
+  STABLE = 'Stable',
+  STADIUM = 'Stadium',
+  RENAISSANCE_WALLS = 'Renaissance Walls',
+  STAVE_CHURCH = 'Stave Church',
+  STOCK_EXCHANGE = 'Stock Exchange',
+  STUPA = 'Stupa',
+  SYNAGOGUE = 'Synagogue',
+  TEMPLE = 'Temple',
+  UNIVERSITY = 'University',
+  ANCIENT_WALLS = 'Ancient Walls',
+  WAT = 'Wat',
+  WATER_MILL = 'Water Mill',
+  WORKSHOP = 'Workshop',
+  ZOO = 'Zoo'
+}
+
 export enum TileTerrain
 {
   OCEAN = 'Ocean',
@@ -251,13 +303,13 @@ export enum LeaderName
   GANDHI = "Gandhi",
   HOJO_TOKIMUNE = "Hojo Tokimune",
   MVEMBA_A_NZINGA = "Mvemba a Nzinga",
-  PETER_THE_GREAT = "Peter the Great",
+  PETER_THE_GREAT = "Peter",
   TOMYRIS = "Tomyris",
   GILGAMESH = "Gilgamesh",
   PHILIP_II = "Philip II",
   HARALD_HARDRADA = "Harald Hardrada",
   TRAJAN = "Trajan",
-  MONTEZUMA_I = "Montezuma I"
+  MONTEZUMA_I = "Montezuma"
 }
 
 export type TileType =
@@ -272,9 +324,12 @@ export type TileType =
   IsHills: boolean,
   IsMountain: boolean,
   IsWater: boolean,
+  IsLake: boolean,
+  IsFlatlands: boolean,
   IsCity: boolean,
   TileCity: string,
   CityPantheon: string,
+  FoundedReligion: string,
   IsRiver: boolean,
   IsNEOfRiver: boolean,
   IsWOfRiver: boolean,
@@ -288,7 +343,7 @@ export type TileType =
   Leader: LeaderName,
   CityName: string,
   District: TileDistricts | TileUniqueDistricts | TileNone.NONE,
-  Buildings: never[] | string[],
+  Buildings: TileBuildings[],
   /** DOES NOT CONTAIN NATURAL WONDERS */
   Wonder: TileWonders | TileNone.NONE,
   Food: number, 

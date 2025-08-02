@@ -1,6 +1,9 @@
 import { TileDistricts, TileYields } from "./types";
 
 export const baseTileSize : number = 10;
+export const CIV_NAME_DEFAULT = "Unknown Civilization";
+export const CITY_NAME_DEFAULT = "Unknown City";
+
 export const allPossibleDistricts = () =>
 {
     const allDistricts: TileDistricts[] = [];

@@ -8,6 +8,14 @@ export function isLand(tile: TileType)
     return false;
 }
 
+export function isWater(tile: TileType)
+{
+    if (tile.TerrainType !== TileNone.NONE && (tile.TerrainType === TileTerrain.OCEAN || tile.TerrainType === TileTerrain.COAST))
+        return true;
+
+    return false;
+}
+
 export function isSeaResource(tile: TileType): boolean
 {
     if (tile.ResourceType === TileBonusResources.CRABS || 

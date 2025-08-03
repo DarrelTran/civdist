@@ -7,20 +7,16 @@ import {HexType, TileNone, TileFeatures, TileTerrain, TileWonders, TileDistricts
 import { loadDistrictImages, loadNaturalWonderImages, loadTerrainImages, loadWonderImages, loadYieldImages } from '../images/imageLoaders';
 import { getTerrain, getDistrict, getNaturalWonder, getWonder } from '../images/imageAttributeFinders';
 import { baseTileSize, allPossibleDistricts, allPossibleYields, CIV_NAME_DEFAULT, CITY_NAME_DEFAULT } from '../utils/constants';
-import { getCivilization } from '../civilization/civilizations';
+import { getCivilizationObject } from '../civilization/civilizations';
 import { mapPageSelectStyle } from './mapPageSelectStyles';
 import { getMapOddrString, getOffsets } from '../utils/miscFunctions';
 
 /*
 /////////////////////////////////////////////////////////////////
 
-TODO: Change ownedTiles to include both city name and civ name.
+TODO: Take into account if district will delete a worked tile. If it is worked & no replacement = bad, worked and replacement = good, not worked = ok. CHECK improvement type and if bonus + orig yields can be a replacement.
 
-TODO: Add all pantheons to type.
-
-TODO: Get all wonders completed by the current civ.
-
-TODO: Add option to consider wonders when scoring.
+TODO: Add option to consider wonders when scoring. Give wonders weight depending on typical civ victory type.
 
 TODO: Fix scoring system - BROKEN????
 
@@ -58,6 +54,8 @@ const MapPage = () =>
     const hexmapCache = useRef<Map<string, TileType>>(new Map()); // oddr coords, tile
     const [mapCacheVersion, setMapCacheVersion] = useState<number>(0);
     const [mapJSON, setMapJSON] = useState<TileType[]>([]);
+
+    const [civCompletedWonders, setCivCompletedWonders] = useState<Set<TileWonders>>(new Set());
 
     const [minAndMaxCoords, setMinAndMaxCoords] = useState(getMinMaxXY(mapJSON));
 
@@ -620,6 +618,8 @@ const MapPage = () =>
         const mountainCache = new Map<string, TileType>();
         const otherCache = new Map<string, TileType>();
         const cityTiles = new Map<string, TileType[]>();
+        const cityCenterMap = new Map<string, TileType>();
+        const civCompletedWondersTemp = new Set<TileWonders>();
 
         let loadCount = 0;
         let totalTiles = mapJSON.length;
@@ -649,13 +649,23 @@ const MapPage = () =>
                     const tileDatas = cityTiles.get(cityTilesKey);
                     if (tileDatas)
                     {
-                        tileDatas.push(tile);
+                        if (tile.IsCity)
+                            cityCenterMap.set(cityTilesKey, tile);
+                        else
+                            tileDatas.push(tile);
                         cityTiles.set(cityTilesKey, tileDatas);
                     }
                     else
                     {
                         cityTiles.set(cityTilesKey, []);
                     }
+                }
+
+                if (tile.Wonder !== TileNone.NONE)
+                {
+                    const completedWonders = civCompletedWondersTemp.has(tile.Wonder);
+                    if (!completedWonders)
+                        civCompletedWondersTemp.add(tile.Wonder);
                 }
 
                 if (loadCount === totalTiles) 
@@ -670,7 +680,17 @@ const MapPage = () =>
             }
         });
 
+        cityCenterMap.forEach((val, key) => // so that the city center is always last
+        {
+            const cityData = cityTiles.get(key);
+            if (cityData)
+            {
+                cityTiles.set(key, [...cityData, val]);
+            }
+        })
+
         setCityOwnedTiles(cityTiles);
+        setCivCompletedWonders(civCompletedWondersTemp);
     }, [drawMapFromCache, mapJSON]);
 
     useEffect(() => 
@@ -753,6 +773,8 @@ const MapPage = () =>
         setCityBoundaryTiles(new Map());
         setVisualZoomInput(100);
         setVisualYieldDropdown([]);
+        setCityOwnedTiles(new Map());
+        setCivCompletedWonders(new Set());
     }
 
     function handleInputChange(e: React.ChangeEvent<HTMLInputElement>)
@@ -797,7 +819,10 @@ const MapPage = () =>
                 {
                     const tile = tileList[i];
                     if (tile.X === foundTile.X && tile.Y === foundTile.Y)
+                    {
                         tileList[i] = foundTile;
+                        break;
+                    }
                 }
 
                 cityMap.set(dropdownCity, tileList);
@@ -828,12 +853,15 @@ const MapPage = () =>
 
         if (dropdownDistrict === TileDistricts.SCIENCE_DISTRICT)
         {
-            const theCiv = getCivilization(findCivLeader());
+            const theCiv = getCivilizationObject(findCivLeader());
             if (dropdownCity && dropdownCiv && theCiv !== TileNone.NONE)
             {
                 const dropdownCityOwnedTiles = cityOwnedTiles.get(`${dropdownCiv},${dropdownCity}`);
-                if (dropdownCityOwnedTiles)
-                    foundTile = theCiv.getCampusTile(dropdownCityOwnedTiles, dropdownYields, hexmapCache.current, includeWonders);
+
+                if (dropdownCityOwnedTiles && includeWonders)
+                    foundTile = theCiv.getCampusTile(dropdownCityOwnedTiles, dropdownYields, hexmapCache.current, civCompletedWonders);
+                else if (dropdownCityOwnedTiles)
+                    foundTile = theCiv.getCampusTile(dropdownCityOwnedTiles, dropdownYields, hexmapCache.current, null);
             }
         }
 
@@ -842,7 +870,7 @@ const MapPage = () =>
         else if (dropdownCity === CITY_NAME_DEFAULT)
             theError = "ERROR: Need to load a map first!";
         else
-            theError = "ERROR: Could not find optimal tile.";
+            theError = "ERROR: The optimal tile may not exist or the district already exists.";
 
         if (theError.length > 0)
         {
@@ -852,7 +880,7 @@ const MapPage = () =>
                 setErrorText("");
             }, 4000)
         }
-    }, [cityOwnedTiles, dropdownDistrict, dropdownCity, dropdownCiv, dropdownYields, mapCacheVersion, includeWonders])
+    }, [cityOwnedTiles, dropdownDistrict, dropdownCity, dropdownCiv, dropdownYields, mapCacheVersion, includeWonders, civCompletedWonders])
 
     const getSelectionYields = useCallback(() => 
     {
@@ -969,7 +997,7 @@ const MapPage = () =>
 
                         <br/>
                         <span>Account For Possible Wonders</span>
-                        <input type='checkbox'/>
+                        <input type='checkbox' onChange={(e) => {setIncludeWonders(e.target.checked)}}/>
 
                         <Select 
                             value={visualYieldDropdown}
@@ -1248,7 +1276,7 @@ const MapPage = () =>
 
     function testStuff()
     {
-        //console.log('civ ' + dropdownCiv + ' and city ' + dropdownCity)
+        civCompletedWonders.forEach((A) => {console.log(A)})
     }
 };
 

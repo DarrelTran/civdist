@@ -1,6 +1,6 @@
 import { TileType, LeaderName, TileNone, TileFeatures, TileTerrain, TileDistricts, TileNaturalWonders, TileBonusResources, TileLuxuryResources, TileImprovements, TileStrategicResources, TilePantheons, TileYields, TileWonders } from "../utils/types";
 import { getMapOddrString, getOffsets } from "../utils/miscFunctions";
-import { isSeaResource, hasNaturalWonder, hasCampus, getCityPantheon } from "../utils/civFunctions";
+import { isSeaResource, hasNaturalWonder, hasCampus, getCityPantheon, isLand, isWater } from "../utils/civFunctions";
 import { canPlaceAlhambra, canPlaceBigBen, canPlaceBolshoiTheatre, canPlaceBroadway, canPlaceChichenItza, canPlaceColosseum, canPlaceColossus, canPlaceCristoRedentor, canPlaceEiffelTower, canPlaceEstadioDoMaracana, canPlaceForbiddenCity, canPlaceGreatLibrary, canPlaceGreatLighthouse, canPlaceGreatZimbabwe, canPlaceHagiaSophia, canPlaceHangingGardens, canPlaceHermitage, canPlaceHueyTeocalli, canPlaceMahabodhiTemple, canPlaceMontStMichel, canPlaceOracle, canPlaceOxfordUniversity, canPlacePetra, canPlacePotalaPalace, canPlacePyramids, canPlaceRuhrValley, canPlaceStonehenge, canPlaceSydneyOperaHouse, canPlaceTerracottaArmy, canPlaceVenetianArsenal } from "./wonderPlacement"
 
 /*
@@ -148,39 +148,6 @@ function getScoreFromImprovements(tile: TileType, mapCache: Map<string, TileType
     return LOW_SCORE;
 }
 
-/*
-ALHAMBRA = 'Alhambra',
-  BIG_BEN = 'Big Ben',
-  BOLSHOI_THEATRE = 'Bolshoi Theatre',
-  BROADWAY = 'Broadway',
-  CHICHEN_ITZA = 'Chichen Itza',
-  COLOSSEUM = 'Colosseum',
-  COLOSSUS = 'Colossus',
-  CRISTO_REDENTOR = 'Cristo Redentor',
-  EIFFEL_TOWER = 'Eiffel Tower',
-  ESTADIO_DO_MARACANA = 'Estádio do Maracanã',
-  FORBIDDEN_CITY = 'Forbidden City',
-  GREAT_LIBRARY = 'Great Library',
-  GREAT_ZIMBABWE = 'Great Zimbabwe',
-  GREAT_LIGHTHOUSE = 'Great Lighthouse',
-  HAGIA_SOPHIA = 'Hagia Sophia',
-  HANGING_GARDENS = 'Hanging Gardens',
-  HERMITAGE = 'Hermitage',
-  HUEY_TEOCALLI = 'Huey Teocalli',
-  MAHABODHI_TEMPLE = 'Mahabodhi Temple',
-  MONT_ST_MICHEL = 'Mont St. Michel',
-  ORACLE = 'Oracle',
-  OXFORD_UNIVERSITY = 'Oxford University',
-  PETRA = 'Petra',
-  POTALA_PALACE = 'Potala Palace',
-  PYRAMIDS = 'Pyramids',
-  RUHR_VALLEY = 'Ruhr Valley',
-  STONEHENGE = 'Stonehenge',
-  SYDNEY_OPERA_HOUSE = 'Sydney Opera House', 
-  TERRACOTTA_ARMY = 'Terracotta Army',
-  VENETIAN_ARSENAL = 'Venetian Arsenal'
-*/
-
 type TileWonderFunction = 
   | ((tile: TileType) => boolean)
   | ((tile: TileType, mapCache: Map<string, TileType>) => boolean)
@@ -235,15 +202,13 @@ function callWonderFunction(fn: TileWonderFunction, tile: TileType, mapCache: Ma
  * @param tile 
  * @param mapCache 
  */
-function getScoreFromWonderPlacement(tile: TileType, mapCache: Map<string, TileType>, ownedTiles: readonly TileType[], wondersIncluded: boolean): number
+function getScoreFromWonderPlacement(tile: TileType, mapCache: Map<string, TileType>, ownedTiles: readonly TileType[], wondersIncluded: Set<TileWonders> | null): number
 {
     if (wondersIncluded)
     {
-        const includedSet = new Set();
-
         for (const [wonder, fn] of Object.entries(WondersRegistry) as [TileWonders, TileWonderFunction][]) 
         {
-            if (!includedSet.has(wonder)) 
+            if (!wondersIncluded.has(wonder)) 
             {
                 const canPlace = callWonderFunction(fn, tile, mapCache, ownedTiles);
                 if (canPlace) 
@@ -257,16 +222,82 @@ function getScoreFromWonderPlacement(tile: TileType, mapCache: Map<string, TileT
     return 0;
 }
 
+/** TODO: Add PREFERENCE SCORE TO  getTileSimilarYieldScore FOR EACH YIELD*/
+
+function getTileSimilarYieldScore(tile: TileType, otherTile: TileType): boolean
+{
+    const otherYieldSum = otherTile.Food + otherTile.Production + otherTile.Gold + otherTile.Science + otherTile.Faith + otherTile.Culture;
+    const currentTileYieldSum = otherTile.Food + otherTile.Production + otherTile.Gold + otherTile.Science + otherTile.Faith + otherTile.Culture;
+
+    const yieldDifference = otherYieldSum - currentTileYieldSum;
+
+    if (yieldDifference >= 0)
+        return true;
+
+    return false;
+}
+
+function getTileSimilarTerrainScore(tile: TileType, otherTile: TileType): boolean
+{
+
+
+    return false;
+}
+
+function getTileSimilarDistanceScore(tile: TileType, otherTile: TileType): boolean
+{
+
+    return false;
+}
+
+function getTileSimilarResourcesScore(tile: TileType, otherTile: TileType): boolean
+{
+    if (tile.ResourceType === TileNone.NONE)
+        return true;
+
+    return false;
+}
+
+function getTileSimilarAppealScore(tile: TileType, otherTile: TileType): boolean
+{
+
+    return false;
+}
+
 export abstract class Civilization
 {
     /* Helper methods - In class because there might be civ specific stuff for them and if so, should be overwritten. */
 
-    protected getCampusScore(tile: TileType, yieldPreferences: TileYields[], mapCache: Map<string, TileType>, ownedTiles: readonly TileType[], wondersIncluded: boolean): number
+    tileWithReplacementYieldsExists(tile: TileType, ownedTiles: readonly TileType[]): boolean
+    {
+        for (let i = 0; i < ownedTiles.length; i++)
+        {
+            const otherTile = ownedTiles[i];
+
+            if (otherTile.X === tile.X && otherTile.Y === tile.Y)
+                continue;
+
+            if (!otherTile.IsWorked && this.isFreeTile(otherTile))
+            {
+                if (getTileSimilarYieldScore(tile, otherTile) && 
+                    getTileSimilarTerrainScore(tile, otherTile) && 
+                    getTileSimilarDistanceScore(tile, otherTile) && 
+                    getTileSimilarResourcesScore(tile, otherTile) && 
+                    getTileSimilarAppealScore(tile, otherTile)
+                   )
+                   return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected getCampusScore(tile: TileType, yieldPreferences: TileYields[], mapCache: Map<string, TileType>, ownedTiles: readonly TileType[], wondersIncluded: Set<TileWonders> | null): number
     {
         // don't include getScoreFromPossibleAdjacentDistricts() because only care about current tile
 
         return  getScoreFromAdj(this.getCampusAdj(tile, mapCache)) +
-                this.getScoreFromYields(tile, yieldPreferences) + 
+                this.getScoreFromYields(tile, yieldPreferences, ownedTiles) + 
                 getScoreFromResource(tile) + 
                 getScoreFromImprovements(tile, mapCache) + 
                 getScoreFromWonderPlacement(tile, mapCache, ownedTiles, wondersIncluded);
@@ -277,7 +308,7 @@ export abstract class Civilization
      * @param tile 
      * @param mapCache 
      */
-    protected getScoreFromPossibleAdjacentDistricts(tile: TileType, yieldPreferences: TileYields[], mapCache: Map<string, TileType>, ownedTiles: TileType[], wondersIncluded: boolean)
+    protected getScoreFromPossibleAdjacentDistricts(tile: TileType, yieldPreferences: TileYields[], mapCache: Map<string, TileType>, ownedTiles: TileType[], wondersIncluded: Set<TileWonders> | null)
     {
         let totalDistricts = 0;
         const offsets = getOffsets(tile.Y);
@@ -319,7 +350,7 @@ export abstract class Civilization
      * @param yieldPreferences 
      * @returns 
      */
-    protected getScoreFromYields(tile: TileType, yieldPreferences: TileYields[]): number
+    protected getScoreFromYields(tile: TileType, yieldPreferences: TileYields[], ownedTiles: readonly TileType[]): number
     {
         if ((yieldPreferences.includes(TileYields.FOOD) && tile.Food > 0) || 
             (yieldPreferences.includes(TileYields.SCIENCE) && tile.Science > 0) ||
@@ -329,6 +360,15 @@ export abstract class Civilization
             (yieldPreferences.includes(TileYields.GOLD) && tile.Gold > 0)
            )
             return BAD_SCORE;
+        else if (tile.IsWorked)
+        {
+            const hasReplacement = this.tileWithReplacementYieldsExists(tile, ownedTiles);
+
+            if (hasReplacement)
+                return MEDIUM_SCORE;
+            else
+                return BAD_SCORE;
+        }
         else if (tile.Food >= 4 || 
                  tile.Science >= 4 ||
                  tile.Production >= 4 ||
@@ -338,7 +378,7 @@ export abstract class Civilization
                 )
             return BAD_SCORE;
         else
-            return LOW_SCORE;
+            return LOW_SCORE; 
     }
 
     protected getCampusAdj(tile: TileType, mapCache: Map<string, TileType>): number
@@ -508,16 +548,16 @@ export abstract class Civilization
 
     /* OPTIMAL TILE PLACEMENT */
 
-    getCampusTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: boolean): TileType | undefined
+    getCampusTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null): TileType | undefined
     {
-        let maxScore = 0;
+        let maxScore = -Number.MAX_SAFE_INTEGER;
         let returnedTile = undefined as TileType | undefined; // wtf???
 
         if (!hasCampus(ownedTiles))
         {
             ownedTiles.forEach((tile) => 
             {
-                if (this.isFreeTile(tile))
+                if (this.isFreeTile(tile) && isLand(tile))
                 {
                     let score = maxScore + this.getCampusScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded);
                     if (score > maxScore)
@@ -725,7 +765,7 @@ const CivRegistry: Record<LeaderName, new () => Civilization> =
     [LeaderName.MONTEZUMA_I]: Aztec
 };
 
-export function getCivilization(leaderName: LeaderName | TileNone): Civilization | TileNone
+export function getCivilizationObject(leaderName: LeaderName | TileNone): Civilization | TileNone
 {
     let theCiv: Civilization | TileNone = TileNone.NONE;
 

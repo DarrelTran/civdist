@@ -275,7 +275,28 @@ export enum TilePantheons
 {
   DANCE_OF_THE_AURORA = 'Dance of the Aurora',
   DESERT_FOLKLORE = 'Desert Folklore',
-  SACRED_PATH = 'Sacred Path'
+  SACRED_PATH = 'Sacred Path',
+  RIVER_GODDESS = 'River Goddess',
+  MONUMENT_TO_THE_GODS = 'Monument to the Gods',
+  DIVINE_SPARK = 'Divine Spark',
+  LADY_OF_THE_REEDS_AND_MARSHES = 'Lady of the Reeds and Marshes',
+  GOD_OF_THE_SEA = 'God of the Sea',
+  GOD_OF_THE_OPEN_SKY = 'God of the Open Sky',
+  GODDESS_OF_THE_HUNT = 'Goddess of the Hunt',
+  STONE_CIRCLES = 'Stone Circles',
+  RELIGIOUS_IDOLS = 'Religious Idols',
+  GOD_OF_CRAFTSMEN = 'God of Craftsmen',
+  GODDESS_OF_FESTIVALS = 'Goddess of Festivals',
+  ORAL_TRADITION = 'Oral Tradition',
+  GOD_OF_THE_FORGE = 'God of the Forge',
+  GOD_OF_WAR = 'God of War',
+  INITIATION_RITES = 'Initiation Rites',
+  GOD_OF_HEALING = 'God of Healing',
+  FERTILITY_RITES = 'Fertility Rites',
+  RELIGIOUS_SETTLEMENTS = 'Religious Settlements',
+  GODDESS_OF_THE_HARVEST = 'Goddess of the Harvest',
+  CITY_PATRON_GODDESS = 'City Patron Goddess',
+  EARTH_GODDESS = 'Earth Goddess'
 }
 
 export enum TileYields
@@ -327,8 +348,9 @@ export type TileType =
   IsLake: boolean,
   IsFlatlands: boolean,
   IsCity: boolean,
+  IsWorked: boolean,
   TileCity: string,
-  CityPantheon: string,
+  CityPantheon: TilePantheons | TileNone.NONE,
   FoundedReligion: string,
   IsRiver: boolean,
   IsNEOfRiver: boolean,

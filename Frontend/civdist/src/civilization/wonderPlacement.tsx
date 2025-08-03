@@ -1,6 +1,6 @@
 import { TileType, LeaderName, TileNone, TileFeatures, TileTerrain, TileWonders, TileDistricts, TileUniqueDistricts, TileNaturalWonders, TileBonusResources, TileLuxuryResources, TileImprovements, TileStrategicResources, TilePantheons, TileYields, TileBuildings } from "../utils/types";
 import { getMapOddrString, getOffsets } from "../utils/miscFunctions";
-import { getCityBuildings, getCityFoundedReligion, isCityCenter, isCommercialHub, isDesert, isTundra, isEncampment, isEntertainmentComplex, isHarbor, isHolySite, isLand, isTheaterSquare, isGrassland, isPlains, isCampus, isIndustrialZone } from "../utils/civFunctions";
+import { getCityFoundedReligion, isCityCenter, isCommercialHub, isDesert, isTundra, isEncampment, isEntertainmentComplex, isHarbor, isHolySite, isLand, isTheaterSquare, isGrassland, isPlains, isCampus, isIndustrialZone } from "../utils/civFunctions";
 
 export function canPlaceAlhambra(tile: TileType, mapCache: Map<string, TileType>): boolean
 {
@@ -30,9 +30,12 @@ export function canPlaceBigBen(tile: TileType, mapCache: Map<string, TileType>, 
         let hasCommercial = false;
         let hasBank = false;
 
-        const buildings = getCityBuildings(ownedTiles);
-        if (buildings.includes(TileBuildings.BANK)) // buildings only 'exist' within the city center, not at the districts themselves
-            hasBank = true;
+        if (ownedTiles.length > 0)
+        {
+            const buildings = ownedTiles[ownedTiles.length - 1].Buildings;
+            if (buildings.includes(TileBuildings.BANK)) // buildings only 'exist' within the city center, not at the districts themselves
+                hasBank = true;
+        }
 
         const offsets = getOffsets(tile.Y);
         for (let i = 0; i < offsets.length; i++)
@@ -190,9 +193,12 @@ export function canPlaceEstadioDoMaracana(tile: TileType, mapCache: Map<string, 
         let hasEntertainment = false;
         let hasStadium = false;
 
-        const buildings = getCityBuildings(ownedTiles);
-        if (buildings.includes(TileBuildings.STADIUM))
-            hasStadium = true;
+        if (ownedTiles.length > 0)
+        {
+            const buildings = ownedTiles[ownedTiles.length - 1].Buildings;
+            if (buildings.includes(TileBuildings.STADIUM)) // buildings only 'exist' within the city center, not at the districts themselves
+                hasStadium = true;
+        }
 
         const offsets = getOffsets(tile.Y);
         for (let i = 0; i < offsets.length; i++)
@@ -242,9 +248,12 @@ export function canPlaceGreatLibrary(tile: TileType, mapCache: Map<string, TileT
         let hasCampus = false;
         let hasLibrary = false;
 
-        const buildings = getCityBuildings(ownedTiles);
-        if (buildings.includes(TileBuildings.LIBRARY))
-            hasLibrary = true;
+        if (ownedTiles.length > 0)
+        {
+            const buildings = ownedTiles[ownedTiles.length - 1].Buildings;
+            if (buildings.includes(TileBuildings.LIBRARY)) // buildings only 'exist' within the city center, not at the districts themselves
+                hasLibrary = true;
+        }
 
         const offsets = getOffsets(tile.Y);
         for (let i = 0; i < offsets.length; i++)
@@ -272,9 +281,12 @@ export function canPlaceGreatZimbabwe(tile: TileType, mapCache: Map<string, Tile
     let hasMarket = false;
     let hasCattle = false;
 
-    const buildings = getCityBuildings(ownedTiles);
-    if (buildings.includes(TileBuildings.MARKET))
-        hasMarket = true;
+    if (ownedTiles.length > 0)
+    {
+        const buildings = ownedTiles[ownedTiles.length - 1].Buildings;
+        if (buildings.includes(TileBuildings.MARKET)) // buildings only 'exist' within the city center, not at the districts themselves
+            hasMarket = true;
+    }
 
     const offsets = getOffsets(tile.Y);
     for (let i = 0; i < offsets.length; i++)
@@ -305,9 +317,12 @@ export function canPlaceGreatLighthouse(tile: TileType, mapCache: Map<string, Ti
         let hasHarbor = false;
         let hasLighthouse = false;
 
-        const buildings = getCityBuildings(ownedTiles);
-        if (buildings.includes(TileBuildings.LIGHTHOUSE))
-            hasLighthouse = true;
+        if (ownedTiles.length > 0)
+        {
+            const buildings = ownedTiles[ownedTiles.length - 1].Buildings;
+            if (buildings.includes(TileBuildings.LIGHTHOUSE)) // buildings only 'exist' within the city center, not at the districts themselves
+                hasLighthouse = true;
+        }
 
         const offsets = getOffsets(tile.Y);
         for (let i = 0; i < offsets.length; i++)
@@ -396,9 +411,12 @@ export function canPlaceMahabodhiTemple(tile: TileType, mapCache: Map<string, Ti
         let hasHoly = false;
         let hasTemple = false;
 
-        const buildings = getCityBuildings(ownedTiles);
-        if (buildings.includes(TileBuildings.TEMPLE))
-            hasTemple = true;
+        if (ownedTiles.length > 0)
+        {
+            const buildings = ownedTiles[ownedTiles.length - 1].Buildings;
+            if (buildings.includes(TileBuildings.TEMPLE)) // buildings only 'exist' within the city center, not at the districts themselves
+                hasTemple = true;
+        }
 
         const offsets = getOffsets(tile.Y);
         for (let i = 0; i < offsets.length; i++)
@@ -443,9 +461,12 @@ export function canPlaceOxfordUniversity(tile: TileType, mapCache: Map<string, T
         let hasCampus = false;
         let hasUniversity = false;
 
-        const buildings = getCityBuildings(ownedTiles);
-        if (buildings.includes(TileBuildings.UNIVERSITY))
-            hasUniversity = true;
+        if (ownedTiles.length > 0)
+        {
+            const buildings = ownedTiles[ownedTiles.length - 1].Buildings;
+            if (buildings.includes(TileBuildings.UNIVERSITY)) // buildings only 'exist' within the city center, not at the districts themselves
+                hasUniversity = true;
+        }
 
         const offsets = getOffsets(tile.Y);
         for (let i = 0; i < offsets.length; i++)
@@ -511,9 +532,12 @@ export function canPlaceRuhrValley(tile: TileType, mapCache: Map<string, TileTyp
         let hasIndustrial = false;
         let hasFactory = false;
 
-        const buildings = getCityBuildings(ownedTiles);
-        if (buildings.includes(TileBuildings.FACTORY))
-            hasFactory = true;
+        if (ownedTiles.length > 0)
+        {
+            const buildings = ownedTiles[ownedTiles.length - 1].Buildings;
+            if (buildings.includes(TileBuildings.FACTORY)) // buildings only 'exist' within the city center, not at the districts themselves
+                hasFactory = true;
+        }
 
         const offsets = getOffsets(tile.Y);
         for (let i = 0; i < offsets.length; i++)
@@ -592,9 +616,12 @@ export function canPlaceTerracottaArmy(tile: TileType, mapCache: Map<string, Til
         let hasEncampment = false;
         let hasBarracksOrStable = false;
 
-        const buildings = getCityBuildings(ownedTiles);
-        if (buildings.includes(TileBuildings.BARRACKS) || buildings.includes(TileBuildings.STABLE))
-            hasBarracksOrStable = true;
+        if (ownedTiles.length > 0)
+        {
+            const buildings = ownedTiles[ownedTiles.length - 1].Buildings;
+            if (buildings.includes(TileBuildings.BARRACKS) || buildings.includes(TileBuildings.STABLE)) // buildings only 'exist' within the city center, not at the districts themselves
+                hasBarracksOrStable = true;
+        }
 
         const offsets = getOffsets(tile.Y);
         for (let i = 0; i < offsets.length; i++)

@@ -311,6 +311,7 @@ export enum TileYields
 
 export enum LeaderName
 {
+  CITY_STATE = 'City State Leader',
   TEDDY_ROOSEVELT = "Teddy Roosevelt",
   SALADIN = "Saladin",
   PEDRO_II = "Pedro II",

@@ -1,4 +1,37 @@
-import { TileType, TileTerrain, TileNaturalWonders, TileBonusResources, TileLuxuryResources, TileDistricts, TileUniqueDistricts, TileNone, TileBuildings } from "./types";
+import { TileType, TileTerrain, TileNaturalWonders, TileBonusResources, TileLuxuryResources, TileDistricts, TileUniqueDistricts, TileNone, TileBuildings, TileStrategicResources } from "./types";
+
+export function isBonusResource(tile: TileType): boolean
+{
+    for (const bonus of Object.values(TileBonusResources)) 
+    {
+        if (tile.ResourceType === bonus)
+            return true;
+    }
+
+    return false;
+}
+
+export function isLuxuryResource(tile: TileType): boolean
+{
+    for (const luxury of Object.values(TileLuxuryResources)) 
+    {
+        if (tile.ResourceType === luxury)
+            return true;
+    }
+
+    return false;
+}
+
+export function isStrategicResource(tile: TileType): boolean
+{
+    for (const strategic of Object.values(TileStrategicResources)) 
+    {
+        if (tile.ResourceType === strategic)
+            return true;
+    }
+
+    return false;
+}
 
 export function isLand(tile: TileType)
 {
@@ -117,6 +150,22 @@ export function isPlains(tile: TileType)
 export function isGrassland(tile: TileType)
 {
     if (tile.TerrainType === TileTerrain.GRASSLAND || tile.TerrainType === TileTerrain.GRASSLAND_HILLS || tile.TerrainType === TileTerrain.GRASSLAND_MOUNTAIN)
+        return true;
+
+    return false;
+}
+
+export function isOcean(tile: TileType)
+{
+    if (tile.TerrainType === TileTerrain.OCEAN)
+        return true;
+
+    return false;
+}
+
+export function isCoast(tile: TileType)
+{
+    if (tile.TerrainType === TileTerrain.COAST && !tile.IsLake)
         return true;
 
     return false;

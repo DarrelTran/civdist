@@ -1,14 +1,14 @@
 import { TileType, LeaderName, TileNone, TileFeatures, TileTerrain, TileDistricts, TileNaturalWonders, TileBonusResources, TileLuxuryResources, TileImprovements, TileStrategicResources, TilePantheons, TileYields, TileWonders } from "../utils/types";
 import { getMapOddrString, getOffsets } from "../utils/miscFunctions";
-import { isSeaResource, hasNaturalWonder, hasCampus, getCityPantheon, isLand, isWater } from "../utils/civFunctions";
+import { isSeaResource, hasNaturalWonder, hasCampus, getCityPantheon, isLand, isWater, isBonusResource, isLuxuryResource, isStrategicResource, isPlains, isGrassland, isDesert, isOcean, isCoast, isTundra, isSnow } from "../utils/civFunctions";
 import { canPlaceAlhambra, canPlaceBigBen, canPlaceBolshoiTheatre, canPlaceBroadway, canPlaceChichenItza, canPlaceColosseum, canPlaceColossus, canPlaceCristoRedentor, canPlaceEiffelTower, canPlaceEstadioDoMaracana, canPlaceForbiddenCity, canPlaceGreatLibrary, canPlaceGreatLighthouse, canPlaceGreatZimbabwe, canPlaceHagiaSophia, canPlaceHangingGardens, canPlaceHermitage, canPlaceHueyTeocalli, canPlaceMahabodhiTemple, canPlaceMontStMichel, canPlaceOracle, canPlaceOxfordUniversity, canPlacePetra, canPlacePotalaPalace, canPlacePyramids, canPlaceRuhrValley, canPlaceStonehenge, canPlaceSydneyOperaHouse, canPlaceTerracottaArmy, canPlaceVenetianArsenal } from "./wonderPlacement"
 
 /*
 Rules:
-1) Account for civ specific stuff
-3) Account for building bonuses to tiles or city (like factory) or stuff that removes appeal when adding district
-5) Avoid tiles good for wonders
-6) Check if future districts can be placed nearby
+1) Have each district calculate the score of all other districts and not place if good for other districts.
+2) Account for industrial zone REMOVING appeal from surrounding tiles
+3) Account for civ specific stuff
+4) Account for building bonuses to tiles or city (like factory) or stuff that removes appeal when adding district
 7) update getScoreFromPossibleAdjacentDistricts() with other districts
 */
 
@@ -29,25 +29,17 @@ function getScoreFromAdj(adj: number): number
         return BAD_SCORE;
 }
 
-function getScoreFromResource(tile: TileType): number
+/**
+ * Avoid high appeal tiles. Already accounts for good seaside resort placement.
+ * @param appeal 
+ * @returns 
+ */
+function getScoreFromAppeal(appeal: number): number
 {
-    for (const bonus of Object.values(TileBonusResources)) 
-    {
-        if (tile.ResourceType === bonus)
-            return BAD_SCORE;
-    }
-    for (const luxury of Object.values(TileLuxuryResources)) 
-    {
-        if (tile.ResourceType === luxury)
-            return BAD_SCORE;
-    }
-    for (const strategic of Object.values(TileStrategicResources)) 
-    {
-        if (tile.ResourceType === strategic)
-            return BAD_SCORE;
-    }
-
-    return LOW_SCORE;
+    if (appeal >= 2) // breathtaking & charming
+        return BAD_SCORE;
+    else 
+        return LOW_SCORE;
 }
 
 function getScoreFromImprovements(tile: TileType, mapCache: Map<string, TileType>): number // maybe a class method??
@@ -65,7 +57,8 @@ function getScoreFromImprovements(tile: TileType, mapCache: Map<string, TileType
         return false;
     }
 
-    if (tile.ImprovementType !== TileNone.NONE || tile.FeatureType !== TileNone.NONE)
+    // accounts for woods/rainforest (lumber mills) & mines
+    if (tile.ImprovementType !== TileNone.NONE || tile.FeatureType !== TileNone.NONE || tile.IsHills)
         return BAD_SCORE;
     // check if tile has good adjacencies for farm's feudalism civic
     else if (goodForFarm(tile))
@@ -222,53 +215,101 @@ function getScoreFromWonderPlacement(tile: TileType, mapCache: Map<string, TileT
     return 0;
 }
 
-/** TODO: Add PREFERENCE SCORE TO  getTileSimilarYieldScore FOR EACH YIELD*/
-
-function getTileSimilarYieldScore(tile: TileType, otherTile: TileType): boolean
+function getTileSimilarYield(tile: TileType, otherTile: TileType, yieldPreferences: readonly TileYields[], yieldTolerance: number): boolean
 {
-    const otherYieldSum = otherTile.Food + otherTile.Production + otherTile.Gold + otherTile.Science + otherTile.Faith + otherTile.Culture;
-    const currentTileYieldSum = otherTile.Food + otherTile.Production + otherTile.Gold + otherTile.Science + otherTile.Faith + otherTile.Culture;
+    // for preferred yields, want exact or larger amount of yields
+    if (yieldPreferences.length > 0)
+    {
+        let preferredScore = 0;
 
-    const yieldDifference = otherYieldSum - currentTileYieldSum;
+        yieldPreferences.forEach((prefYield) => 
+        {
+            if (prefYield === TileYields.FOOD && otherTile.Food >= tile.Food)
+                ++preferredScore;
+            else if (prefYield === TileYields.CULTURE && otherTile.Food >= tile.Culture)
+                ++preferredScore;
+            else if (prefYield === TileYields.GOLD && otherTile.Food >= tile.Gold)
+                ++preferredScore;
+            else if (prefYield === TileYields.SCIENCE && otherTile.Food >= tile.Science)
+                ++preferredScore;
+            else if (prefYield === TileYields.FAITH && otherTile.Food >= tile.Faith)
+                ++preferredScore;
+            else if (prefYield === TileYields.PRODUCTION && otherTile.Food >= tile.Production)
+                ++preferredScore;
+        })
 
-    if (yieldDifference >= 0)
-        return true;
+        if (preferredScore >= yieldPreferences.length)
+            return true;
+    }
+    else
+    {
+        let otherTileSum = 0;
+        let tileSum = 0;
+        for (const theYield of Object.values(TileYields))
+        {
+            if (otherTile[theYield] > 0 && tile[theYield] > 0) // avoid terrible zero yield tiles
+            {
+                otherTileSum = otherTileSum + otherTile[theYield];
+                tileSum = tileSum + otherTile[theYield];
+            }
+        }
+
+        if (Math.abs(otherTileSum - tileSum) <= yieldTolerance)
+            return true;
+    }
 
     return false;
 }
 
-function getTileSimilarTerrainScore(tile: TileType, otherTile: TileType): boolean
+function getTileSimilarTerrain(tile: TileType, otherTile: TileType): boolean
 {
-
+    if (isLand(tile) && isLand(otherTile))
+    {
+        if ((isPlains(tile) && isPlains(otherTile)) || 
+            (isGrassland(tile) && isGrassland(otherTile)) || 
+            (isDesert(tile) && isDesert(otherTile)) || 
+            (isTundra(tile) && isTundra(otherTile)) || 
+            (isSnow(tile) && isSnow(otherTile))
+           )
+           return true;
+    }
+    else if (isWater(tile) && isWater(otherTile))
+    {
+        if ((tile.IsLake && otherTile.IsLake) || 
+            (isOcean(tile) && isOcean(otherTile)) || 
+            (isCoast(tile) && isCoast(otherTile))
+           )
+            return true;
+    }
 
     return false;
 }
 
-function getTileSimilarDistanceScore(tile: TileType, otherTile: TileType): boolean
-{
-
-    return false;
-}
-
-function getTileSimilarResourcesScore(tile: TileType, otherTile: TileType): boolean
+function getTileSimilarResources(tile: TileType, otherTile: TileType): boolean
 {
     if (tile.ResourceType === TileNone.NONE)
         return true;
 
+    if (((isLand(tile) && isLand(otherTile)) || (isWater(tile) && isWater(otherTile))) && // even for resources unique to land/water, if both are land/water, dont need to check that
+        (isBonusResource(tile) && isBonusResource(otherTile)) ||
+        (isLuxuryResource(tile) && isLuxuryResource(otherTile)) ||
+        (isStrategicResource(tile) && isStrategicResource(otherTile))
+       )
+        return true;
+
     return false;
 }
 
-function getTileSimilarAppealScore(tile: TileType, otherTile: TileType): boolean
+function getTileSimilarAppeal(tile: TileType, otherTile: TileType, appealTolerance: number): boolean
 {
-
-    return false;
+    return (Math.abs(tile.Appeal - otherTile.Appeal) <= appealTolerance);
 }
 
 export abstract class Civilization
 {
     /* Helper methods - In class because there might be civ specific stuff for them and if so, should be overwritten. */
 
-    tileWithReplacementYieldsExists(tile: TileType, ownedTiles: readonly TileType[]): boolean
+    replacementTileExists(tile: TileType, ownedTiles: readonly TileType[], yieldPreferences: readonly TileYields[]): boolean
     {
         for (let i = 0; i < ownedTiles.length; i++)
         {
@@ -279,11 +320,13 @@ export abstract class Civilization
 
             if (!otherTile.IsWorked && this.isFreeTile(otherTile))
             {
-                if (getTileSimilarYieldScore(tile, otherTile) && 
-                    getTileSimilarTerrainScore(tile, otherTile) && 
-                    getTileSimilarDistanceScore(tile, otherTile) && 
-                    getTileSimilarResourcesScore(tile, otherTile) && 
-                    getTileSimilarAppealScore(tile, otherTile)
+                const yieldTolerance = 1;
+                const appealTolerance = 1;
+
+                if (getTileSimilarYield(tile, otherTile, yieldPreferences, yieldTolerance) && 
+                    getTileSimilarTerrain(tile, otherTile) && 
+                    getTileSimilarResources(tile, otherTile) && 
+                    getTileSimilarAppeal(tile, otherTile, appealTolerance)
                    )
                    return true;
             }
@@ -292,15 +335,15 @@ export abstract class Civilization
         return false;
     }
 
-    protected getCampusScore(tile: TileType, yieldPreferences: TileYields[], mapCache: Map<string, TileType>, ownedTiles: readonly TileType[], wondersIncluded: Set<TileWonders> | null): number
+    protected getCampusScore(tile: TileType, yieldPreferences: readonly TileYields[], mapCache: Map<string, TileType>, ownedTiles: readonly TileType[], wondersIncluded: Set<TileWonders> | null): number
     {
         // don't include getScoreFromPossibleAdjacentDistricts() because only care about current tile
 
         return  getScoreFromAdj(this.getCampusAdj(tile, mapCache)) +
-                this.getScoreFromYields(tile, yieldPreferences, ownedTiles) + 
-                getScoreFromResource(tile) + 
+                this.getScoreFromReplacability(tile, yieldPreferences, ownedTiles) + 
                 getScoreFromImprovements(tile, mapCache) + 
-                getScoreFromWonderPlacement(tile, mapCache, ownedTiles, wondersIncluded);
+                getScoreFromWonderPlacement(tile, mapCache, ownedTiles, wondersIncluded) +
+                getScoreFromAppeal(tile.Appeal);
     }
 
     /**
@@ -308,7 +351,7 @@ export abstract class Civilization
      * @param tile 
      * @param mapCache 
      */
-    protected getScoreFromPossibleAdjacentDistricts(tile: TileType, yieldPreferences: TileYields[], mapCache: Map<string, TileType>, ownedTiles: TileType[], wondersIncluded: Set<TileWonders> | null)
+    protected getScoreFromPossibleAdjacentDistricts(tile: TileType, yieldPreferences: readonly TileYields[], mapCache: Map<string, TileType>, ownedTiles: readonly TileType[], wondersIncluded: Set<TileWonders> | null)
     {
         let totalDistricts = 0;
         const offsets = getOffsets(tile.Y);
@@ -345,40 +388,20 @@ export abstract class Civilization
     }
 
     /**
-     * Want to avoid tiles with high yields or ones with yields preferred by the user.
+     * Checks if a tile can be replaced by another owned tile.
      * @param tile 
      * @param yieldPreferences 
+     * @param ownedTiles 
      * @returns 
      */
-    protected getScoreFromYields(tile: TileType, yieldPreferences: TileYields[], ownedTiles: readonly TileType[]): number
+    protected getScoreFromReplacability(tile: TileType, yieldPreferences: readonly TileYields[], ownedTiles: readonly TileType[]): number
     {
-        if ((yieldPreferences.includes(TileYields.FOOD) && tile.Food > 0) || 
-            (yieldPreferences.includes(TileYields.SCIENCE) && tile.Science > 0) ||
-            (yieldPreferences.includes(TileYields.PRODUCTION) && tile.Production > 0) ||
-            (yieldPreferences.includes(TileYields.CULTURE) && tile.Culture > 0) ||
-            (yieldPreferences.includes(TileYields.FAITH) && tile.Faith > 0) ||
-            (yieldPreferences.includes(TileYields.GOLD) && tile.Gold > 0)
-           )
-            return BAD_SCORE;
-        else if (tile.IsWorked)
-        {
-            const hasReplacement = this.tileWithReplacementYieldsExists(tile, ownedTiles);
-
-            if (hasReplacement)
-                return MEDIUM_SCORE;
-            else
-                return BAD_SCORE;
-        }
-        else if (tile.Food >= 4 || 
-                 tile.Science >= 4 ||
-                 tile.Production >= 4 ||
-                 tile.Culture >= 4 ||
-                 tile.Faith >= 4 ||
-                 tile.Gold >= 4
-                )
-            return BAD_SCORE;
+        if (this.replacementTileExists(tile, ownedTiles, yieldPreferences) && tile.IsWorked) // worked tiles are important
+            return MEDIUM_SCORE;
+        else if (this.replacementTileExists(tile, ownedTiles, yieldPreferences))
+            return LOW_SCORE;
         else
-            return LOW_SCORE; 
+            return BAD_SCORE;
     }
 
     protected getCampusAdj(tile: TileType, mapCache: Map<string, TileType>): number
@@ -548,9 +571,9 @@ export abstract class Civilization
 
     /* OPTIMAL TILE PLACEMENT */
 
-    getCampusTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null): TileType | undefined
+    getCampusTile(ownedTiles: readonly TileType[], yieldPreferences: readonly TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null): TileType | undefined
     {
-        let maxScore = -Number.MAX_SAFE_INTEGER;
+        let maxScore = 0;
         let returnedTile = undefined as TileType | undefined; // wtf???
 
         if (!hasCampus(ownedTiles))
@@ -559,7 +582,7 @@ export abstract class Civilization
             {
                 if (this.isFreeTile(tile) && isLand(tile))
                 {
-                    let score = maxScore + this.getCampusScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded);
+                    let score = maxScore + this.getCampusScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded) + this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded);
                     if (score > maxScore)
                     {
                         maxScore = score;
@@ -644,6 +667,11 @@ export abstract class Civilization
 
         return -1;
     }
+}
+
+export class CityState extends Civilization
+{
+
 }
 
 export class America extends Civilization
@@ -743,6 +771,7 @@ export class Aztec extends Civilization
 
 const CivRegistry: Record<LeaderName, new () => Civilization> = 
 {
+    [LeaderName.CITY_STATE]: CityState,
     [LeaderName.TEDDY_ROOSEVELT]: America,
     [LeaderName.SALADIN]: Arabia,
     [LeaderName.PEDRO_II]: Brazil,

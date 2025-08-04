@@ -44,6 +44,8 @@ TODO: Use <br> instead of grid style
 
 TODO: Optimize wonder placements by removing check for district if corresponding building exists.
 
+TODO: Add diplomatic quarter
+
 /////////////////////////////////////////////////////////////////
 */
 
@@ -74,6 +76,8 @@ const MapPage = () =>
     const [currentCity, setCurrentCity] = useState<TileType>();
 
     const [cityBoundaryTiles, setCityBoundaryTiles] = useState<Map<string, string[]>>(new Map()); // <tile with boundary lines, neighboring tiles> - Uses the oddr coords
+    
+    // THE CITY CENTER TILE IS ALWAYS LAST
     const [cityOwnedTiles, setCityOwnedTiles] = useState<Map<string, TileType[]>>(new Map()); // <"civ,city", city's tiles> - owned tiles should have a maximum limit of 36 tiles per city
 
     // assuming civ has at least one city
@@ -839,7 +843,12 @@ const MapPage = () =>
         {
             const dropdownCityOwnedTiles = cityOwnedTiles.get(`${dropdownCiv},${dropdownCity}`);
             if (dropdownCityOwnedTiles)
-                return dropdownCityOwnedTiles[0].Leader;
+            {
+                if (dropdownCiv.includes("city-state"))
+                    return LeaderName.CITY_STATE;
+                else
+                    return dropdownCityOwnedTiles[0].Leader;
+            }
         }
 
         return TileNone.NONE;

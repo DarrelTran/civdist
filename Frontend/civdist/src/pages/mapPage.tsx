@@ -7,7 +7,7 @@ import {HexType, TileNone, TileFeatures, TileTerrain, TileWonders, TileDistricts
 import { loadDistrictImages, loadNaturalWonderImages, loadTerrainImages, loadWonderImages, loadYieldImages } from '../images/imageLoaders';
 import { getTerrain, getDistrict, getNaturalWonder, getWonder } from '../images/imageAttributeFinders';
 import { baseTileSize, allPossibleDistricts, allPossibleYields, CIV_NAME_DEFAULT, CITY_NAME_DEFAULT } from '../utils/constants';
-import { getCivilizationObject } from '../civilization/civilizations';
+import { Civilization, getCivilizationObject } from '../civilization/civilizations';
 import { mapPageSelectStyle } from './mapPageSelectStyles';
 import { getMapOddrString, getOffsets } from '../utils/miscFunctions';
 
@@ -17,6 +17,8 @@ import { getMapOddrString, getOffsets } from '../utils/miscFunctions';
 TODO: Take into account if district will delete a worked tile. If it is worked & no replacement = bad, worked and replacement = good, not worked = ok. CHECK improvement type and if bonus + orig yields can be a replacement.
 
 TODO: Add option to consider wonders when scoring. Give wonders weight depending on typical civ victory type.
+
+TODO: Put encampment on side towards civ player expects to be an enemy.
 
 TODO: Fix scoring system - BROKEN????
 
@@ -43,8 +45,6 @@ TODO: Can civ6 cities have same name??
 TODO: Use <br> instead of grid style
 
 TODO: Optimize wonder placements by removing check for district if corresponding building exists.
-
-TODO: Add diplomatic quarter
 
 /////////////////////////////////////////////////////////////////
 */
@@ -854,24 +854,43 @@ const MapPage = () =>
         return TileNone.NONE;
     }
 
+    function getTileFromDistrictType(district: string, civObj: Civilization, ownedTiles: TileType[])
+    {
+        if (district === TileDistricts.SCIENCE_DISTRICT)
+            return includeWonders ? civObj.getCampusTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders) : civObj.getCampusTile(ownedTiles, dropdownYields, hexmapCache.current, null);
+        else if (district === TileDistricts.THEATER_DISTRICT)
+            return includeWonders ? civObj.getTheaterTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders) : civObj.getTheaterTile(ownedTiles, dropdownYields, hexmapCache.current, null);
+        else if (district === TileDistricts.COMMERCIAL_DISTRICT)
+            return includeWonders ? civObj.getCommercialHubTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders) : civObj.getCommercialHubTile(ownedTiles, dropdownYields, hexmapCache.current, null);
+        else if (district === TileDistricts.HARBOR_DISTRICT)
+            return includeWonders ? civObj.getHarborTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders) : civObj.getHarborTile(ownedTiles, dropdownYields, hexmapCache.current, null);
+        else if (district === TileDistricts.INDUSTRIAL_DISTRICT)
+            return includeWonders ? civObj.getIndustrialZoneTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders) : civObj.getIndustrialZoneTile(ownedTiles, dropdownYields, hexmapCache.current, null);
+        else if (district === TileDistricts.FAITH_DISTRICT)
+            return includeWonders ? civObj.getHolySiteTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders) : civObj.getHolySiteTile(ownedTiles, dropdownYields, hexmapCache.current, null);
+        else if (district === TileDistricts.ENTERTAINMENT_DISTRICT)
+            return includeWonders ? civObj.getEntertainmentZoneTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders) : civObj.getEntertainmentZoneTile(ownedTiles, dropdownYields, hexmapCache.current, null);
+        else if (district === TileDistricts.AQUEDUCT_DISTRICT)
+            return includeWonders ? civObj.getAqueductTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders) : civObj.getAqueductTile(ownedTiles, dropdownYields, hexmapCache.current, null);
+        else if (district === TileDistricts.NEIGHBORHOOD_DISTRICT)
+            return includeWonders ? civObj.getNeighborhoodTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders) : civObj.getNeighborhoodTile(ownedTiles, dropdownYields, hexmapCache.current, null);
+        else if (district === TileDistricts.ROCKET_DISTRICT)
+            return includeWonders ? civObj.getSpaceportTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders) : civObj.getSpaceportTile(ownedTiles, dropdownYields, hexmapCache.current, null);
+    }
+
     const handleAddButton = useCallback(() => 
     {
         let theError = "";
 
         let foundTile = undefined as TileType | undefined;
 
-        if (dropdownDistrict === TileDistricts.SCIENCE_DISTRICT)
+        const theCiv = getCivilizationObject(findCivLeader());
+        if (dropdownCity && dropdownCiv && theCiv !== TileNone.NONE)
         {
-            const theCiv = getCivilizationObject(findCivLeader());
-            if (dropdownCity && dropdownCiv && theCiv !== TileNone.NONE)
-            {
-                const dropdownCityOwnedTiles = cityOwnedTiles.get(`${dropdownCiv},${dropdownCity}`);
+            const dropdownCityOwnedTiles = cityOwnedTiles.get(`${dropdownCiv},${dropdownCity}`);
 
-                if (dropdownCityOwnedTiles && includeWonders)
-                    foundTile = theCiv.getCampusTile(dropdownCityOwnedTiles, dropdownYields, hexmapCache.current, civCompletedWonders);
-                else if (dropdownCityOwnedTiles)
-                    foundTile = theCiv.getCampusTile(dropdownCityOwnedTiles, dropdownYields, hexmapCache.current, null);
-            }
+            if (dropdownCityOwnedTiles)
+                foundTile = getTileFromDistrictType(dropdownDistrict, theCiv, dropdownCityOwnedTiles);
         }
 
         if (foundTile)
@@ -1285,7 +1304,31 @@ const MapPage = () =>
 
     function testStuff()
     {
-        civCompletedWonders.forEach((A) => {console.log(A)})
+        /*
+        const german = cityOwnedTiles.get("German Empire,Aachen");
+        const aztec = cityOwnedTiles.get("Nan Madol city-state,Nan Madol");
+
+        if (german && aztec)
+        {
+            const germanCity = german[german.length - 1];
+            const aztecCity = aztec[aztec.length - 1];
+
+            const x1 = germanCity.X;
+            const y1 = germanCity.Y;
+            const x2 = aztecCity.X;
+            const y2 = aztecCity.Y;
+
+            const even = (num: number) => {return (num % 2 == 0)};
+            const odd = (num: number) => {return (num % 2 == 1)};
+
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const penalty = ( (even(y1) && odd(y2) && (x1 < x2)) || (even(y2) && odd(y1) && (x2 < x1)) ) ? 1 : 0;
+            const distance = Math.max(Math.abs(dy), Math.abs(dx) + Math.floor(Math.abs(dy)/2) + penalty); 
+
+            console.log('dist: ' + distance)
+        }
+        */
     }
 };
 

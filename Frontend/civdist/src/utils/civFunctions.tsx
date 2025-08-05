@@ -176,6 +176,56 @@ export function hasCampus(ownedTiles: readonly TileType[]): boolean
     return ownedTiles.some(tile => isCampus(tile));
 }
 
+export function hasHolySite(ownedTiles: readonly TileType[]): boolean
+{
+    return ownedTiles.some(tile => isHolySite(tile));
+}
+
+export function hasTheater(ownedTiles: readonly TileType[]): boolean
+{
+    return ownedTiles.some(tile => isTheaterSquare(tile));
+}
+
+export function hasEntertainment(ownedTiles: readonly TileType[]): boolean
+{
+    return ownedTiles.some(tile => isEntertainmentComplex(tile));
+}
+
+export function hasHarbor(ownedTiles: readonly TileType[]): boolean
+{
+    return ownedTiles.some(tile => isHarbor(tile));
+}
+
+export function hasIndustrial(ownedTiles: readonly TileType[]): boolean
+{
+    return ownedTiles.some(tile => isIndustrialZone(tile));
+}
+
+export function hasCommercial(ownedTiles: readonly TileType[]): boolean
+{
+    return ownedTiles.some(tile => isCommercialHub(tile));
+}
+
+export function hasAqueduct(ownedTiles: readonly TileType[]): boolean
+{
+    return ownedTiles.some(tile => isAqueduct(tile));
+}
+
+export function hasEncampment(ownedTiles: readonly TileType[]): boolean
+{
+    return ownedTiles.some(tile => isEncampment(tile));
+}
+
+export function hasAerodrome(ownedTiles: readonly TileType[]): boolean
+{
+    return ownedTiles.some(tile => isAerodrome(tile));
+}
+
+export function hasSpaceport(ownedTiles: readonly TileType[]): boolean
+{
+    return ownedTiles.some(tile => isSpaceport(tile));
+}
+
 export function isAerodrome(tile: TileType)
 {
     return (tile.District === TileDistricts.AERODROME_DISTRICT);
@@ -239,4 +289,28 @@ export function isTheaterSquare(tile: TileType)
 export function isHarbor(tile: TileType)
 {
     return (tile.District === TileDistricts.HARBOR_DISTRICT || tile.District === TileUniqueDistricts.ROYAL_NAVY_DOCKYARD_DISTRICT);
+}
+
+export function isChokepoint()
+{
+
+}
+
+// https://ondras.github.io/rot.js/manual/#hex/indexing
+export function distanceToTile(currTile: TileType, otherTile: TileType)
+{
+    const x1 = currTile.X;
+    const y1 = currTile.Y;
+    const x2 = otherTile.X;
+    const y2 = otherTile.Y;
+
+    const even = (num: number) => {return (num % 2 == 0)};
+    const odd = (num: number) => {return (num % 2 == 1)};
+
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const penalty = ( (even(y1) && odd(y2) && (x1 < x2)) || (even(y2) && odd(y1) && (x2 < x1)) ) ? 1 : 0;
+    const distance = Math.max(Math.abs(dy), Math.abs(dx) + Math.floor(Math.abs(dy)/2) + penalty); 
+
+    return distance;
 }

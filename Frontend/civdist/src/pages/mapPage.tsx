@@ -8,8 +8,8 @@ import { loadDistrictImages, loadNaturalWonderImages, loadTerrainImages, loadWon
 import { getTerrain, getDistrict, getNaturalWonder, getWonder } from '../images/imageAttributeFinders';
 import { baseTileSize, allPossibleDistricts, allPossibleYields, CIV_NAME_DEFAULT, CITY_NAME_DEFAULT } from '../utils/constants';
 import { Civilization, getCivilizationObject } from '../civilization/civilizations';
-import { mapPageSelectStyle } from './mapPageSelectStyles';
-import { getMapOddrString, getOffsets } from '../utils/miscFunctions';
+import { mapPageSelectStyle, nearbyCityFontSize, nearbyCityStyles } from './mapPageSelectStyles';
+import { getMapOddrString, getOffsets, getTextWidth } from '../utils/miscFunctions';
 
 /*
 /////////////////////////////////////////////////////////////////
@@ -91,6 +91,7 @@ const MapPage = () =>
     const [dropdownYields, setDropdownYields] = useState<TileYields[]>([]);
 
     const [encampmentNearbyCityDisplay, setEncampmentNearbyCityDisplay] = useState<string>("none");
+    const [dropdownNearbyCity, setDropdownNearbyCity] = useState<TileType>();
 
     /**
      * - Shifting hex img's by the subtraction seen in drawMap() keeps correct oddr coordinate detection but visuals will break
@@ -124,19 +125,6 @@ const MapPage = () =>
         setAreImagesLoaded(true);
     }
 
-    function getTextWidth(text: string, font: string)
-    {
-        const canvas = theCanvas.current;
-        const context = canvas?.getContext('2d');
-        if (canvas && context)
-        {
-            context.font = font;
-            const size = context.measureText(text);
-
-            return size.width;
-        }
-    }
-
     /**
      * @param context 2D canvas context.
      * @param px X & y pixel coordinates of the text box. Assumes that the hexmap has flipped y coordinates.
@@ -157,7 +145,7 @@ const MapPage = () =>
         //const fontSize = minGrid / minTile;
         const font = `${fontSize}px arial`;
 
-        const textWidth = getTextWidth(text, font);
+        const textWidth = getTextWidth(text, font, theCanvas.current);
 
         if (textWidth)
         {
@@ -878,6 +866,8 @@ const MapPage = () =>
             return includeWonders ? civObj.getNeighborhoodTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders) : civObj.getNeighborhoodTile(ownedTiles, dropdownYields, hexmapCache.current, null);
         else if (district === TileDistricts.ROCKET_DISTRICT)
             return includeWonders ? civObj.getSpaceportTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders) : civObj.getSpaceportTile(ownedTiles, dropdownYields, hexmapCache.current, null);
+        else if (district === TileDistricts.ENCAMPMENT_DISTRICT && dropdownNearbyCity)
+            return includeWonders ? civObj.getEncampmentTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders, dropdownNearbyCity) : civObj.getEncampmentTile(ownedTiles, dropdownYields, hexmapCache.current, null, dropdownNearbyCity);
     }
 
     const handleAddButton = useCallback(() => 
@@ -910,7 +900,7 @@ const MapPage = () =>
                 setErrorText("");
             }, 4000)
         }
-    }, [cityOwnedTiles, dropdownDistrict, dropdownCity, dropdownCiv, dropdownYields, mapCacheVersion, includeWonders, civCompletedWonders])
+    }, [cityOwnedTiles, dropdownDistrict, dropdownCity, dropdownCiv, dropdownYields, mapCacheVersion, includeWonders, civCompletedWonders, dropdownNearbyCity])
 
     const getSelectionYields = useCallback(() => 
     {
@@ -940,6 +930,23 @@ const MapPage = () =>
         </div>
     }
 
+    const getNearbyCityOptions = useCallback(() => 
+    {
+        const tempArr: {value: string, label: JSX.Element}[] = [];
+        let i = 0;
+
+        uniqueCities.forEach((cities, civ) => 
+        {
+            cities.forEach((city) => 
+            {
+                tempArr.push({value: `${civ},${city}`, label: <div key={i}> <span>{city}</span> <br/> <span>({civ})</span> </div>});
+                ++i;
+            })
+        })
+
+        return tempArr;
+    }, [uniqueCities])  
+
     useEffect(() => 
     {
         if (dropdownDistrict === TileDistricts.ENCAMPMENT_DISTRICT)
@@ -948,6 +955,24 @@ const MapPage = () =>
             setEncampmentNearbyCityDisplay('none');
 
     }, [dropdownDistrict])
+
+    function getNearbyCityTextMaxWidth()
+    {
+        let max = 0;
+        
+        uniqueCities.forEach((cities, civ) => 
+        {
+            cities.forEach((city) => 
+            {
+                const theString = `${city} (${civ})`;
+                const width = getTextWidth(theString, `${nearbyCityFontSize}px arial`, theCanvas.current);
+                if (width)
+                    max = Math.max(width);
+            })
+        })
+
+        return max;
+    }
 
     return (
         <div style={{display: 'flex'}}>
@@ -1037,30 +1062,12 @@ const MapPage = () =>
                         <div style={{display: encampmentNearbyCityDisplay}}>
                             <span>Select a nearby city: </span>
                             <div style={{display: 'flex'}}>
-                                <select>
-                                    {(
-                                        () => 
-                                        {
-                                            // can't use civDropdownRef as this select doesnt know when to re-render compared to something like an useEffect
-                                            const allCities: JSX.Element[] = [];
-                                            let i = 0;
 
-                                            uniqueCities.forEach((cities) => 
-                                            {
-                                                cities.forEach((city) => 
-                                                {
-                                                    allCities.push(<option value={city} key={i}>{city}</option>);
-                                                    ++i;
-                                                })
-                                            })
+                                <Select 
+                                    options={getNearbyCityOptions()} 
+                                    styles={nearbyCityStyles(getNearbyCityTextMaxWidth() * 1.25)}
+                                />
 
-                                            if (allCities.length > 0)
-                                                return allCities;
-                                            else
-                                                return <option>{CITY_NAME_DEFAULT}</option>
-                                        }
-                                    )()}
-                                </select>
                                 <span style={{marginLeft: '5px', marginRight: '5px'}}>Distance: </span><input type='range' min={0} max={9999}></input>
                             </div>
                         </div>
@@ -1370,8 +1377,6 @@ const MapPage = () =>
             console.log('dist: ' + distance)
         }
         */
-
-        setEncampmentNearbyCityDisplay('grid');
     }
 };
 

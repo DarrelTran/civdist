@@ -20,3 +20,17 @@ export function getMapOddrString(x: number, y: number)
 {
     return `${x},${y}`;
 }
+
+export function getTextWidth(text: string, font: string, canvas: HTMLCanvasElement | null): number | undefined
+{
+    const context = canvas?.getContext('2d');
+    if (canvas && context)
+    {
+        context.font = font;
+        const size = context.measureText(text);
+
+        return size.width;
+    }
+
+    return undefined;
+}

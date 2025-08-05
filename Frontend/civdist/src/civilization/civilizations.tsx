@@ -1016,11 +1016,11 @@ export abstract class Civilization
     }
 
     // CHECK IF ENCAMPMENT IS CLOSER TO FOREIGN CITY OR IN CHOKEPOINT
-    getEncampmentTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: boolean): number
+    getEncampmentTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null, nearbyCity: TileType): TileType | undefined
     {
 
 
-        return -1;
+        return ownedTiles[0];
     }
 }
 

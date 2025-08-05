@@ -2,7 +2,7 @@ import {JSX} from 'react'
 import { CSSObjectWithLabel, StylesConfig } from "react-select";
 import { TileYields } from "../utils/types";
 
-type YieldOption = 
+export type YieldOption = 
 {
   value: TileYields;
   label: TileYields;
@@ -66,17 +66,23 @@ export const mapPageSelectStyle: StylesConfig<YieldOption, true> =
     }),
 }
 
-type NearbyCityOption = 
+export type NearbyCityOption = 
 {
   value: string;
   label: JSX.Element;
+  text: string
 };
 
 export const nearbyCityFontSize = 16;
 
-export const nearbyCityStyles = (theWidth: number): StylesConfig<NearbyCityOption, true> => 
+export const nearbyCityStyles = (theWidth: number): StylesConfig<NearbyCityOption, false> => 
 {
     return {
+        singleValue: (baseStyles: CSSObjectWithLabel) => 
+        ({
+            ...baseStyles,
+            color: 'black'
+        }),
         control: (baseStyles: CSSObjectWithLabel, state) => 
         ({
             ...baseStyles,
@@ -92,7 +98,7 @@ export const nearbyCityStyles = (theWidth: number): StylesConfig<NearbyCityOptio
         ({
             ...baseStyles,
             marginTop: 0,
-            backgroundColor: '#edf1f2'    
+            backgroundColor: '#edf1f2'
         }),
         dropdownIndicator: (baseStyles: CSSObjectWithLabel) => 
         ({

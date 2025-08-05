@@ -8,8 +8,9 @@ import { loadDistrictImages, loadNaturalWonderImages, loadTerrainImages, loadWon
 import { getTerrain, getDistrict, getNaturalWonder, getWonder } from '../images/imageAttributeFinders';
 import { baseTileSize, allPossibleDistricts, allPossibleYields, CIV_NAME_DEFAULT, CITY_NAME_DEFAULT } from '../utils/constants';
 import { Civilization, getCivilizationObject } from '../civilization/civilizations';
-import { mapPageSelectStyle, nearbyCityFontSize, nearbyCityStyles } from './mapPageSelectStyles';
+import { mapPageSelectStyle, nearbyCityFontSize, NearbyCityOption, nearbyCityStyles, YieldOption } from './mapPageSelectStyles';
 import { getMapOddrString, getOffsets, getTextWidth } from '../utils/miscFunctions';
+import { all } from 'axios';
 
 /*
 /////////////////////////////////////////////////////////////////
@@ -105,6 +106,7 @@ const MapPage = () =>
     const civDropdownRef = useRef<HTMLSelectElement>(null);
     const cityDropdownRef = useRef<HTMLSelectElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const nearbyCityRef = useRef<Select>(null)
 
     const terrainImagesCache = useRef<Map<TerrainFeatureKey, HTMLImageElement>>(new Map());
     const wondersImagesCache = useRef<Map<TileWonders, HTMLImageElement>>(new Map());
@@ -905,7 +907,7 @@ const MapPage = () =>
     const getSelectionYields = useCallback(() => 
     {
         const allYields = allPossibleYields();
-        const tempArr: {value: TileYields, label: TileYields, image: HTMLImageElement}[] = [];
+        const tempArr: YieldOption[] = [];
 
         for (let i = 0; i < allYields.length; i++)
         {
@@ -922,7 +924,7 @@ const MapPage = () =>
         return tempArr;
     }, [areImagesLoaded])   
 
-    function formatSelectionYields(option: {value: TileYields, label: TileYields, image: HTMLImageElement}): JSX.Element
+    function formatSelectionYields(option: YieldOption): JSX.Element
     {
         return <div>
             <span style={{paddingRight: '10px'}}>{option.label}</span>
@@ -932,14 +934,14 @@ const MapPage = () =>
 
     const getNearbyCityOptions = useCallback(() => 
     {
-        const tempArr: {value: string, label: JSX.Element}[] = [];
+        const tempArr: NearbyCityOption[] = [];
         let i = 0;
 
         uniqueCities.forEach((cities, civ) => 
         {
             cities.forEach((city) => 
             {
-                tempArr.push({value: `${civ},${city}`, label: <div key={i}> <span>{city}</span> <br/> <span>({civ})</span> </div>});
+                tempArr.push({value: `${civ},${city}`, label: <div key={i}> <span>{city}</span> <br/> <span>({civ})</span> </div>, text: `${city} (${civ})`});
                 ++i;
             })
         })
@@ -959,17 +961,24 @@ const MapPage = () =>
     function getNearbyCityTextMaxWidth()
     {
         let max = 0;
+        const opts = getNearbyCityOptions();
         
-        uniqueCities.forEach((cities, civ) => 
+        if (opts.length > 0)
         {
-            cities.forEach((city) => 
+            opts.forEach((vals) => 
             {
-                const theString = `${city} (${civ})`;
-                const width = getTextWidth(theString, `${nearbyCityFontSize}px arial`, theCanvas.current);
+                const width = getTextWidth(vals.text, `${nearbyCityFontSize}px arial`, theCanvas.current);
                 if (width)
                     max = Math.max(width);
             })
-        })
+        }
+        else
+        {
+            const theString = `${CITY_NAME_DEFAULT} (${CIV_NAME_DEFAULT})`;
+            const width = getTextWidth(theString, `${nearbyCityFontSize}px arial`, theCanvas.current);
+            if (width)
+                max = Math.max(width);
+        }
 
         return max;
     }
@@ -1064,6 +1073,19 @@ const MapPage = () =>
                             <div style={{display: 'flex'}}>
 
                                 <Select 
+                                    onChange=
+                                    {
+                                        val =>
+                                        {
+                                            if (val)
+                                            {
+                                                const allCities = cityOwnedTiles.get(val.value);
+                                                if (allCities)
+                                                    setDropdownNearbyCity(allCities[allCities.length - 1]);
+                                            }
+                                        }
+
+                                    }
                                     options={getNearbyCityOptions()} 
                                     styles={nearbyCityStyles(getNearbyCityTextMaxWidth() * 1.25)}
                                 />
@@ -1377,6 +1399,8 @@ const MapPage = () =>
             console.log('dist: ' + distance)
         }
         */
+
+        console.log(dropdownNearbyCity)
     }
 };
 

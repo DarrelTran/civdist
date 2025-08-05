@@ -90,6 +90,8 @@ const MapPage = () =>
     const [dropdownDistrict, setDropdownDistrict] = useState<string>(allPossibleDistricts()[0]);
     const [dropdownYields, setDropdownYields] = useState<TileYields[]>([]);
 
+    const [encampmentNearbyCityDisplay, setEncampmentNearbyCityDisplay] = useState<string>("none");
+
     /**
      * - Shifting hex img's by the subtraction seen in drawMap() keeps correct oddr coordinate detection but visuals will break
      * - Adding this offset fixes the visuals and keeps the coordinates correct
@@ -938,6 +940,15 @@ const MapPage = () =>
         </div>
     }
 
+    useEffect(() => 
+    {
+        if (dropdownDistrict === TileDistricts.ENCAMPMENT_DISTRICT)
+            setEncampmentNearbyCityDisplay('grid');
+        else
+            setEncampmentNearbyCityDisplay('none');
+
+    }, [dropdownDistrict])
+
     return (
         <div style={{display: 'flex'}}>
             <div
@@ -1023,7 +1034,37 @@ const MapPage = () =>
                             }
                         </select>
 
-                        <br/>
+                        <div style={{display: encampmentNearbyCityDisplay}}>
+                            <span>Select a nearby city: </span>
+                            <div style={{display: 'flex'}}>
+                                <select>
+                                    {(
+                                        () => 
+                                        {
+                                            // can't use civDropdownRef as this select doesnt know when to re-render compared to something like an useEffect
+                                            const allCities: JSX.Element[] = [];
+                                            let i = 0;
+
+                                            uniqueCities.forEach((cities) => 
+                                            {
+                                                cities.forEach((city) => 
+                                                {
+                                                    allCities.push(<option value={city} key={i}>{city}</option>);
+                                                    ++i;
+                                                })
+                                            })
+
+                                            if (allCities.length > 0)
+                                                return allCities;
+                                            else
+                                                return <option>{CITY_NAME_DEFAULT}</option>
+                                        }
+                                    )()}
+                                </select>
+                                <span style={{marginLeft: '5px', marginRight: '5px'}}>Distance: </span><input type='range' min={0} max={9999}></input>
+                            </div>
+                        </div>
+
                         <span>Account For Possible Wonders</span>
                         <input type='checkbox' onChange={(e) => {setIncludeWonders(e.target.checked)}}/>
 
@@ -1329,6 +1370,8 @@ const MapPage = () =>
             console.log('dist: ' + distance)
         }
         */
+
+        setEncampmentNearbyCityDisplay('grid');
     }
 };
 

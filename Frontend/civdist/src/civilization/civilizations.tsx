@@ -516,6 +516,7 @@ export abstract class Civilization
             const aerodromeScore = this.getAerodromeScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded);
             const entertainmentZoneScore = this.getEntertainmentZoneScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded);
             const spaceportScore = this.getSpaceportScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded);
+            const encampmentScore = this.getEncampmentScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded);
 
             if (campusScore >= LOW_SCORE || 
                 theaterScore >= LOW_SCORE || 
@@ -528,7 +529,8 @@ export abstract class Civilization
                 aqueductScore >= LOW_SCORE ||
                 aerodromeScore >= LOW_SCORE || 
                 entertainmentZoneScore >= LOW_SCORE || 
-                spaceportScore >= LOW_SCORE
+                spaceportScore >= LOW_SCORE ||
+                encampmentScore >= LOW_SCORE
                )
                 ++totalDistricts;
         })

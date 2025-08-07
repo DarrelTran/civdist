@@ -3,7 +3,7 @@ import Select from 'react-select'
 import { Link } from 'react-router-dom';
 import './mapPage.css'
 import './allPages.css';
-import { TileNone, TileWonders, TileDistricts, TileNaturalWonders, TerrainFeatureKey, RiverDirections, TileType, LeaderName, TileYields} from '../utils/types'
+import { TileNone, TileWonders, TileDistricts, TileNaturalWonders, TerrainFeatureKey, RiverDirections, TileType, LeaderName, TileYields, PossibleErrors} from '../utils/types'
 import { loadDistrictImages, loadNaturalWonderImages, loadTerrainImages, loadWonderImages, loadYieldImages } from '../images/imageLoaders';
 import { getTerrain, getDistrict, getNaturalWonder, getWonder } from '../images/imageAttributeFinders';
 import { baseTileSize, allPossibleDistricts, allPossibleYields, CIV_NAME_DEFAULT, CITY_NAME_DEFAULT } from '../utils/constants';
@@ -15,6 +15,10 @@ import { getScaledGridAndTileSizes, getScaledGridSizesFromTile, getScaleFromType
 
 /*
 /////////////////////////////////////////////////////////////////
+
+TODO: Add question mark for the target city & yield dropdown.
+
+TODO: Add functionality to distance of target city.
 
 TODO: Take into account if district will delete a worked tile. If it is worked & no replacement = bad, worked and replacement = good, not worked = ok. CHECK improvement type and if bonus + orig yields can be a replacement.
 
@@ -92,7 +96,6 @@ const MapPage = () =>
     const [dropdownDistrict, setDropdownDistrict] = useState<string>(allPossibleDistricts()[0]);
     const [dropdownYields, setDropdownYields] = useState<TileYields[]>([]);
 
-    const [nearbyCityDisplay, setNearbyCityDisplay] = useState<string>("none");
     const [dropdownNearbyCity, setDropdownNearbyCity] = useState<TileType>();
 
     /**
@@ -847,61 +850,102 @@ const MapPage = () =>
         return TileNone.NONE;
     }
 
-    function getTileFromDistrictType(district: string, civObj: Civilization, ownedTiles: TileType[])
+    /**
+     * 
+     * @param district 
+     * @param civObj 
+     * @param ownedTiles 
+     * @returns The tile or undefined if dropdownNearbyCity is not set.
+     */
+    function getTileFromDistrictType(district: string, civObj: Civilization, ownedTiles: TileType[]): TileType | undefined
     {
-        if (district === TileDistricts.SCIENCE_DISTRICT)
-            return includeWonders ? civObj.getCampusTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders) : civObj.getCampusTile(ownedTiles, dropdownYields, hexmapCache.current, null);
-        else if (district === TileDistricts.THEATER_DISTRICT)
-            return includeWonders ? civObj.getTheaterTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders) : civObj.getTheaterTile(ownedTiles, dropdownYields, hexmapCache.current, null);
-        else if (district === TileDistricts.COMMERCIAL_DISTRICT)
-            return includeWonders ? civObj.getCommercialHubTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders) : civObj.getCommercialHubTile(ownedTiles, dropdownYields, hexmapCache.current, null);
-        else if (district === TileDistricts.HARBOR_DISTRICT)
-            return includeWonders ? civObj.getHarborTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders) : civObj.getHarborTile(ownedTiles, dropdownYields, hexmapCache.current, null);
-        else if (district === TileDistricts.INDUSTRIAL_DISTRICT)
-            return includeWonders ? civObj.getIndustrialZoneTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders) : civObj.getIndustrialZoneTile(ownedTiles, dropdownYields, hexmapCache.current, null);
-        else if (district === TileDistricts.FAITH_DISTRICT)
-            return includeWonders ? civObj.getHolySiteTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders) : civObj.getHolySiteTile(ownedTiles, dropdownYields, hexmapCache.current, null);
-        else if (district === TileDistricts.ENTERTAINMENT_DISTRICT)
-            return includeWonders ? civObj.getEntertainmentZoneTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders) : civObj.getEntertainmentZoneTile(ownedTiles, dropdownYields, hexmapCache.current, null);
-        else if (district === TileDistricts.AQUEDUCT_DISTRICT)
-            return includeWonders ? civObj.getAqueductTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders) : civObj.getAqueductTile(ownedTiles, dropdownYields, hexmapCache.current, null);
-        else if (district === TileDistricts.NEIGHBORHOOD_DISTRICT)
-            return includeWonders ? civObj.getNeighborhoodTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders) : civObj.getNeighborhoodTile(ownedTiles, dropdownYields, hexmapCache.current, null);
-        else if (district === TileDistricts.ROCKET_DISTRICT)
-            return includeWonders ? civObj.getSpaceportTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders) : civObj.getSpaceportTile(ownedTiles, dropdownYields, hexmapCache.current, null);
-        else if (district === TileDistricts.ENCAMPMENT_DISTRICT && dropdownNearbyCity)
-            return includeWonders ? civObj.getEncampmentTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders, dropdownNearbyCity) : civObj.getEncampmentTile(ownedTiles, dropdownYields, hexmapCache.current, null, dropdownNearbyCity);
+        if (dropdownNearbyCity)
+        {
+            if (district === TileDistricts.SCIENCE_DISTRICT)
+                return includeWonders ? civObj.getCampusTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders, dropdownNearbyCity) : civObj.getCampusTile(ownedTiles, dropdownYields, hexmapCache.current, null, dropdownNearbyCity);
+            else if (district === TileDistricts.THEATER_DISTRICT)
+                return includeWonders ? civObj.getTheaterTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders, dropdownNearbyCity) : civObj.getTheaterTile(ownedTiles, dropdownYields, hexmapCache.current, null, dropdownNearbyCity);
+            else if (district === TileDistricts.COMMERCIAL_DISTRICT)
+                return includeWonders ? civObj.getCommercialHubTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders, dropdownNearbyCity) : civObj.getCommercialHubTile(ownedTiles, dropdownYields, hexmapCache.current, null, dropdownNearbyCity);
+            else if (district === TileDistricts.HARBOR_DISTRICT)
+                return includeWonders ? civObj.getHarborTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders, dropdownNearbyCity) : civObj.getHarborTile(ownedTiles, dropdownYields, hexmapCache.current, null, dropdownNearbyCity);
+            else if (district === TileDistricts.INDUSTRIAL_DISTRICT)
+                return includeWonders ? civObj.getIndustrialZoneTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders, dropdownNearbyCity) : civObj.getIndustrialZoneTile(ownedTiles, dropdownYields, hexmapCache.current, null, dropdownNearbyCity);
+            else if (district === TileDistricts.FAITH_DISTRICT)
+                return includeWonders ? civObj.getHolySiteTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders, dropdownNearbyCity) : civObj.getHolySiteTile(ownedTiles, dropdownYields, hexmapCache.current, null, dropdownNearbyCity);
+            else if (district === TileDistricts.ENTERTAINMENT_DISTRICT)
+                return includeWonders ? civObj.getEntertainmentZoneTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders, dropdownNearbyCity) : civObj.getEntertainmentZoneTile(ownedTiles, dropdownYields, hexmapCache.current, null, dropdownNearbyCity);
+            else if (district === TileDistricts.AQUEDUCT_DISTRICT)
+                return includeWonders ? civObj.getAqueductTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders, dropdownNearbyCity) : civObj.getAqueductTile(ownedTiles, dropdownYields, hexmapCache.current, null, dropdownNearbyCity);
+            else if (district === TileDistricts.NEIGHBORHOOD_DISTRICT)
+                return includeWonders ? civObj.getNeighborhoodTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders, dropdownNearbyCity) : civObj.getNeighborhoodTile(ownedTiles, dropdownYields, hexmapCache.current, null, dropdownNearbyCity);
+            else if (district === TileDistricts.ROCKET_DISTRICT)
+                return includeWonders ? civObj.getSpaceportTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders, dropdownNearbyCity) : civObj.getSpaceportTile(ownedTiles, dropdownYields, hexmapCache.current, null, dropdownNearbyCity);
+            else if (district === TileDistricts.ENCAMPMENT_DISTRICT && dropdownNearbyCity)
+                return includeWonders ? civObj.getEncampmentTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders, dropdownNearbyCity) : civObj.getEncampmentTile(ownedTiles, dropdownYields, hexmapCache.current, null, dropdownNearbyCity);
+        }
+        else
+        {
+            throw new Error(PossibleErrors.NEARBY_CITY_UNDEFINED);
+        }
     }
 
     const handleAddButton = useCallback(() => 
     {
         let theError = "";
 
-        let foundTile = undefined as TileType | undefined;
-
-        const theCiv = getCivilizationObject(findCivLeader());
-        if (dropdownCity && dropdownCiv && theCiv !== TileNone.NONE)
+        if (dropdownCity === CITY_NAME_DEFAULT)
         {
-            const dropdownCityOwnedTiles = cityOwnedTiles.get(`${dropdownCiv},${dropdownCity}`);
+            theError = "ERROR: Need to load a map first!"; 
 
-            if (dropdownCityOwnedTiles)
-                foundTile = getTileFromDistrictType(dropdownDistrict, theCiv, dropdownCityOwnedTiles);
+            if (theError.length > 0)
+            {
+                setErrorText(theError);
+                setTimeout(() => 
+                {
+                    setErrorText("");
+                }, 4000)
+            }
+
+            return;
         }
 
-        if (foundTile)
-            updateTilesWithDistrict(foundTile);
-        else if (dropdownCity === CITY_NAME_DEFAULT)
-            theError = "ERROR: Need to load a map first!";
-        else
-            theError = "ERROR: The optimal tile may not exist or the district already exists.";
-
-        if (theError.length > 0)
+        try
         {
-            setErrorText(theError);
-            setTimeout(() => 
+            let foundTile = undefined as TileType | undefined;
+
+            const theCiv = getCivilizationObject(findCivLeader());
+            if (dropdownCity && dropdownCiv && theCiv !== TileNone.NONE)
             {
-                setErrorText("");
-            }, 4000)
+                const dropdownCityOwnedTiles = cityOwnedTiles.get(`${dropdownCiv},${dropdownCity}`);
+
+                if (dropdownCityOwnedTiles)
+                    foundTile = getTileFromDistrictType(dropdownDistrict, theCiv, dropdownCityOwnedTiles);
+            }
+
+            if (foundTile)
+                updateTilesWithDistrict(foundTile);
+        }
+        catch(err)
+        {
+            if (err instanceof Error)
+            {
+                if (err.message === PossibleErrors.DISTRICT_ALREADY_EXISTS)
+                    theError = `${dropdownDistrict} already exists!`;
+                else if (err.message === PossibleErrors.FAILED_TO_FIND_TILE)
+                    theError = 'Failed to find an optimal tile.';
+                else if (err.message === PossibleErrors.NEARBY_CITY_UNDEFINED)
+                    theError = 'Must define a nearby city!';
+
+                if (theError.length > 0)
+                {
+                    setErrorText(theError);
+                    setTimeout(() => 
+                    {
+                        setErrorText("");
+                    }, 4000)
+                }
+            }
         }
     }, [cityOwnedTiles, dropdownDistrict, dropdownCity, dropdownCiv, dropdownYields, mapCacheVersion, includeWonders, civCompletedWonders, dropdownNearbyCity])
 
@@ -949,15 +993,6 @@ const MapPage = () =>
 
         return tempArr;
     }, [uniqueCities])  
-
-    useEffect(() => 
-    {
-        if (dropdownDistrict === TileDistricts.ENCAMPMENT_DISTRICT || dropdownDistrict === TileDistricts.AERODROME_DISTRICT)
-            setNearbyCityDisplay('grid');
-        else
-            setNearbyCityDisplay('none');
-
-    }, [dropdownDistrict])
 
     function getNearbyCityTextMaxWidth()
     {
@@ -1069,7 +1104,7 @@ const MapPage = () =>
                             }
                         </select>
 
-                        <div style={{display: nearbyCityDisplay}}>
+                        <div style={{display: 'flex'}}>
                             <span>Select a nearby city: </span>
                             <div style={{display: 'flex'}}>
 
@@ -1094,14 +1129,6 @@ const MapPage = () =>
                                 <span style={{marginLeft: '5px', marginRight: '5px'}}>Distance: </span><input type='range' min={0} max={9999}></input>
                             </div>
                         </div>
-
-                        {(
-                            () => 
-                            {
-                                if (nearbyCityDisplay === 'none')
-                                    return <br/>
-                            }
-                        )()}
 
                         <span>Account For Possible Wonders</span>
                         <input type='checkbox' onChange={(e) => {setIncludeWonders(e.target.checked)}}/>

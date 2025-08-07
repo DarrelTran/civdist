@@ -1,4 +1,5 @@
 import { TileType, TileTerrain, TileNaturalWonders, TileBonusResources, TileLuxuryResources, TileDistricts, TileUniqueDistricts, TileNone, TileBuildings, TileStrategicResources } from "../../types";
+import { getMapOddrString, getOffsets } from "../misc/misc";
 
 export function isBonusResource(tile: TileType): boolean
 {
@@ -313,4 +314,31 @@ export function distanceToTile(currTile: TileType, otherTile: TileType)
     const distance = Math.max(Math.abs(dy), Math.abs(dx) + Math.floor(Math.abs(dy)/2) + penalty); 
 
     return distance;
+}
+
+/**
+ * Checks if the district place on the tile will ruin breathtaking or charming appeal tiles.
+ * @param tile 
+ * @param mapCache 
+ * @returns 
+ */
+export function ruinsAdjacentTileAppeal(tile: TileType, mapCache: Map<string, TileType>)
+{
+    const offsets = getOffsets(tile.Y); 
+    for (let i = 0; i < offsets.length; i++)
+    {
+        const dx = offsets[i][0];
+        const dy = offsets[i][1];
+
+        const oddrStr = getMapOddrString(tile.X + dx, tile.Y + dy);
+        const adjTile = mapCache.get(oddrStr);
+
+        if (adjTile)
+        {
+            if (adjTile.Appeal - 1 < 2) // worse than breathtaking/charming
+                return true;
+        }
+    }
+
+    return false;
 }

@@ -1,7 +1,8 @@
-import { TileType, LeaderName, TileNone, TileFeatures, TileTerrain, TileDistricts, TileNaturalWonders, TileBonusResources, TileLuxuryResources, TileImprovements, TileStrategicResources, TilePantheons, TileYields, TileWonders } from "../utils/types";
-import { isSeaResource, hasNaturalWonder, hasCampus, getCityPantheon, isLand, isWater, isBonusResource, isLuxuryResource, isStrategicResource, isPlains, isGrassland, isDesert, isOcean, isCoast, isTundra, isSnow, hasTheater, hasHolySite, hasCommercial, hasHarbor, hasIndustrial, hasEntertainment, hasAqueduct, hasSpaceport } from "../utils/functions/civ/civFunctions";
+import { TileType, LeaderName, TileNone, TileFeatures, TileTerrain, TileDistricts, TileNaturalWonders, TileBonusResources, TileLuxuryResources, TileImprovements, TileStrategicResources, TilePantheons, TileYields, TileWonders, PossibleErrors } from "../utils/types";
+import { isSeaResource, hasNaturalWonder, hasCampus, getCityPantheon, isLand, isWater, isBonusResource, isLuxuryResource, isStrategicResource, isPlains, isGrassland, isDesert, isOcean, isCoast, isTundra, isSnow, hasTheater, hasHolySite, hasCommercial, hasHarbor, hasIndustrial, hasEntertainment, hasAqueduct, hasSpaceport, ruinsAdjacentTileAppeal } from "../utils/functions/civ/civFunctions";
 import { canPlaceAlhambra, canPlaceBigBen, canPlaceBolshoiTheatre, canPlaceBroadway, canPlaceChichenItza, canPlaceColosseum, canPlaceColossus, canPlaceCristoRedentor, canPlaceEiffelTower, canPlaceEstadioDoMaracana, canPlaceForbiddenCity, canPlaceGreatLibrary, canPlaceGreatLighthouse, canPlaceGreatZimbabwe, canPlaceHagiaSophia, canPlaceHangingGardens, canPlaceHermitage, canPlaceHueyTeocalli, canPlaceMahabodhiTemple, canPlaceMontStMichel, canPlaceOracle, canPlaceOxfordUniversity, canPlacePetra, canPlacePotalaPalace, canPlacePyramids, canPlaceRuhrValley, canPlaceStonehenge, canPlaceSydneyOperaHouse, canPlaceTerracottaArmy, canPlaceVenetianArsenal } from "./wonderPlacement"
 import { getMapOddrString, getOffsets } from "../utils/functions/misc/misc";
+import { isFacingTargetHex } from "../utils/functions/hex/genericHex";
 
 /*
 Rules:
@@ -56,7 +57,20 @@ function getNeighborhoodScoreFromAppeal(appeal: number): number
         return BAD_SCORE;
 }
 
-function getScoreFromImprovements(tile: TileType, mapCache: Map<string, TileType>): number // maybe a class method??
+/**
+ * Gets the score for if the district will ruin the appeal of the surrounding tiles.
+ * @param tile 
+ * @param mapCache 
+ */
+function getScoreFromRemoveAppeal(tile: TileType, mapCache: Map<string, TileType>)
+{
+    if (ruinsAdjacentTileAppeal(tile, mapCache))
+        return BAD_SCORE;
+    else
+        return LOW_SCORE;
+}
+
+function getScoreFromImprovements(tile: TileType, mapCache: Map<string, TileType>): number 
 {
     const goodForFarm = (tile: TileType): boolean => 
     {
@@ -324,18 +338,28 @@ function getTileSimilarAppeal(tile: TileType, otherTile: TileType, appealToleran
  * @param ownedTiles 
  * @param appealTolerance How many tiles must be charming or above in order for the district placement to be 'good.' Maximum value is 6. MEDIUM_SCORE for >= appealTolerance. LOW_SCORE for >= (appealTolerance / 2).
  */
-function getScoreFromAppealSurroundingTiles(ownedTiles: readonly TileType[], appealTolerance: number): number
+function getScoreFromAddAppeal(tile: TileType, mapCache: Map<string, TileType>, appealTolerance: number): number
 {
     if (appealTolerance > 6)
         appealTolerance = 6;
 
     let totalTiles = 0;
-    ownedTiles.forEach((tile) => 
+    const offsets = getOffsets(tile.Y);
+
+    for (let i = 0; i < offsets.length; i++)
     {
-        const totalAppeal = tile.Appeal + 1;
-        if (totalAppeal >= 2)
-            ++totalTiles;
-    })
+        const dx = offsets[i][0];
+        const dy = offsets[i][1];
+
+        const oddrStr = getMapOddrString(tile.X + dx, tile.Y + dy);
+        const adjTile = mapCache.get(oddrStr);
+
+        if (adjTile)
+        {
+            if (adjTile.Appeal + 1 >= 2) // better than breathtaking/charming
+                ++totalTiles;
+        }
+    }
 
     if (totalTiles >= appealTolerance)
         return MEDIUM_SCORE;
@@ -343,6 +367,27 @@ function getScoreFromAppealSurroundingTiles(ownedTiles: readonly TileType[], app
         return LOW_SCORE;
     else
         return BAD_SCORE;
+}
+
+function getScoreIfNearTargetCity()
+{
+
+}
+
+function getScoreIfFacingTargetCity(checkTile: TileType, baseTile: TileType, targetTile: TileType, angleThreshold: number, hexDistance: number)
+{
+    if (checkTile.X === baseTile.X && checkTile.Y === baseTile.Y)
+        return 0;
+
+    if (isFacingTargetHex(baseTile, targetTile, checkTile, angleThreshold, hexDistance))
+        return MEDIUM_SCORE;
+    else
+        return BAD_SCORE;
+}
+
+function getScoreFromChokepoint()
+{
+
 }
 
 export abstract class Civilization
@@ -390,7 +435,7 @@ export abstract class Civilization
     {
         const appealTolerance = 6;
 
-        return  getScoreFromAppealSurroundingTiles(ownedTiles, appealTolerance) +
+        return  getScoreFromAddAppeal(tile, mapCache, appealTolerance) +
                 getScoreFromAdj(this.getTheaterAdj(tile, mapCache)) +
                 this.getScoreFromReplacability(tile, yieldPreferences, ownedTiles) + 
                 getScoreFromImprovements(tile, mapCache) + 
@@ -402,7 +447,7 @@ export abstract class Civilization
     {
         const appealTolerance = 6;
 
-        return  getScoreFromAppealSurroundingTiles(ownedTiles, appealTolerance) +  
+        return  getScoreFromAddAppeal(tile, mapCache, appealTolerance) +  
                 getScoreFromAdj(this.getHolySiteAdj(tile, ownedTiles, mapCache)) +
                 this.getScoreFromReplacability(tile, yieldPreferences, ownedTiles) + 
                 getScoreFromImprovements(tile, mapCache) + 
@@ -434,7 +479,8 @@ export abstract class Civilization
                 this.getScoreFromReplacability(tile, yieldPreferences, ownedTiles) + 
                 getScoreFromImprovements(tile, mapCache) + 
                 getScoreFromWonderPlacement(tile, mapCache, ownedTiles, wondersIncluded) +
-                getScoreFromAppeal(tile.Appeal);
+                getScoreFromAppeal(tile.Appeal) +
+                getScoreFromRemoveAppeal(tile, mapCache);
     }
 
     protected getNeighborhoodScore(tile: TileType, yieldPreferences: readonly TileYields[], mapCache: Map<string, TileType>, ownedTiles: readonly TileType[], wondersIncluded: Set<TileWonders> | null): number
@@ -465,7 +511,7 @@ export abstract class Civilization
     {
         const appealTolerance = 6;
 
-        return  getScoreFromAppealSurroundingTiles(ownedTiles, appealTolerance) +
+        return  getScoreFromAddAppeal(tile, mapCache, appealTolerance) +
                 this.getScoreFromReplacability(tile, yieldPreferences, ownedTiles) + 
                 getScoreFromImprovements(tile, mapCache) + 
                 getScoreFromWonderPlacement(tile, mapCache, ownedTiles, wondersIncluded) +
@@ -480,13 +526,13 @@ export abstract class Civilization
                 getScoreFromAppeal(tile.Appeal);
     }  
     
-    // CHECK IF ENCAMPMENT IS CLOSER TO FOREIGN CITY OR IN CHOKEPOINT
-    protected getEncampmentScore(tile: TileType, yieldPreferences: readonly TileYields[], mapCache: Map<string, TileType>, ownedTiles: readonly TileType[], wondersIncluded: Set<TileWonders> | null): number
+    protected getEncampmentScore(tile: TileType, yieldPreferences: readonly TileYields[], mapCache: Map<string, TileType>, ownedTiles: readonly TileType[], wondersIncluded: Set<TileWonders> | null, targetCity: TileType): number
     {
         return  this.getScoreFromReplacability(tile, yieldPreferences, ownedTiles) + 
                 getScoreFromImprovements(tile, mapCache) + 
                 getScoreFromWonderPlacement(tile, mapCache, ownedTiles, wondersIncluded) +
-                getScoreFromAppeal(tile.Appeal);
+                getScoreFromAppeal(tile.Appeal) + 
+                getScoreIfFacingTargetCity(tile, ownedTiles[ownedTiles.length - 1], targetCity, 0.75, 2);
     }  
 
     /**
@@ -494,7 +540,7 @@ export abstract class Civilization
      * @param tile 
      * @param mapCache 
      */
-    protected getScoreFromPossibleAdjacentDistricts(tile: TileType, yieldPreferences: readonly TileYields[], mapCache: Map<string, TileType>, ownedTiles: readonly TileType[], wondersIncluded: Set<TileWonders> | null)
+    protected getScoreFromPossibleAdjacentDistricts(tile: TileType, yieldPreferences: readonly TileYields[], mapCache: Map<string, TileType>, ownedTiles: readonly TileType[], wondersIncluded: Set<TileWonders> | null, targetCity: TileType)
     {
         let totalDistricts = 0;
         const offsets = getOffsets(tile.Y);
@@ -516,7 +562,7 @@ export abstract class Civilization
             const aerodromeScore = this.getAerodromeScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded);
             const entertainmentZoneScore = this.getEntertainmentZoneScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded);
             const spaceportScore = this.getSpaceportScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded);
-            const encampmentScore = this.getEncampmentScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded);
+            const encampmentScore = this.getEncampmentScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity);
 
             if (campusScore >= LOW_SCORE || 
                 theaterScore >= LOW_SCORE || 
@@ -739,7 +785,7 @@ export abstract class Civilization
 
     /* OPTIMAL TILE PLACEMENT */
 
-    getCampusTile(ownedTiles: readonly TileType[], yieldPreferences: readonly TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null): TileType | undefined
+    getCampusTile(ownedTiles: readonly TileType[], yieldPreferences: readonly TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null, targetCity: TileType): TileType | undefined
     {
         let maxScore = 0;
         let returnedTile = undefined as TileType | undefined; // wtf???
@@ -750,7 +796,7 @@ export abstract class Civilization
             {
                 if (this.isFreeTile(tile) && isLand(tile))
                 {
-                    let score = maxScore + this.getCampusScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded) + this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded);
+                    let score = maxScore + this.getCampusScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded) + this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity);
                     if (score > maxScore)
                     {
                         maxScore = score;
@@ -759,14 +805,23 @@ export abstract class Civilization
                 }
             })
         }
+        else
+        {
+            throw new Error(PossibleErrors.DISTRICT_ALREADY_EXISTS);
+        }
 
         if (returnedTile)
+        {
             returnedTile.District = TileDistricts.SCIENCE_DISTRICT;
-
-        return returnedTile;
+            return returnedTile;
+        }
+        else
+        {
+            throw new Error(PossibleErrors.FAILED_TO_FIND_TILE);
+        }
     }
 
-    getTheaterTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null): TileType | undefined
+    getTheaterTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null, targetCity: TileType): TileType | undefined
     {
         let maxScore = 0;
         let returnedTile = undefined as TileType | undefined;
@@ -777,7 +832,7 @@ export abstract class Civilization
             {
                 if (this.isFreeTile(tile) && isLand(tile))
                 {
-                    let score = maxScore + this.getTheaterScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded) + this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded);
+                    let score = maxScore + this.getTheaterScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded) + this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity);
                     if (score > maxScore)
                     {
                         maxScore = score;
@@ -786,14 +841,23 @@ export abstract class Civilization
                 }
             })
         }
+        else
+        {
+            throw new Error(PossibleErrors.DISTRICT_ALREADY_EXISTS);
+        }
 
         if (returnedTile)
+        {
             returnedTile.District = TileDistricts.THEATER_DISTRICT;
-
-        return returnedTile;
+            return returnedTile;
+        }
+        else
+        {
+            throw new Error(PossibleErrors.FAILED_TO_FIND_TILE);
+        }
     }
 
-    getHolySiteTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null): TileType | undefined
+    getHolySiteTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null, targetCity: TileType): TileType | undefined
     {
         let maxScore = 0;
         let returnedTile = undefined as TileType | undefined;
@@ -804,7 +868,7 @@ export abstract class Civilization
             {
                 if (this.isFreeTile(tile) && isLand(tile))
                 {
-                    let score = maxScore + this.getHolySiteScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded) + this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded);
+                    let score = maxScore + this.getHolySiteScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded) + this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity);
                     if (score > maxScore)
                     {
                         maxScore = score;
@@ -813,14 +877,23 @@ export abstract class Civilization
                 }
             })
         }
+        else
+        {
+            throw new Error(PossibleErrors.DISTRICT_ALREADY_EXISTS);
+        }
 
         if (returnedTile)
+        {
             returnedTile.District = TileDistricts.FAITH_DISTRICT;
-
-        return returnedTile;
+            return returnedTile;
+        }
+        else
+        {
+            throw new Error(PossibleErrors.FAILED_TO_FIND_TILE);
+        }
     }   
 
-    getCommercialHubTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null): TileType | undefined
+    getCommercialHubTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null, targetCity: TileType): TileType | undefined
     {
         let maxScore = 0;
         let returnedTile = undefined as TileType | undefined;
@@ -831,7 +904,7 @@ export abstract class Civilization
             {
                 if (this.isFreeTile(tile) && isLand(tile))
                 {
-                    let score = maxScore + this.getCommercialHubScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded) + this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded);
+                    let score = maxScore + this.getCommercialHubScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded) + this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity);
                     if (score > maxScore)
                     {
                         maxScore = score;
@@ -840,14 +913,23 @@ export abstract class Civilization
                 }
             })
         }
+        else
+        {
+            throw new Error(PossibleErrors.DISTRICT_ALREADY_EXISTS);
+        }
 
         if (returnedTile)
+        {
             returnedTile.District = TileDistricts.COMMERCIAL_DISTRICT;
-
-        return returnedTile;
+            return returnedTile;
+        }
+        else
+        {
+            throw new Error(PossibleErrors.FAILED_TO_FIND_TILE);
+        }
     }
 
-    getHarborTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null): TileType | undefined
+    getHarborTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null, targetCity: TileType): TileType | undefined
     {
         let maxScore = 0;
         let returnedTile = undefined as TileType | undefined;
@@ -858,7 +940,7 @@ export abstract class Civilization
             {
                 if (this.isFreeTile(tile) && isWater(tile))
                 {
-                    let score = maxScore + this.getHarborScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded) + this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded);
+                    let score = maxScore + this.getHarborScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded) + this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity);
                     if (score > maxScore)
                     {
                         maxScore = score;
@@ -867,14 +949,23 @@ export abstract class Civilization
                 }
             })
         }
+        else
+        {
+            throw new Error(PossibleErrors.DISTRICT_ALREADY_EXISTS);
+        }
 
         if (returnedTile)
+        {
             returnedTile.District = TileDistricts.HARBOR_DISTRICT;
-
-        return returnedTile;
+            return returnedTile;
+        }
+        else
+        {
+            throw new Error(PossibleErrors.FAILED_TO_FIND_TILE);
+        }
     }
 
-    getIndustrialZoneTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null): TileType | undefined
+    getIndustrialZoneTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null, targetCity: TileType): TileType | undefined
     {
         let maxScore = 0;
         let returnedTile = undefined as TileType | undefined;
@@ -885,7 +976,7 @@ export abstract class Civilization
             {
                 if (this.isFreeTile(tile) && isLand(tile))
                 {
-                    let score = maxScore + this.getIndustrialZoneScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded) + this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded);
+                    let score = maxScore + this.getIndustrialZoneScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded) + this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity);
                     if (score > maxScore)
                     {
                         maxScore = score;
@@ -894,14 +985,23 @@ export abstract class Civilization
                 }
             })
         }
+        else
+        {
+            throw new Error(PossibleErrors.DISTRICT_ALREADY_EXISTS);
+        }
 
         if (returnedTile)
+        {
             returnedTile.District = TileDistricts.INDUSTRIAL_DISTRICT;
-
-        return returnedTile;
+            return returnedTile;
+        }
+        else
+        {
+            throw new Error(PossibleErrors.FAILED_TO_FIND_TILE);
+        }
     }   
 
-    getNeighborhoodTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null): TileType | undefined
+    getNeighborhoodTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null, targetCity: TileType): TileType | undefined
     {
         let maxScore = 0;
         let returnedTile = undefined as TileType | undefined;
@@ -910,7 +1010,7 @@ export abstract class Civilization
         {
             if (this.isFreeTile(tile) && isLand(tile))
             {
-                let score = maxScore + this.getNeighborhoodScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded) + this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded);
+                let score = maxScore + this.getNeighborhoodScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded) + this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity);
                 if (score > maxScore)
                 {
                     maxScore = score;
@@ -920,12 +1020,17 @@ export abstract class Civilization
         })
 
         if (returnedTile)
+        {
             returnedTile.District = TileDistricts.NEIGHBORHOOD_DISTRICT;
-
-        return returnedTile;
+            return returnedTile;
+        }
+        else
+        {
+            throw new Error(PossibleErrors.FAILED_TO_FIND_TILE);
+        }
     }
     
-    getAqueductTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null): TileType | undefined
+    getAqueductTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null, targetCity: TileType): TileType | undefined
     {
         let maxScore = 0;
         let returnedTile = undefined as TileType | undefined;
@@ -938,7 +1043,7 @@ export abstract class Civilization
             {
                 if (this.isFreeTile(tile) && isLand(tile))
                 {
-                    let score = maxScore + this.getAqueductScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded) + this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded);
+                    let score = maxScore + this.getAqueductScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded) + this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity);
                     if (score > maxScore)
                     {
                         maxScore = score;
@@ -947,21 +1052,30 @@ export abstract class Civilization
                 }
             })
         }
+        else
+        {
+            throw new Error(PossibleErrors.DISTRICT_ALREADY_EXISTS);
+        }
 
         if (returnedTile)
+        {
             returnedTile.District = TileDistricts.AQUEDUCT_DISTRICT;
-
-        return returnedTile;
+            return returnedTile;
+        }
+        else
+        {
+            throw new Error(PossibleErrors.FAILED_TO_FIND_TILE);
+        }
     }
 
-    getAerodromeTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: boolean): number
+    getAerodromeTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: boolean, targetCity: TileType): number
     {
         // SAME AS ENCAMPEMNT EXCEPT DONT CARE ABOUT CHOKEPOINT
 
         return -1;
     }
 
-    getEntertainmentZoneTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null): TileType | undefined
+    getEntertainmentZoneTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null, targetCity: TileType): TileType | undefined
     {
         let maxScore = 0;
         let returnedTile = undefined as TileType | undefined;
@@ -972,7 +1086,7 @@ export abstract class Civilization
             {
                 if (this.isFreeTile(tile) && isLand(tile) && tile.IsRiver)
                 {
-                    let score = maxScore + this.getEntertainmentZoneScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded) + this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded);
+                    let score = maxScore + this.getEntertainmentZoneScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded) + this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity);
                     if (score > maxScore)
                     {
                         maxScore = score;
@@ -981,14 +1095,23 @@ export abstract class Civilization
                 }
             })
         }
+        else
+        {
+            throw new Error(PossibleErrors.DISTRICT_ALREADY_EXISTS);
+        }
 
         if (returnedTile)
+        {
             returnedTile.District = TileDistricts.ENTERTAINMENT_DISTRICT;
-
-        return returnedTile;
+            return returnedTile;
+        }
+        else
+        {
+            throw new Error(PossibleErrors.FAILED_TO_FIND_TILE);
+        }
     }
 
-    getSpaceportTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null): TileType | undefined
+    getSpaceportTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null, targetCity: TileType): TileType | undefined
     {
         let maxScore = 0;
         let returnedTile = undefined as TileType | undefined;
@@ -999,7 +1122,7 @@ export abstract class Civilization
             {
                 if (this.isFreeTile(tile) && isLand(tile))
                 {
-                    let score = maxScore + this.getSpaceportScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded) + this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded);
+                    let score = maxScore + this.getSpaceportScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded) + this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity);
                     if (score > maxScore)
                     {
                         maxScore = score;
@@ -1008,11 +1131,20 @@ export abstract class Civilization
                 }
             })
         }
+        else
+        {
+            throw new Error(PossibleErrors.DISTRICT_ALREADY_EXISTS);
+        }
 
         if (returnedTile)
+        {
             returnedTile.District = TileDistricts.ROCKET_DISTRICT;
-
-        return returnedTile;
+            return returnedTile;
+        }
+        else
+        {
+            throw new Error(PossibleErrors.FAILED_TO_FIND_TILE);
+        }
     }
 
     // CHECK IF ENCAMPMENT IS CLOSER TO FOREIGN CITY OR IN CHOKEPOINT

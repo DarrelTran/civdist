@@ -376,3 +376,11 @@ export type TileType =
   Culture: number, 
   Faith: number
 }
+
+export enum PossibleErrors
+{
+  NONE = "No error",
+  DISTRICT_ALREADY_EXISTS = "District exists",
+  NEARBY_CITY_UNDEFINED = "Nearby city undefined",
+  FAILED_TO_FIND_TILE = "Failed to find a tile"
+}

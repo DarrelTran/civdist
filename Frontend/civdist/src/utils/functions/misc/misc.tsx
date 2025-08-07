@@ -1,3 +1,18 @@
+import { TileType } from "../../types";
+
+export function getMinMaxXY(theJSON: TileType[]) 
+{
+    const allX = theJSON.map(tile => tile.X);
+    const allY = theJSON.map(tile => tile.Y);
+
+    return {
+        minX: Math.min(...allX),
+        maxX: Math.max(...allX),
+        minY: Math.min(...allY),
+        maxY: Math.max(...allY),
+    };
+}
+
 /**
  * Offsets are ordered counterclockwise.
  * @param row 

@@ -1,4 +1,4 @@
-import { isAerodrome, isAqueduct, isCampus, isCityCenter, isCommercialHub, isEncampment, isEntertainmentComplex, isHarbor, isHolySite, isIndustrialZone, isNeighborhood, isSpaceport, isTheaterSquare } from "../utils/civFunctions";
+import { isAerodrome, isAqueduct, isCampus, isCityCenter, isCommercialHub, isEncampment, isEntertainmentComplex, isHarbor, isHolySite, isIndustrialZone, isNeighborhood, isSpaceport, isTheaterSquare } from "../utils/functions/civ/civFunctions";
 import { TileType, TileNone, TileFeatures, TileTerrain, TileWonders, TileDistricts, TileUniqueDistricts, TileNaturalWonders, TerrainFeatureKey, HexType } from "../utils/types";
 
 export function getNaturalWonder(tile: TileType, natWonderMap: Map<TileNaturalWonders, HTMLImageElement>): {imgElement: HTMLImageElement | undefined, scaleType: number}

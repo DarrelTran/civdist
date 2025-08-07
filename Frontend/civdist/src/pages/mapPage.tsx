@@ -3,14 +3,15 @@ import Select from 'react-select'
 import { Link } from 'react-router-dom';
 import './mapPage.css'
 import './allPages.css';
-import {HexType, TileNone, TileFeatures, TileTerrain, TileWonders, TileDistricts, TileUniqueDistricts, TileNaturalWonders, TerrainFeatureKey, RiverDirections, TileType, LeaderName, TileYields} from '../utils/types'
+import { TileNone, TileWonders, TileDistricts, TileNaturalWonders, TerrainFeatureKey, RiverDirections, TileType, LeaderName, TileYields} from '../utils/types'
 import { loadDistrictImages, loadNaturalWonderImages, loadTerrainImages, loadWonderImages, loadYieldImages } from '../images/imageLoaders';
 import { getTerrain, getDistrict, getNaturalWonder, getWonder } from '../images/imageAttributeFinders';
 import { baseTileSize, allPossibleDistricts, allPossibleYields, CIV_NAME_DEFAULT, CITY_NAME_DEFAULT } from '../utils/constants';
 import { Civilization, getCivilizationObject } from '../civilization/civilizations';
 import { mapPageSelectStyle, nearbyCityFontSize, NearbyCityOption, nearbyCityStyles, YieldOption } from './mapPageSelectStyles';
-import { getMapOddrString, getOffsets, getTextWidth } from '../utils/miscFunctions';
-import { all } from 'axios';
+import { getMapOddrString, getMinMaxXY, getOffsets, getTextWidth } from '../utils/functions/misc/misc';
+import { getAngleBetweenTwoOddrHex, getHexPoint, oddrToPixel, pixelToOddr } from '../utils/functions/hex/genericHex';
+import { getScaledGridAndTileSizes, getScaledGridSizesFromTile, getScaleFromType } from '../utils/functions/imgScaling/scaling';
 
 /*
 /////////////////////////////////////////////////////////////////
@@ -67,11 +68,11 @@ const MapPage = () =>
     const [visualZoomInput, setVisualZoomInput] = useState<number>(100);
     const [visualYieldDropdown, setVisualYieldDropdown] = useState<{value: TileYields, label: TileYields, image: HTMLImageElement}[]>([]);
 
-    const [originalGridSize, setOriginalGridSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(baseTileSize).tileX, y: getScaledGridAndTileSizes(baseTileSize).tileY}); 
-    const [gridSize, setGridSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(baseTileSize).gridX, y: getScaledGridAndTileSizes(baseTileSize).gridY});
+    const [originalGridSize, setOriginalGridSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(baseTileSize, minAndMaxCoords, winSize).tileX, y: getScaledGridAndTileSizes(baseTileSize, minAndMaxCoords, winSize).tileY}); 
+    const [gridSize, setGridSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(baseTileSize, minAndMaxCoords, winSize).gridX, y: getScaledGridAndTileSizes(baseTileSize, minAndMaxCoords, winSize).gridY});
     
-    const [originalTileSize, setOriginalTileSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(baseTileSize).tileX, y: getScaledGridAndTileSizes(baseTileSize).tileY});
-    const [tileSize, setTileSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(baseTileSize).tileX, y: getScaledGridAndTileSizes(baseTileSize).tileY});
+    const [originalTileSize, setOriginalTileSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(baseTileSize, minAndMaxCoords, winSize).tileX, y: getScaledGridAndTileSizes(baseTileSize, minAndMaxCoords, winSize).tileY});
+    const [tileSize, setTileSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(baseTileSize, minAndMaxCoords, winSize).tileX, y: getScaledGridAndTileSizes(baseTileSize, minAndMaxCoords, winSize).tileY});
 
     const [currentTile, setCurrentTile] = useState<TileType>();
     const [currentCity, setCurrentCity] = useState<TileType>();
@@ -91,7 +92,7 @@ const MapPage = () =>
     const [dropdownDistrict, setDropdownDistrict] = useState<string>(allPossibleDistricts()[0]);
     const [dropdownYields, setDropdownYields] = useState<TileYields[]>([]);
 
-    const [encampmentNearbyCityDisplay, setEncampmentNearbyCityDisplay] = useState<string>("none");
+    const [nearbyCityDisplay, setNearbyCityDisplay] = useState<string>("none");
     const [dropdownNearbyCity, setDropdownNearbyCity] = useState<TileType>();
 
     /**
@@ -214,27 +215,27 @@ const MapPage = () =>
     {
         if (riverDirection === RiverDirections.EAST)
         {
-            drawLine(context, getHexPoint(0, startingPos), getHexPoint(1, startingPos), '#38afcd', Math.min(tileSize.x / 8, tileSize.y / 8));
+            drawLine(context, getHexPoint(0, startingPos, tileSize), getHexPoint(1, startingPos, tileSize), '#38afcd', Math.min(tileSize.x / 8, tileSize.y / 8));
         }
         else if (riverDirection === RiverDirections.NORTHEAST)
         {
-            drawLine(context, getHexPoint(1, startingPos), getHexPoint(2, startingPos), '#38afcd', Math.min(tileSize.x / 8, tileSize.y / 8));
+            drawLine(context, getHexPoint(1, startingPos, tileSize), getHexPoint(2, startingPos, tileSize), '#38afcd', Math.min(tileSize.x / 8, tileSize.y / 8));
         }
         else if (riverDirection === RiverDirections.NORTHWEST)
         {
-            drawLine(context, getHexPoint(2, startingPos), getHexPoint(3, startingPos), '#38afcd', Math.min(tileSize.x / 8, tileSize.y / 8));
+            drawLine(context, getHexPoint(2, startingPos, tileSize), getHexPoint(3, startingPos, tileSize), '#38afcd', Math.min(tileSize.x / 8, tileSize.y / 8));
         }
         else if (riverDirection === RiverDirections.SOUTHEAST)
         {
-            drawLine(context, getHexPoint(5, startingPos), getHexPoint(6, startingPos), '#38afcd', Math.min(tileSize.x / 8, tileSize.y / 8));
+            drawLine(context, getHexPoint(5, startingPos, tileSize), getHexPoint(6, startingPos, tileSize), '#38afcd', Math.min(tileSize.x / 8, tileSize.y / 8));
         }
         else if (riverDirection === RiverDirections.SOUTHWEST)
         {
-            drawLine(context, getHexPoint(4, startingPos), getHexPoint(5, startingPos), '#38afcd', Math.min(tileSize.x / 8, tileSize.y / 8));
+            drawLine(context, getHexPoint(4, startingPos, tileSize), getHexPoint(5, startingPos, tileSize), '#38afcd', Math.min(tileSize.x / 8, tileSize.y / 8));
         }
         else if (riverDirection === RiverDirections.WEST)
         {
-            drawLine(context, getHexPoint(3, startingPos), getHexPoint(4, startingPos), '#38afcd', Math.min(tileSize.x / 8, tileSize.y / 8));
+            drawLine(context, getHexPoint(3, startingPos, tileSize), getHexPoint(4, startingPos, tileSize), '#38afcd', Math.min(tileSize.x / 8, tileSize.y / 8));
         }
     }
 
@@ -243,7 +244,7 @@ const MapPage = () =>
         hexmapCache.current.forEach((tile, oddr) => 
         {
             const [col, row] = oddr.split(',').map(Number);
-            const px = oddrToPixel(col, row, tileSize.x, tileSize.y);
+            const px = oddrToPixel(col, row, tileSize.x, tileSize.y, hexMapOffset);
 
             let RiverEFlow = tile.RiverEFlow;
             let RiverSEFlow = tile.RiverSEFlow;
@@ -298,8 +299,8 @@ const MapPage = () =>
         cityBoundaryTiles.forEach((neighbors, tileKey) => 
         {
             const [col, row] = tileKey.split(',').map(Number);
-            const center = oddrToPixel(col, row, tileSize.x, tileSize.y);
-
+            const center = oddrToPixel(col, row, tileSize.x, tileSize.y, hexMapOffset);
+            
             // check against all hex edges
             const offsets = getOffsets(row);
 
@@ -308,8 +309,8 @@ const MapPage = () =>
                 const neighborKey = getMapOddrString(wrapCol(col + dx), wrapRow(row + dy));
                 if (!neighbors.includes(neighborKey)) return; // if hex edge has neighbor not owned by city = draw on that edge
 
-                const start = getHexPoint(i, center);
-                const end = getHexPoint((i + 1) % 6, center);
+                const start = getHexPoint(i, center, tileSize);
+                const end = getHexPoint((i + 1) % 6, center, tileSize);
 
                 drawLine(context, start, end, 'yellow', Math.min(tileSize.x, tileSize.y) / 20);
             });
@@ -318,9 +319,9 @@ const MapPage = () =>
 
     function drawHexImage(context: CanvasRenderingContext2D, tile: TileType, opacity: number, img: HTMLImageElement)
     {
-        const px = oddrToPixel(tile.X, tile.Y, tileSize.x, tileSize.y);
+        const px = oddrToPixel(tile.X, tile.Y, tileSize.x, tileSize.y, hexMapOffset);
         const imgAttributes = getImageAttributes(tile);
-        const scale = getScaleFromType(imgAttributes.scaleType);
+        const scale = getScaleFromType(imgAttributes.scaleType); 
 
         const drawWidth = tileSize.x * scale.scaleW;
         const drawHeight = tileSize.y * scale.scaleH;
@@ -351,7 +352,7 @@ const MapPage = () =>
         hexmapCache.current.forEach((tile, oddr) => 
         {
             const [col, row] = oddr.split(',').map(Number);
-            const px = oddrToPixel(col, row, tileSize.x, tileSize.y);
+            const px = oddrToPixel(col, row, tileSize.x, tileSize.y, hexMapOffset);
 
             if (oddrCoord.col === col && oddrCoord.row === row)
             {  
@@ -413,7 +414,7 @@ const MapPage = () =>
 
         if (mousePos)
         {
-            const oddrCoord = pixelToOddr(mousePos, tileSize);
+            const oddrCoord = pixelToOddr(mousePos, tileSize, hexMapOffset); 
             const key = getMapOddrString(oddrCoord.col, oddrCoord.row);
 
             handleMouseHover(key, oddrCoord);
@@ -432,7 +433,7 @@ const MapPage = () =>
             const divRect = scrollRef.current.getBoundingClientRect(); // size will always be the same regardless of scroll
             const inDivBounds = clientX >= divRect.left && clientX <= divRect.right && clientY >= divRect.top && clientY <= divRect.bottom;
 
-            const oddrCoord = pixelToOddr(mousePos, tileSize);
+            const oddrCoord = pixelToOddr(mousePos, tileSize, hexMapOffset);
             const outOfHexBounds = oddrCoord.col < minX || oddrCoord.col > maxX || oddrCoord.row < minY || oddrCoord.row > maxY;
 
             console.log('click at ' + oddrCoord.col + ' and ' + oddrCoord.row)
@@ -578,7 +579,7 @@ const MapPage = () =>
 
     useEffect(() => 
     {
-        const sizes = getScaledGridAndTileSizes(baseTileSize);
+        const sizes = getScaledGridAndTileSizes(baseTileSize, minAndMaxCoords, winSize); 
         setOriginalTileSize({ x: sizes.tileX, y: sizes.tileY });
         setOriginalGridSize({ x: sizes.gridX, y: sizes.gridY });
 
@@ -733,7 +734,7 @@ const MapPage = () =>
         // update gridSize (canvas size) to match enlarged map
         // since tiles got bigger
         // otherwise scroll won't show
-        const sizes = getScaledGridSizesFromTile(newTileSize);
+        const sizes = getScaledGridSizesFromTile(newTileSize, mapJSON);
         setGridSize({ x: sizes.gridX, y: sizes.gridY });
     }, [originalGridSize, originalTileSize]);
 
@@ -951,10 +952,10 @@ const MapPage = () =>
 
     useEffect(() => 
     {
-        if (dropdownDistrict === TileDistricts.ENCAMPMENT_DISTRICT)
-            setEncampmentNearbyCityDisplay('grid');
+        if (dropdownDistrict === TileDistricts.ENCAMPMENT_DISTRICT || dropdownDistrict === TileDistricts.AERODROME_DISTRICT)
+            setNearbyCityDisplay('grid');
         else
-            setEncampmentNearbyCityDisplay('none');
+            setNearbyCityDisplay('none');
 
     }, [dropdownDistrict])
 
@@ -1009,7 +1010,7 @@ const MapPage = () =>
                     </div>
                     {/*Select Civilization*/}
                     <select ref={civDropdownRef} onChange={(e) => {setDropdownCiv(e.target.value)}}>
-                        {(
+                        {(  // return function and then call it
                             () => 
                             {
                                 const civArr = Array.from(uniqueCivilizations);
@@ -1068,7 +1069,7 @@ const MapPage = () =>
                             }
                         </select>
 
-                        <div style={{display: encampmentNearbyCityDisplay}}>
+                        <div style={{display: nearbyCityDisplay}}>
                             <span>Select a nearby city: </span>
                             <div style={{display: 'flex'}}>
 
@@ -1093,6 +1094,14 @@ const MapPage = () =>
                                 <span style={{marginLeft: '5px', marginRight: '5px'}}>Distance: </span><input type='range' min={0} max={9999}></input>
                             </div>
                         </div>
+
+                        {(
+                            () => 
+                            {
+                                if (nearbyCityDisplay === 'none')
+                                    return <br/>
+                            }
+                        )()}
 
                         <span>Account For Possible Wonders</span>
                         <input type='checkbox' onChange={(e) => {setIncludeWonders(e.target.checked)}}/>
@@ -1159,145 +1168,6 @@ const MapPage = () =>
 
     /**
      * 
-     * @param n The nth point on the hex. Point 0 is the bottom point on the right side of the hex and subsequent points are located on a counter-clockwise basis. Values >6 are the same as n % 6.
-     * @param startingPos Typically the center of the hex.
-     * @returns 
-     */
-    function getHexPoint(n: number, startingPos: {x: number, y: number}): {x: number, y: number}
-    {
-        let angleDeg = 60 * n - 30;
-        let angleRad = Math.PI / 180 * angleDeg;
-        return {x: startingPos.x + tileSize.x * Math.cos(angleRad), y: startingPos.y + tileSize.y * Math.sin(angleRad)};
-    }
-
-    function getScaledGridSizesFromTile(tileSize: {x: number, y: number}) 
-    {
-        const { minX, maxX, minY, maxY } = getMinMaxXY(mapJSON);
-        const mapCols = maxX - minX + 1;
-        const mapRows = maxY - minY + 1;
-
-        const gridW = tileSize.x * Math.sqrt(3) * (mapCols + 2);
-        const gridH = tileSize.y * 3/2 * (mapRows + 2);
-
-        return { gridX: gridW, gridY: gridH };
-    }
-
-    // https://www.redblobgames.com/grids/hexagons/#hex-to-pixel
-    function oddrToPixel(col: number, row: number, sizeX: number, sizeY: number) 
-    {
-        // hex to cartesian
-        let x = Math.sqrt(3) * (col + 0.5 * (row & 1)) * sizeX + hexMapOffset.x;
-        let y = 3/2 * row * sizeY + hexMapOffset.y;
-
-        return { x, y };
-    }
-
-    function hexAxialRound(cubeCoords: {q: number, r: number, s: number})
-    {
-        let q = Math.round(cubeCoords.q);
-        let r = Math.round(cubeCoords.r);
-        let s = Math.round(cubeCoords.s);
-
-        let q_diff = Math.abs(q - cubeCoords.q);
-        let r_diff = Math.abs(r - cubeCoords.r);
-        let s_diff = Math.abs(s - cubeCoords.s);
-
-        if (q_diff > r_diff && q_diff > s_diff)
-            q = -r-s;
-        else if (r_diff > s_diff)
-            r = -q-s;
-        else
-            s = -q-r
-
-        return {q, r, s};
-    }
-
-    function pixelToAxial(point: {x: number, y: number}, size: {x: number, y: number})
-    {
-        // invert the scaling
-        let x = (point.x - hexMapOffset.x) / size.x;
-        let y = (point.y - hexMapOffset.y) / size.y;
-        // cartesian to hex
-        let q = (Math.sqrt(3)/3 * x  -  1/3 * y);
-        let r = (2/3 * y);
-        let s = -q - r;
-
-        return hexAxialRound({q, r, s});
-    }
-
-    function axialToOddr(hex: {q: number, r: number, s: number})
-    {
-        var parity = hex.r&1;
-        var col = hex.q + (hex.r - parity) / 2;
-        var row = hex.r;
-
-        return {col, row};
-    }
-
-    function pixelToOddr(point: {x: number, y: number}, size: {x: number, y: number})
-    {
-        return axialToOddr(pixelToAxial(point, size));
-    }
-
-    function getMinMaxXY(theJSON: TileType[]) 
-    {
-        const allX = theJSON.map(tile => tile.X);
-        const allY = theJSON.map(tile => tile.Y);
-
-        return {
-            minX: Math.min(...allX),
-            maxX: Math.max(...allX),
-            minY: Math.min(...allY),
-            maxY: Math.max(...allY),
-        };
-    }
-
-    function getTileScaleOddr(): number 
-    {
-        const { minX, maxX, minY, maxY } = minAndMaxCoords;
-
-        const mapCols = maxX - minX + 1;
-        const mapRows = maxY - minY + 1;
-
-        const naturalWidth = Math.sqrt(3) * baseTileSize * (mapCols + 0.5); 
-        const naturalHeight = baseTileSize * 3/2 * mapRows;
-
-        const scaleX = winSize.width / naturalWidth;
-        const scaleY = winSize.height / naturalHeight;
-
-        return Math.min(scaleX, scaleY);
-    }
-
-    function getScaledGridAndTileSizes(baseTileSize: number): { tileX: number, tileY: number, gridX: number, gridY: number } 
-    {
-        const scale = getTileScaleOddr();
-        let tileW = baseTileSize * scale;
-        let tileH = baseTileSize * scale;
-
-        const minTileW = 8;
-        const minTileH = 8;
-
-        if (tileW < minTileW)
-            tileW = minTileW;
-        if (tileH < minTileH)
-            tileH = minTileH;
-
-        const { minX, maxX, minY, maxY } = minAndMaxCoords;
-
-        const mapCols = maxX - minX + 1;
-        const mapRows = maxY - minY + 1;
-
-        // width of hex = sqrt3 * size 
-        const gridW = tileW * Math.sqrt(3) * (mapCols + 2);  // adding +2 works for some reason???
-
-        // height of hex = 3/2 * size
-        const gridH = tileH * 3/2 * (mapRows + 2); 
-
-        return { tileX: tileW, tileY: tileH, gridX: gridW, gridY: gridH };
-    }
-
-    /**
-     * 
      * @param tile 
      * Hex tile of TileType.
      * @returns 
@@ -1323,53 +1193,6 @@ const MapPage = () =>
             return terrain;
 
         return {imgElement: undefined, scaleType: -1};
-    }
-
-    /**
-     * 
-     * @param imgSize 
-     * The size of the image on file in terms of:
-     * - x (width)
-     * - y (height)
-     * @param imgTileSize 
-     * The size of the hex/tile in the image in terms of:
-     * - x (size/length from the center -> horizontal edge)
-     * - y (size/length from the center -> vertical edge (pointy top))
-     * @returns 
-     * The multiplicative scale factor in terms of: 
-     * - width
-     * - height
-     */
-    function getScale(imgSize: {x: number, y: number}, imgTileSize: {x: number, y: number}): {scaleW: number, scaleH: number}
-    {
-        // how small the hex is compared to the image itself
-        // because the <image> element uses the whole image, not just the hex
-        // want to scale the hex inside to the image so that it fills the tiles
-        let ratioX = imgTileSize.x / imgSize.x;
-        let ratioY = imgTileSize.y / imgSize.y;
-
-        return {scaleW: 1 / ratioX, scaleH: 1 / ratioY};
-    }
-
-    /**
-     * 
-     * @param imgType 
-     * The image type returned from getImageType().
-     * @returns 
-     * The multiplicative scale factor in terms of: 
-     * - width
-     * - height
-     */
-    function getScaleFromType(imgType: number): {scaleW: number, scaleH: number}
-    {
-        // all images are 128x128 px
-        // and all district, terrain, etc images are of the same size if they belong to the same category 
-        // ex: terrain images are always the same size (img and hex wise)
-
-        if (imgType === HexType.DISTRICT) return getScale({x: 128, y: 128}, {x: 32, y: 32}); // actually 56x64, but this is to make the tile fit nicer
-        else if (imgType === HexType.TERRAIN) return getScale({x: 128, y: 128}, {x: 32, y: 32});
-
-        return {scaleW: -1, scaleH: -1};
     }
 
     function testStuff()
@@ -1400,7 +1223,18 @@ const MapPage = () =>
         }
         */
 
-        console.log(dropdownNearbyCity)
+        const aachen = cityOwnedTiles.get(`German Empire,Aachen`);
+        const nanMadol = cityOwnedTiles.get(`Aztec Empire,Tenochtitlan`);
+
+        if (aachen && nanMadol)
+        {
+            const aachenCity = aachen[aachen.length - 1];
+            const nanMadolCity = nanMadol[nanMadol.length - 1];
+
+            const angle = getAngleBetweenTwoOddrHex({x: aachenCity.X, y: aachenCity.Y}, {x: nanMadolCity.X, y: nanMadolCity.Y});
+
+            console.log(angle)
+        }
     }
 };
 

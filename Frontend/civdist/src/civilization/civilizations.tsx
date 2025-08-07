@@ -1,8 +1,8 @@
 import { TileType, LeaderName, TileNone, TileFeatures, TileTerrain, TileDistricts, TileNaturalWonders, TileBonusResources, TileLuxuryResources, TileImprovements, TileStrategicResources, TilePantheons, TileYields, TileWonders, PossibleErrors } from "../utils/types";
-import { isSeaResource, hasNaturalWonder, hasCampus, getCityPantheon, isLand, isWater, isBonusResource, isLuxuryResource, isStrategicResource, isPlains, isGrassland, isDesert, isOcean, isCoast, isTundra, isSnow, hasTheater, hasHolySite, hasCommercial, hasHarbor, hasIndustrial, hasEntertainment, hasAqueduct, hasSpaceport, ruinsAdjacentTileAppeal } from "../utils/functions/civ/civFunctions";
+import { isSeaResource, hasNaturalWonder, hasCampus, getCityPantheon, isLand, isWater, isBonusResource, isLuxuryResource, isStrategicResource, isPlains, isGrassland, isDesert, isOcean, isCoast, isTundra, isSnow, hasTheater, hasHolySite, hasCommercial, hasHarbor, hasIndustrial, hasEntertainment, hasAqueduct, hasSpaceport, ruinsAdjacentTileAppeal, hasEncampment, isMountainWonder, hasAerodrome } from "../utils/functions/civ/civFunctions";
 import { canPlaceAlhambra, canPlaceBigBen, canPlaceBolshoiTheatre, canPlaceBroadway, canPlaceChichenItza, canPlaceColosseum, canPlaceColossus, canPlaceCristoRedentor, canPlaceEiffelTower, canPlaceEstadioDoMaracana, canPlaceForbiddenCity, canPlaceGreatLibrary, canPlaceGreatLighthouse, canPlaceGreatZimbabwe, canPlaceHagiaSophia, canPlaceHangingGardens, canPlaceHermitage, canPlaceHueyTeocalli, canPlaceMahabodhiTemple, canPlaceMontStMichel, canPlaceOracle, canPlaceOxfordUniversity, canPlacePetra, canPlacePotalaPalace, canPlacePyramids, canPlaceRuhrValley, canPlaceStonehenge, canPlaceSydneyOperaHouse, canPlaceTerracottaArmy, canPlaceVenetianArsenal } from "./wonderPlacement"
 import { getMapOddrString, getOffsets } from "../utils/functions/misc/misc";
-import { isFacingTargetHex } from "../utils/functions/hex/genericHex";
+import { getDistanceBetweenTwoOddrHex, isFacingTargetHex } from "../utils/functions/hex/genericHex";
 
 /*
 Rules:
@@ -369,9 +369,36 @@ function getScoreFromAddAppeal(tile: TileType, mapCache: Map<string, TileType>, 
         return BAD_SCORE;
 }
 
-function getScoreIfNearTargetCity()
+function getMinDistanceToTargetCity(targetTile: TileType, ownedTiles: readonly TileType[])
 {
+    let minDist = 99999; // all cities, even when founded have at least 7 tiles, so this will always be changed
 
+    ownedTiles.forEach((tile) => 
+    {
+        minDist = Math.min(minDist, getDistanceBetweenTwoOddrHex({x: tile.X, y: tile.Y}, {x: targetTile.X, y: targetTile.Y}));
+    })
+
+    return minDist;
+}
+
+/**
+ * +0 dist from min = GOOD_SCORE ; +1 dist from min = MEDIUM_SCORE ; +2 dist from min = LOW_SCORE
+ * @param checkTile 
+ * @param targetTile 
+ * @param minDistance MUST call getMinDistanceToTargetCity to get the minDistance value BEFORE calling this function!!
+ */
+function getScoreIfNearTargetCity(checkTile: TileType, targetTile: TileType, minDistance: number)
+{
+    const dist = getDistanceBetweenTwoOddrHex({x: checkTile.X, y: checkTile.Y}, {x: targetTile.X, y: targetTile.Y});
+
+    if (dist === minDistance)
+        return GOOD_SCORE;
+    else if (dist === minDistance + 1)
+        return MEDIUM_SCORE;
+    else if (dist === minDistance + 2)
+        return LOW_SCORE;
+    else
+        return BAD_SCORE;
 }
 
 function getScoreIfFacingTargetCity(checkTile: TileType, baseTile: TileType, targetTile: TileType, angleThreshold: number, hexDistance: number)
@@ -385,9 +412,42 @@ function getScoreIfFacingTargetCity(checkTile: TileType, baseTile: TileType, tar
         return BAD_SCORE;
 }
 
-function getScoreFromChokepoint()
+/**
+ * Scores based on impassable tiles, terrain that hinders ranged sight, and sea tiles. Scores based on number of mountains or strong terrain.
+ * @param tile 
+ * @param mapCache 
+ * @param impassableTolerance How many surrounding impassable tiles must exist for the tile to be good.
+ * @param strongTerrainTolerance How many surrounding 'strong' terrain (hills, forest, etc) tiles must exist for the tile to be good.
+ * @returns 
+ */
+function getScoreFromChokepoint(tile: TileType, mapCache: Map<string, TileType>, impassableTolerance: number, strongTerrainTolerance: number)
 {
+    let impassableTiles = 0;
+    let hindersMovementOrAttack = 0;
 
+    const offsets = getOffsets(tile.Y);
+    offsets.forEach(([dx, dy]) => 
+    {
+        const oddrStr = getMapOddrString(tile.X + dx, tile.Y + dy);
+        const adjTile = mapCache.get(oddrStr);
+
+        if (adjTile)
+        {
+            if (adjTile.IsMountain || isMountainWonder(adjTile))
+                ++impassableTiles;
+            else if (adjTile.FeatureType === TileFeatures.WOODS || adjTile.FeatureType === TileFeatures.RAINFOREST || adjTile.IsHills || isWater(adjTile))
+                ++hindersMovementOrAttack;
+        }
+    })
+
+    if (impassableTiles >= impassableTolerance && hindersMovementOrAttack >= strongTerrainTolerance)
+        return GOOD_SCORE;
+    else if (impassableTiles >= impassableTolerance)
+        return MEDIUM_SCORE;
+    else if (hindersMovementOrAttack >= strongTerrainTolerance)
+        return LOW_SCORE;
+    else
+        return BAD_SCORE;
 }
 
 export abstract class Civilization
@@ -499,12 +559,15 @@ export abstract class Civilization
                 getScoreFromAppeal(tile.Appeal);
     }
 
-    protected getAerodromeScore(tile: TileType, yieldPreferences: readonly TileYields[], mapCache: Map<string, TileType>, ownedTiles: readonly TileType[], wondersIncluded: Set<TileWonders> | null): number
+    protected getAerodromeScore(tile: TileType, yieldPreferences: readonly TileYields[], mapCache: Map<string, TileType>, ownedTiles: readonly TileType[], wondersIncluded: Set<TileWonders> | null, targetCity: TileType): number
     {
+        const minDist = getMinDistanceToTargetCity(targetCity, ownedTiles);
+
         return  this.getScoreFromReplacability(tile, yieldPreferences, ownedTiles) + 
                 getScoreFromImprovements(tile, mapCache) + 
                 getScoreFromWonderPlacement(tile, mapCache, ownedTiles, wondersIncluded) +
-                getScoreFromAppeal(tile.Appeal);
+                getScoreFromAppeal(tile.Appeal) +
+                getScoreIfNearTargetCity(tile, targetCity, minDist);
     }
 
     protected getEntertainmentZoneScore(tile: TileType, yieldPreferences: readonly TileYields[], mapCache: Map<string, TileType>, ownedTiles: readonly TileType[], wondersIncluded: Set<TileWonders> | null): number
@@ -528,11 +591,17 @@ export abstract class Civilization
     
     protected getEncampmentScore(tile: TileType, yieldPreferences: readonly TileYields[], mapCache: Map<string, TileType>, ownedTiles: readonly TileType[], wondersIncluded: Set<TileWonders> | null, targetCity: TileType): number
     {
+        const facingCityAngleThreshold = 75;
+        const distanceThreshold = 2;
+        const impassableThreshold = 2;
+        const hindersThreshold = 2;
+
         return  this.getScoreFromReplacability(tile, yieldPreferences, ownedTiles) + 
                 getScoreFromImprovements(tile, mapCache) + 
                 getScoreFromWonderPlacement(tile, mapCache, ownedTiles, wondersIncluded) +
                 getScoreFromAppeal(tile.Appeal) + 
-                getScoreIfFacingTargetCity(tile, ownedTiles[ownedTiles.length - 1], targetCity, 0.75, 2);
+                getScoreIfFacingTargetCity(tile, ownedTiles[ownedTiles.length - 1], targetCity, facingCityAngleThreshold, distanceThreshold) +
+                getScoreFromChokepoint(tile, mapCache, impassableThreshold, hindersThreshold);
     }  
 
     /**
@@ -559,7 +628,7 @@ export abstract class Civilization
             const harborScore = this.getHarborScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded);
             const neighborhoodScore = this.getNeighborhoodScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded);
             const aqueductScore = this.getAqueductScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded);
-            const aerodromeScore = this.getAerodromeScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded);
+            const aerodromeScore = this.getAerodromeScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity);
             const entertainmentZoneScore = this.getEntertainmentZoneScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded);
             const spaceportScore = this.getSpaceportScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded);
             const encampmentScore = this.getEncampmentScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity);
@@ -593,7 +662,7 @@ export abstract class Civilization
      */
     protected isFreeTile(tile: TileType): boolean
     {
-        if (tile.IsMountain || tile.District !== TileNone.NONE || tile.Wonder !== TileNone.NONE || hasNaturalWonder(tile.FeatureType) || (tile.FeatureType === TileFeatures.FLOODPLAINS && tile.TerrainType === TileTerrain.DESERT))
+        if ((tile.IsMountain || isMountainWonder(tile)) || tile.District !== TileNone.NONE || tile.Wonder !== TileNone.NONE || hasNaturalWonder(tile.FeatureType) || (tile.FeatureType === TileFeatures.FLOODPLAINS && tile.TerrainType === TileTerrain.DESERT))
             return false;
 
         return true;
@@ -633,7 +702,7 @@ export abstract class Civilization
             {
                 if (adjCacheTile.FeatureType === TileNaturalWonders.GREAT_BARRIER_REEF)
                     bonus = bonus + 2;
-                if (adjCacheTile.IsMountain)
+                if ((adjCacheTile.IsMountain || isMountainWonder(adjCacheTile)))
                     bonus = bonus + 1;
                 if (adjCacheTile.FeatureType === TileFeatures.RAINFOREST || (adjCacheTile.District !== TileNone.NONE && adjCacheTile.Wonder === TileNone.NONE)) // wonders are districts
                     bonus = bonus + 0.5;
@@ -769,7 +838,7 @@ export abstract class Civilization
                 if (hasNaturalWonder(adjCacheTile.FeatureType))
                     bonus = bonus + 2;
                 if (
-                    adjCacheTile.IsMountain || 
+                    (adjCacheTile.IsMountain || isMountainWonder(adjCacheTile)) || 
                     (cityPanth === TilePantheons.DANCE_OF_THE_AURORA && (adjCacheTile.TerrainType === TileTerrain.TUNDRA || adjCacheTile.TerrainType === TileTerrain.TUNDRA_HILLS || adjCacheTile.TerrainType === TileTerrain.TUNDRA_MOUNTAIN)) ||
                     (cityPanth === TilePantheons.DESERT_FOLKLORE && (adjCacheTile.TerrainType === TileTerrain.DESERT || adjCacheTile.TerrainType === TileTerrain.DESERT_HILLS || adjCacheTile.TerrainType === TileTerrain.DESERT_MOUNTAIN)) ||
                     (cityPanth === TilePantheons.SACRED_PATH && adjCacheTile.FeatureType === TileFeatures.RAINFOREST)
@@ -1068,11 +1137,40 @@ export abstract class Civilization
         }
     }
 
-    getAerodromeTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: boolean, targetCity: TileType): number
+    getAerodromeTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null, targetCity: TileType): TileType | undefined
     {
-        // SAME AS ENCAMPEMNT EXCEPT DONT CARE ABOUT CHOKEPOINT
+        let maxScore = 0;
+        let returnedTile = undefined as TileType | undefined;
 
-        return -1;
+        if (!hasAerodrome(ownedTiles))
+        {
+            ownedTiles.forEach((tile) => 
+            {
+                if (this.isFreeTile(tile) && isLand(tile))
+                {
+                    let score = maxScore + this.getAerodromeScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity) + this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity);
+                    if (score > maxScore)
+                    {
+                        maxScore = score;
+                        returnedTile = tile;
+                    }
+                }
+            })
+        }
+        else
+        {
+            throw new Error(PossibleErrors.DISTRICT_ALREADY_EXISTS);
+        }
+
+        if (returnedTile)
+        {
+            returnedTile.District = TileDistricts.AERODROME_DISTRICT;
+            return returnedTile;
+        }
+        else
+        {
+            throw new Error(PossibleErrors.FAILED_TO_FIND_TILE);
+        }
     }
 
     getEntertainmentZoneTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null, targetCity: TileType): TileType | undefined
@@ -1084,7 +1182,7 @@ export abstract class Civilization
         {
             ownedTiles.forEach((tile) => 
             {
-                if (this.isFreeTile(tile) && isLand(tile) && tile.IsRiver)
+                if (this.isFreeTile(tile) && isLand(tile))
                 {
                     let score = maxScore + this.getEntertainmentZoneScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded) + this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity);
                     if (score > maxScore)
@@ -1147,12 +1245,40 @@ export abstract class Civilization
         }
     }
 
-    // CHECK IF ENCAMPMENT IS CLOSER TO FOREIGN CITY OR IN CHOKEPOINT
-    getEncampmentTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null, nearbyCity: TileType): TileType | undefined
+    getEncampmentTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null, targetCity: TileType): TileType | undefined
     {
+        let maxScore = 0;
+        let returnedTile = undefined as TileType | undefined;
 
+        if (!hasEncampment(ownedTiles))
+        {
+            ownedTiles.forEach((tile) => 
+            {
+                if (this.isFreeTile(tile) && isLand(tile))
+                {
+                    let score = maxScore + this.getEncampmentScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity) + this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity);
+                    if (score > maxScore)
+                    {
+                        maxScore = score;
+                        returnedTile = tile;
+                    }
+                }
+            })
+        }
+        else
+        {
+            throw new Error(PossibleErrors.DISTRICT_ALREADY_EXISTS);
+        }
 
-        return ownedTiles[0];
+        if (returnedTile)
+        {
+            returnedTile.District = TileDistricts.ENCAMPMENT_DISTRICT;
+            return returnedTile;
+        }
+        else
+        {
+            throw new Error(PossibleErrors.FAILED_TO_FIND_TILE);
+        }
     }
 }
 

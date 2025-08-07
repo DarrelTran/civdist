@@ -172,8 +172,8 @@ export function isFacingTargetHex(baseTile: TileType, targetTile: TileType, chec
     const check = oddrToAxial({ x: checkTile.X, y: checkTile.Y });
 
     // keep relationship between target, base, and check
-    const baseToTarget = getCubeVector(target, base);
-    const baseToCheck = getCubeVector(check, base);
+    const baseToTarget = getCubeVector(base, target);
+    const baseToCheck = getCubeVector(base, check);
 
     const dot = getCubeDotProduct(baseToTarget, baseToCheck);
 

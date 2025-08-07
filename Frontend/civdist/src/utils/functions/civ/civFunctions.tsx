@@ -1,4 +1,4 @@
-import { TileType, TileTerrain, TileNaturalWonders, TileBonusResources, TileLuxuryResources, TileDistricts, TileUniqueDistricts, TileNone, TileBuildings, TileStrategicResources } from "../../types";
+import { TileType, TileTerrain, TileNaturalWonders, TileBonusResources, TileLuxuryResources, TileDistricts, TileUniqueDistricts, TileNone, TileBuildings, TileStrategicResources, TileFeatures, TileWonders } from "../../types";
 import { getMapOddrString, getOffsets } from "../misc/misc";
 
 export function isBonusResource(tile: TileType): boolean
@@ -292,11 +292,6 @@ export function isHarbor(tile: TileType)
     return (tile.District === TileDistricts.HARBOR_DISTRICT || tile.District === TileUniqueDistricts.ROYAL_NAVY_DOCKYARD_DISTRICT);
 }
 
-export function isChokepoint()
-{
-
-}
-
 // https://ondras.github.io/rot.js/manual/#hex/indexing
 export function distanceToTile(currTile: TileType, otherTile: TileType)
 {
@@ -305,13 +300,13 @@ export function distanceToTile(currTile: TileType, otherTile: TileType)
     const x2 = otherTile.X;
     const y2 = otherTile.Y;
 
-    const even = (num: number) => {return (num % 2 == 0)};
-    const odd = (num: number) => {return (num % 2 == 1)};
+    const even = (num: number) => {return (num % 2 === 0)};
+    const odd = (num: number) => {return (num % 2 === 1)};
 
     const dx = x2 - x1;
     const dy = y2 - y1;
     const penalty = ( (even(y1) && odd(y2) && (x1 < x2)) || (even(y2) && odd(y1) && (x2 < x1)) ) ? 1 : 0;
-    const distance = Math.max(Math.abs(dy), Math.abs(dx) + Math.floor(Math.abs(dy)/2) + penalty); 
+    const distance = Math.max(Math.abs(dy), Math.abs(dx) + Math.floor(Math.abs(dy) / 2) + penalty); 
 
     return distance;
 }
@@ -339,6 +334,25 @@ export function ruinsAdjacentTileAppeal(tile: TileType, mapCache: Map<string, Ti
                 return true;
         }
     }
+
+    return false;
+}
+
+/**
+ * Mount Kilimanjaro & Mount Everest count for adjacency bonuses but are not listed as mountains??? why???
+ * @param tile 
+ */
+export function isMountainWonder(tile: TileType)
+{
+    if (tile.FeatureType === TileNaturalWonders.MOUNT_EVEREST || tile.FeatureType === TileNaturalWonders.MOUNT_LILIMANJARO)
+        return true;
+
+    return false;
+}
+
+export function isValidAcqueductTile(tile: TileType, mapCache: Map<string, TileType>): boolean 
+{
+    
 
     return false;
 }

@@ -1,12 +1,11 @@
-.hexGrid 
+.mandatory
 {
-  height: auto;
+  color: red;
+  padding-right: 5px;
 }
 
-.hex 
+.mandatory:hover
 {
-  fill: lightcoral;
-  font-size: 5px;
-  stroke: black;
-  stroke-width: 2;
+  color: lightcoral;
+  cursor: default;
 }

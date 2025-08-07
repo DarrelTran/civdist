@@ -77,6 +77,7 @@ export function getDistrict(tile: TileType, districtMap: Map<TileDistricts, HTML
 export function getTerrain(tile: TileType, terrainMap: Map<TerrainFeatureKey, HTMLImageElement>): {imgElement: HTMLImageElement | undefined, scaleType: number}
 {
     if (tile.TerrainType === TileTerrain.OCEAN && tile.FeatureType === TileFeatures.ICE)                        return {imgElement: terrainMap.get(`${TileTerrain.OCEAN}_${TileFeatures.ICE}`), scaleType: HexType.TERRAIN};
+    //else if (tile.IsRiver)                                                                                      return {imgElement: terrainMap.get(`${TileTerrain.RIVER}_${TileNone.NONE}`), scaleType: HexType.TERRAIN}
     else if (tile.TerrainType === TileTerrain.COAST && tile.FeatureType === TileFeatures.ICE)                   return {imgElement: terrainMap.get(`${TileTerrain.COAST}_${TileFeatures.ICE}`), scaleType: HexType.TERRAIN};
     else if (tile.TerrainType === TileTerrain.OCEAN)                                                            return {imgElement: terrainMap.get(`${TileTerrain.OCEAN}_${TileNone.NONE}`), scaleType: HexType.TERRAIN};
     else if (tile.TerrainType === TileTerrain.COAST)                                                            return {imgElement: terrainMap.get(`${TileTerrain.COAST}_${TileNone.NONE}`), scaleType: HexType.TERRAIN};

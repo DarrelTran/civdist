@@ -10,8 +10,9 @@ import { baseTileSize, allPossibleDistricts, allPossibleYields, CIV_NAME_DEFAULT
 import { Civilization, getCivilizationObject } from '../civilization/civilizations';
 import { mapPageSelectStyle, nearbyCityFontSize, NearbyCityOption, nearbyCityStyles, YieldOption } from './mapPageSelectStyles';
 import { getMapOddrString, getMinMaxXY, getOffsets, getTextWidth } from '../utils/functions/misc/misc';
-import { getAngleBetweenTwoOddrHex, getHexPoint, oddrToPixel, pixelToOddr } from '../utils/functions/hex/genericHex';
+import { getAngleBetweenTwoOddrHex, getHexPoint, isFacingTargetHex, oddrToPixel, pixelToOddr } from '../utils/functions/hex/genericHex';
 import { getScaledGridAndTileSizes, getScaledGridSizesFromTile, getScaleFromType } from '../utils/functions/imgScaling/scaling';
+import { isValidAcqueductTile } from '../utils/functions/civ/civFunctions';
 
 /*
 /////////////////////////////////////////////////////////////////
@@ -26,13 +27,15 @@ TODO: Add option to consider wonders when scoring. Give wonders weight depending
 
 TODO: Put encampment on side towards civ player expects to be an enemy.
 
+TODO: Add/fix proper aqueduct placement!!!!!!!!! Make sure no u-turns.
+
 TODO: Fix scoring system - BROKEN????
 
 TODO: Update hexmapCache and cityOwnedTiles when adding new district - WHEN ADDING DISTRICT ACCOUNT FOR EFFECTS OF DISTRICT LIKE THEATER ADDING APPEAL TO ADJ OR REMOVING STUFF LIKE IMPROVEMENTS
 
 TODO: Check bonuses in buildings/unique buildings too
 
-TODO: When getting entertainment/encampment/aqueduct/neighborhood/aerodrome/spaceport, check if it gets more adjacency for other districts and for encampment if its closer to a civ??
+TODO: Add tooltip question mark to explain the dropdowns and stuff.
 
 TODO: Add loading warning/prompt when map is being drawn
 
@@ -249,32 +252,16 @@ const MapPage = () =>
             const [col, row] = oddr.split(',').map(Number);
             const px = oddrToPixel(col, row, tileSize.x, tileSize.y, hexMapOffset);
 
-            let RiverEFlow = tile.RiverEFlow;
-            let RiverSEFlow = tile.RiverSEFlow;
-            let RiverSWFlow = tile.RiverSWFlow;
-
             let IsNEOfRiver = tile.IsNEOfRiver;
             let IsNWOfRiver = tile.IsNWOfRiver;
             let IsWOfRiver = tile.IsWOfRiver;
 
-            context.globalAlpha = 0.75;
-
-            if (RiverEFlow !== TileNone.NONE)
-                drawRiver6PossibleDirections(context, RiverDirections.EAST, px);
-            if (RiverSEFlow !== TileNone.NONE)
-                drawRiver6PossibleDirections(context, RiverDirections.SOUTHEAST, px);
-            if (RiverSWFlow !== TileNone.NONE)
-                drawRiver6PossibleDirections(context, RiverDirections.SOUTHWEST, px);
-
-            // draw missing rivers
             if (IsNEOfRiver)
                 drawRiver6PossibleDirections(context, RiverDirections.SOUTHWEST, px);
             if (IsNWOfRiver)
                 drawRiver6PossibleDirections(context, RiverDirections.SOUTHEAST, px);
             if (IsWOfRiver)
                 drawRiver6PossibleDirections(context, RiverDirections.EAST, px);
-
-            context.globalAlpha = 1;
         });
     }
 
@@ -426,6 +413,9 @@ const MapPage = () =>
 
     const handleMouseClick = useCallback((e: MouseEvent) => 
     {
+        if (currentTile)
+            console.log(isValidAcqueductTile(currentTile, hexmapCache.current))
+
         const { minX, maxX, minY, maxY } = minAndMaxCoords;
         const mousePos = getMousePos(e);
 
@@ -438,8 +428,6 @@ const MapPage = () =>
 
             const oddrCoord = pixelToOddr(mousePos, tileSize, hexMapOffset);
             const outOfHexBounds = oddrCoord.col < minX || oddrCoord.col > maxX || oddrCoord.row < minY || oddrCoord.row > maxY;
-
-            console.log('click at ' + oddrCoord.col + ' and ' + oddrCoord.row)
 
             // dont reset the clicked city stuff if click is out of bounds - only want to reset when click on the visible hexmap
             if (!inDivBounds || outOfHexBounds)
@@ -881,8 +869,11 @@ const MapPage = () =>
                 return includeWonders ? civObj.getNeighborhoodTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders, dropdownNearbyCity) : civObj.getNeighborhoodTile(ownedTiles, dropdownYields, hexmapCache.current, null, dropdownNearbyCity);
             else if (district === TileDistricts.ROCKET_DISTRICT)
                 return includeWonders ? civObj.getSpaceportTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders, dropdownNearbyCity) : civObj.getSpaceportTile(ownedTiles, dropdownYields, hexmapCache.current, null, dropdownNearbyCity);
-            else if (district === TileDistricts.ENCAMPMENT_DISTRICT && dropdownNearbyCity)
+            else if (district === TileDistricts.ENCAMPMENT_DISTRICT)
                 return includeWonders ? civObj.getEncampmentTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders, dropdownNearbyCity) : civObj.getEncampmentTile(ownedTiles, dropdownYields, hexmapCache.current, null, dropdownNearbyCity);
+            else if (district === TileDistricts.AERODROME_DISTRICT)
+                return includeWonders ? civObj.getAerodromeTile(ownedTiles, dropdownYields, hexmapCache.current, civCompletedWonders, dropdownNearbyCity) : civObj.getAerodromeTile(ownedTiles, dropdownYields, hexmapCache.current, null, dropdownNearbyCity);
+
         }
         else
         {
@@ -1044,32 +1035,36 @@ const MapPage = () =>
                         <input type='checkbox' onChange={(e) => {setIncludeCityStates(e.target.checked)}}/>
                     </div>
                     {/*Select Civilization*/}
-                    <select ref={civDropdownRef} onChange={(e) => {setDropdownCiv(e.target.value)}}>
-                        {(  // return function and then call it
-                            () => 
-                            {
-                                const civArr = Array.from(uniqueCivilizations);
-                                const elements: JSX.Element[] = [];
-                                
-                                for (let i = 0; i < civArr.length; i++)
+                    <div style={{display: 'flex'}}>
+                        <span className='mandatory'>*</span>
+                        <select ref={civDropdownRef} onChange={(e) => {setDropdownCiv(e.target.value)}}>
+                            {(  // return function and then call it
+                                () => 
                                 {
-                                    let civ = civArr[i];
-                                    if (includeCityStates || (!includeCityStates && !civ.includes("city-state")))
+                                    const civArr = Array.from(uniqueCivilizations);
+                                    const elements: JSX.Element[] = [];
+                                    
+                                    for (let i = 0; i < civArr.length; i++)
                                     {
-                                        elements.push(<option value={civ} key={i}>{civ}</option>);
+                                        let civ = civArr[i];
+                                        if (includeCityStates || (!includeCityStates && !civ.includes("city-state")))
+                                        {
+                                            elements.push(<option value={civ} key={i}>{civ}</option>);
+                                        }
                                     }
-                                }
 
-                                if (elements.length > 0)
-                                    return elements;
-                                else
-                                    return <option>{CIV_NAME_DEFAULT}</option>
-                            }
-                        )()}
-                    </select> 
+                                    if (elements.length > 0)
+                                        return elements;
+                                    else
+                                        return <option>{CIV_NAME_DEFAULT}</option>
+                                }
+                            )()}
+                        </select> 
+                    </div>
                 </div>
                 <div>
                     {/*Select City*/}
+                    <span className='mandatory'>*</span>
                     <select ref={cityDropdownRef} onChange={(e) => {setDropdownCity(e.target.value)}}>
                         {(
                             () => 
@@ -1095,6 +1090,7 @@ const MapPage = () =>
                     </select> 
                     <div>
                         {/*Select District Type*/}
+                        <span className='mandatory'>*</span>
                         <select onChange={e => {setDropdownDistrict(e.target.value)}}>
                             {
                                 allPossibleDistricts().map((value, index) => 
@@ -1104,10 +1100,10 @@ const MapPage = () =>
                             }
                         </select>
 
-                        <div style={{display: 'flex'}}>
+                        <div style={{display: 'grid'}}>
                             <span>Select a nearby city: </span>
                             <div style={{display: 'flex'}}>
-
+                                <span className='mandatory'>*</span>
                                 <Select 
                                     onChange=
                                     {

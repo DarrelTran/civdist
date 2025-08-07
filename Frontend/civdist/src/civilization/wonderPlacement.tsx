@@ -1,5 +1,5 @@
 import { TileType, LeaderName, TileNone, TileFeatures, TileTerrain, TileWonders, TileDistricts, TileUniqueDistricts, TileNaturalWonders, TileBonusResources, TileLuxuryResources, TileImprovements, TileStrategicResources, TilePantheons, TileYields, TileBuildings } from "../utils/types";
-import { getCityFoundedReligion, isCityCenter, isCommercialHub, isDesert, isTundra, isEncampment, isEntertainmentComplex, isHarbor, isHolySite, isLand, isTheaterSquare, isGrassland, isPlains, isCampus, isIndustrialZone } from "../utils/functions/civ/civFunctions";
+import { getCityFoundedReligion, isCityCenter, isCommercialHub, isDesert, isTundra, isEncampment, isEntertainmentComplex, isHarbor, isHolySite, isLand, isTheaterSquare, isGrassland, isPlains, isCampus, isIndustrialZone, isMountainWonder } from "../utils/functions/civ/civFunctions";
 import { getMapOddrString, getOffsets } from "../utils/functions/misc/misc";
 
 export function canPlaceAlhambra(tile: TileType, mapCache: Map<string, TileType>): boolean
@@ -509,7 +509,7 @@ export function canPlacePotalaPalace(tile: TileType, mapCache: Map<string, TileT
             const oddrStr = getMapOddrString(tile.X + dx, tile.Y + dy);
             const adjTile = mapCache.get(oddrStr);
 
-            if (adjTile && adjTile.IsMountain)
+            if (adjTile && (adjTile.IsMountain || isMountainWonder(adjTile)))
                 return true;;
         }
     }

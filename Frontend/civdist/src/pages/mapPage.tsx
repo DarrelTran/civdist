@@ -6,32 +6,22 @@ import './allPages.css';
 import { TileNone, TileWonders, TileDistricts, TileNaturalWonders, TerrainFeatureKey, RiverDirections, TileType, LeaderName, TileYields, PossibleErrors} from '../utils/types'
 import { loadDistrictImages, loadNaturalWonderImages, loadTerrainImages, loadWonderImages, loadYieldImages } from '../images/imageLoaders';
 import { getTerrain, getDistrict, getNaturalWonder, getWonder } from '../images/imageAttributeFinders';
-import { baseTileSize, allPossibleDistricts, allPossibleYields, CIV_NAME_DEFAULT, CITY_NAME_DEFAULT } from '../utils/constants';
+import { baseTileSize, allPossibleDistricts, allPossibleYields, CIV_NAME_DEFAULT, CITY_NAME_DEFAULT, allPossibleVictoryTypes } from '../utils/constants';
 import { Civilization, getCivilizationObject } from '../civilization/civilizations';
 import { mapPageSelectStyle, nearbyCityFontSize, NearbyCityOption, nearbyCityStyles, YieldOption } from './mapPageSelectStyles';
 import { getMapOddrString, getMinMaxXY, getTextWidth } from '../utils/functions/misc/misc';
 import { getAngleBetweenTwoOddrHex, getHexPoint, getOffsets, isFacingTargetHex, oddrToPixel, pixelToOddr } from '../utils/functions/hex/genericHex';
 import { getScaledGridAndTileSizes, getScaledGridSizesFromTile, getScaleFromType } from '../utils/functions/imgScaling/scaling';
-import { isValidAqueductTile } from '../utils/functions/civ/civFunctions';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faCircleQuestion } from '@fortawesome/free-regular-svg-icons';
+import Tooltip from '../components/tooltip';
 
 // assuming all strategic resources are revealed
 
 /*
 /////////////////////////////////////////////////////////////////
 
-TODO: FINISH AQUEDUCT PLACEMENT isValidAqueductTile FUNCTION!!!!!
-
 TODO: Add question mark for the target city & yield dropdown.
-
-TODO: Add functionality to distance of target city.
-
-TODO: Take into account if district will delete a worked tile. If it is worked & no replacement = bad, worked and replacement = good, not worked = ok. CHECK improvement type and if bonus + orig yields can be a replacement.
-
-TODO: Add option to consider wonders when scoring. Give wonders weight depending on typical civ victory type.
-
-TODO: Put encampment on side towards civ player expects to be an enemy.
-
-TODO: Fix scoring system - BROKEN????
 
 TODO: Update hexmapCache and cityOwnedTiles when adding new district - WHEN ADDING DISTRICT ACCOUNT FOR EFFECTS OF DISTRICT LIKE THEATER ADDING APPEAL TO ADJ OR REMOVING STUFF LIKE IMPROVEMENTS
 
@@ -52,6 +42,8 @@ TODO: Add documentation to functions. Read random comments to see if any extra i
 TODO: Add toggable hover with tile data and resize if too long with max width
 
 TODO: Can civ6 cities have same name??
+
+TODO: Change all selects to the Select from react-hexgrid so can add little icons next to text.
 
 TODO: Use <br> instead of grid style
 
@@ -1058,6 +1050,11 @@ const MapPage = () =>
                                 }
                             )()}
                         </select> 
+
+                        <Tooltip text='Select a civilization.'>
+                            <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
+                        </Tooltip>
+
                     </div>
                 </div>
                 <div>
@@ -1086,6 +1083,11 @@ const MapPage = () =>
                             }
                         )()}
                     </select> 
+                    
+                    <Tooltip text={`${dropdownCiv}'s cities.`}>
+                        <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
+                    </Tooltip>
+
                     <div>
                         {/*Select District Type*/}
                         <span className='mandatory'>*</span>
@@ -1098,8 +1100,11 @@ const MapPage = () =>
                             }
                         </select>
 
+                        <Tooltip text='Select a district.'>
+                            <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
+                        </Tooltip>
+
                         <div style={{display: 'grid'}}>
-                            <span>Select a nearby city: </span>
                             <div style={{display: 'flex'}}>
                                 <span className='mandatory'>*</span>
                                 <Select 
@@ -1120,33 +1125,58 @@ const MapPage = () =>
                                     styles={nearbyCityStyles(getNearbyCityTextMaxWidth() * 1.25)}
                                 />
 
-                                <span style={{marginLeft: '5px', marginRight: '5px'}}>Distance: </span><input type='range' min={0} max={9999}></input>
+                                <Tooltip text='A city you see as a threat.'>
+                                    <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
+                                </Tooltip>
+
                             </div>
                         </div>
 
                         <span>Account For Possible Wonders</span>
                         <input type='checkbox' onChange={(e) => {setIncludeWonders(e.target.checked)}}/>
-
-                        <Select 
-                            value={visualYieldDropdown}
-                            options={getSelectionYields()} 
-                            isMulti 
-                            styles={mapPageSelectStyle}
-                            onChange=
-                            {
-                                (e) => 
+                        
+                        <div style={{display: 'flex'}}>
+                            <Select 
+                                value={visualYieldDropdown}
+                                options={getSelectionYields()} 
+                                isMulti 
+                                styles={mapPageSelectStyle}
+                                onChange=
                                 {
-                                    const yields: TileYields[] = [];
-                                    const opts: {value: TileYields, label: TileYields, image: HTMLImageElement}[] = [];
+                                    (e) => 
+                                    {
+                                        const yields: TileYields[] = [];
+                                        const opts: {value: TileYields, label: TileYields, image: HTMLImageElement}[] = [];
 
-                                    e.forEach((opt) => { yields.push(opt.value); opts.push(opt);})
+                                        e.forEach((opt) => { yields.push(opt.value); opts.push(opt);})
 
-                                    setDropdownYields(yields);
-                                    setVisualYieldDropdown(opts);
+                                        setDropdownYields(yields);
+                                        setVisualYieldDropdown(opts);
+                                    }
                                 }
+                                formatOptionLabel={formatSelectionYields}
+                            />
+
+                            <Tooltip text='Your most important yields.'>
+                                <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
+                            </Tooltip>
+                        </div>
+
+                        <select>
+                            {
+                                allPossibleVictoryTypes().map((value, index) => 
+                                (
+                                    <option value={value} key={index}>{value}</option>
+                                ))
                             }
-                            formatOptionLabel={formatSelectionYields}
-                        />
+                        </select>
+
+                        <Tooltip text={'The victory type you\'re aiming for.'}>
+                            <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
+                        </Tooltip>
+
+                        <br/>
+
                         <button onClick={handleAddButton}>ADD</button>
                     </div>
                     <div>
@@ -1162,10 +1192,20 @@ const MapPage = () =>
                             onChange={e => setVisualZoomInput(Number(e.target.value))} 
                             onBlur={e => handleZoomChange(Number(e.target.value))}
                         />
+
+                        <Tooltip text={'50 - 200%'}>
+                            <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
+                        </Tooltip>
+
                     </div>
                     <div style={{display: 'grid'}}>
                         <div style={{display: 'flex', alignItems: 'center'}}>
                             <button>EXPORT</button>
+
+                            <Tooltip text={'Download to file.'}>
+                                <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
+                            </Tooltip>
+
                         </div>
                         <div style={{display: 'flex', alignItems: 'center'}}>
                             <button onClick={handleInputButtonClick}>IMPORT</button>

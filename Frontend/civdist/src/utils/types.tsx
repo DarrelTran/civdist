@@ -387,9 +387,10 @@ export enum PossibleErrors
 
 export enum VictoryType
 {
-  SCIENCE,
-  CULTURE,
-  DOMINATION,
-  RELIGIOUS,
-  DIPLOMATIC
+  SCIENCE = "Science",
+  CULTURE = "Culture",
+  DOMINATION = "Domination",
+  RELIGIOUS = "Religious",
+  DIPLOMATIC = "Diplomatic",
+  NONE = "None"
 }

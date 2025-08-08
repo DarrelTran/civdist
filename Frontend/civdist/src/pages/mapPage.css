@@ -9,3 +9,14 @@
   color: lightcoral;
   cursor: default;
 }
+
+.questionMark
+{
+  color: blue;
+  margin-left: 5px;
+}
+
+.questionMark:hover
+{
+  color: teal;
+}

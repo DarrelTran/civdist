@@ -24,7 +24,8 @@ export const mapPageSelectStyle: StylesConfig<YieldOption, true> =
     ({
         ...baseStyles,
         marginTop: 0,
-        backgroundColor: '#edf1f2'
+        backgroundColor: '#edf1f2',
+        width: '120%'
     }),
     dropdownIndicator: (baseStyles: CSSObjectWithLabel) => 
     ({

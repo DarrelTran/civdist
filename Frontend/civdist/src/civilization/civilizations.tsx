@@ -1,18 +1,14 @@
 import { TileType, LeaderName, TileNone, TileFeatures, TileTerrain, TileDistricts, TileNaturalWonders, TileBonusResources, TileLuxuryResources, TileImprovements, TileStrategicResources, TilePantheons, TileYields, TileWonders, PossibleErrors } from "../utils/types";
-import { isSeaResource, hasNaturalWonder, hasCampus, getCityPantheon, isLand, isWater, isBonusResource, isLuxuryResource, isStrategicResource, isPlains, isGrassland, isDesert, isOcean, isCoast, isTundra, isSnow, hasTheater, hasHolySite, hasCommercial, hasHarbor, hasIndustrial, hasEntertainment, hasAqueduct, hasSpaceport, ruinsAdjacentTileAppeal, hasEncampment, isMountainWonder, hasAerodrome } from "../utils/functions/civ/civFunctions";
+import { isSeaResource, hasNaturalWonder, hasCampus, getCityPantheon, isLand, isWater, isBonusResource, isLuxuryResource, isStrategicResource, isPlains, isGrassland, isDesert, isOcean, isCoast, isTundra, isSnow, hasTheater, hasHolySite, hasCommercial, hasHarbor, hasIndustrial, hasEntertainment, hasAqueduct, hasSpaceport, ruinsAdjacentTileAppeal, hasEncampment, isMountainWonder, hasAerodrome, isValidAqueductTile } from "../utils/functions/civ/civFunctions";
 import { canPlaceAlhambra, canPlaceBigBen, canPlaceBolshoiTheatre, canPlaceBroadway, canPlaceChichenItza, canPlaceColosseum, canPlaceColossus, canPlaceCristoRedentor, canPlaceEiffelTower, canPlaceEstadioDoMaracana, canPlaceForbiddenCity, canPlaceGreatLibrary, canPlaceGreatLighthouse, canPlaceGreatZimbabwe, canPlaceHagiaSophia, canPlaceHangingGardens, canPlaceHermitage, canPlaceHueyTeocalli, canPlaceMahabodhiTemple, canPlaceMontStMichel, canPlaceOracle, canPlaceOxfordUniversity, canPlacePetra, canPlacePotalaPalace, canPlacePyramids, canPlaceRuhrValley, canPlaceStonehenge, canPlaceSydneyOperaHouse, canPlaceTerracottaArmy, canPlaceVenetianArsenal } from "./wonderPlacement"
 import { getMapOddrString } from "../utils/functions/misc/misc";
 import { getDistanceBetweenTwoOddrHex, getOffsets, isFacingTargetHex } from "../utils/functions/hex/genericHex";
 
 /*
 Rules:
-1) Have each district calculate the score of all other districts and not place if good for other districts.
 2) Ignore some wonders based on typical civ victory type.
-3) Account for industrial zone REMOVING appeal from surrounding tiles
 4) Account for civ specific stuff
-5) Account for building bonuses to tiles or city (like factory) or stuff that removes appeal when adding district
-7) update getScoreFromPossibleAdjacentDistricts() with other districts
-8) CHECK IF ENCAMPMENT IS CLOSER TO FOREIGN CITY OR IN CHOKEPOINT
+5) Account for building bonuses to tiles or city (like factory or stave) or stuff that removes appeal when adding district
 */
 
 const GOOD_SCORE = 5;
@@ -662,7 +658,16 @@ export abstract class Civilization
      */
     protected isFreeTile(tile: TileType): boolean
     {
-        if ((tile.IsMountain || isMountainWonder(tile)) || tile.District !== TileNone.NONE || tile.Wonder !== TileNone.NONE || hasNaturalWonder(tile.FeatureType) || (tile.FeatureType === TileFeatures.FLOODPLAINS && tile.TerrainType === TileTerrain.DESERT))
+        if (
+            (tile.IsMountain || isMountainWonder(tile)) || 
+            tile.District !== TileNone.NONE || 
+            tile.Wonder !== TileNone.NONE || 
+            hasNaturalWonder(tile.FeatureType) || 
+            (tile.FeatureType === TileFeatures.FLOODPLAINS && tile.TerrainType === TileTerrain.DESERT) ||
+            isLuxuryResource(tile) ||
+            isStrategicResource(tile) ||
+            tile.FeatureType === TileFeatures.OASIS
+           )
             return false;
 
         return true;
@@ -1110,7 +1115,7 @@ export abstract class Civilization
         {
             ownedTiles.forEach((tile) => 
             {
-                if (this.isFreeTile(tile) && isLand(tile))
+                if (this.isFreeTile(tile) && isLand(tile) && isValidAqueductTile(tile, mapCache))
                 {
                     let score = maxScore + this.getAqueductScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded) + this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity);
                     if (score > maxScore)

@@ -384,3 +384,12 @@ export enum PossibleErrors
   NEARBY_CITY_UNDEFINED = "Nearby city undefined",
   FAILED_TO_FIND_TILE = "Failed to find a tile"
 }
+
+export enum VictoryType
+{
+  SCIENCE,
+  CULTURE,
+  DOMINATION,
+  RELIGIOUS,
+  DIPLOMATIC
+}

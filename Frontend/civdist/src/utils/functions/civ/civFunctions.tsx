@@ -381,10 +381,67 @@ export function isValidAqueductTile(tile: TileType, mapCache: Map<string, TileTy
                 (parity === 1 && adj.X === tile.X + 1 && adj.Y === tile.Y + 1);   // odd row
     }
 
-    let currTileRiverDirections = initBasicRiverDirections(tile);
+    const getRestOfRiverDirections = (tile: TileType, riverDirections: {E: boolean, NE: boolean, NW: boolean, W: boolean, SW: boolean, SE: boolean}) => 
+    {
+        const tempDirections = riverDirections;
 
-    // find directions with river
+        const offsets = getOffsets(tile.Y); 
+        for (let i = 0; i < offsets.length; i++)
+        {
+            const dx = offsets[i][0];
+            const dy = offsets[i][1];
+
+            const oddrStr = getMapOddrString(tile.X + dx, tile.Y + dy);
+            const adjTile = mapCache.get(oddrStr);
+
+            if (adjTile)
+            {
+                const adjTileRiverDirections = initBasicRiverDirections(adjTile);
+                if (adjTileRiverDirections.E && adjTile.Y === tile.Y)
+                    tempDirections.W = true;
+                if (adjTileRiverDirections.SE && isNWNeighbor(tile, adjTile)) // because hexmap y coords are flipped, to match with visual change
+                    tempDirections.NW = true;
+                if (adjTileRiverDirections.SW && isNENeighbor(tile, adjTile)) // because hexmap y coords are flipped, to match with visual change
+                    tempDirections.NE = true;
+            }
+        }
+
+        return tempDirections;
+    }
+
+    /**
+     * 
+     * @param tile 
+     * @param otherRiverDirections 
+     * @returns Which river edge relative to the otherTile (otherRiverDirections) borders the same river edge as the given tile.
+     */
+    const getSharedRiverEdgeWithCity = (tile: TileType, otherRiverDirections: {E: boolean, NE: boolean, NW: boolean, W: boolean, SW: boolean, SE: boolean}): {E: boolean, NE: boolean, NW: boolean, W: boolean, SW: boolean, SE: boolean} => 
+    {
+        let tileRiverDirections = initBasicRiverDirections(tile);
+        tileRiverDirections = getRestOfRiverDirections(tile, tileRiverDirections);
+
+        if (otherRiverDirections.E && tileRiverDirections.W)
+            return {E: true, NE: false, NW: false, W: false, SW: false, SE: false};
+        else if (otherRiverDirections.W && tileRiverDirections.E)
+            return {E: false, NE: false, NW: false, W: true, SW: false, SE: false};
+        else if (otherRiverDirections.NE && tileRiverDirections.SW)
+            return {E: false, NE: true, NW: false, W: false, SW: false, SE: false};
+        else if (otherRiverDirections.SW && tileRiverDirections.NE)
+            return {E: false, NE: false, NW: false, W: false, SW: true, SE: false};
+        else if (otherRiverDirections.NW && tileRiverDirections.SE)
+            return {E: false, NE: false, NW: true, W: false, SW: false, SE: false};
+        else if (otherRiverDirections.SE && tileRiverDirections.NW)
+            return {E: false, NE: false, NW: false, W: false, SW: false, SE: true};
+
+        return {E: false, NE: false, NW: false, W: false, SW: false, SE: false};
+    }
+
     const offsets = getOffsets(tile.Y); 
+    let theCity = undefined as TileType | undefined;
+    let hasNonRiverWaterSource = false;
+    let hasRiverWaterSource = false;
+
+    // check tile water sources - non river
     for (let i = 0; i < offsets.length; i++)
     {
         const dx = offsets[i][0];
@@ -395,17 +452,62 @@ export function isValidAqueductTile(tile: TileType, mapCache: Map<string, TileTy
 
         if (adjTile)
         {
-            const adjTileRiverDirections = initBasicRiverDirections(adjTile);
-            if (adjTileRiverDirections.E && adjTile.Y === tile.Y)
-                currTileRiverDirections.W = true;
-            if (adjTileRiverDirections.SE && isNWNeighbor(tile, adjTile)) // because hexmap y coords are flipped, to match with visual change
-                currTileRiverDirections.NW = true;
-            if (adjTileRiverDirections.SW && isNENeighbor(tile, adjTile)) // because hexmap y coords are flipped, to match with visual change
-                currTileRiverDirections.NE = true;
+            if (!theCity && adjTile.IsCity)
+                theCity = adjTile;
+
+            if (adjTile.IsMountain || isMountainWonder(adjTile) || adjTile.FeatureType === TileFeatures.OASIS || adjTile.IsLake)
+                hasNonRiverWaterSource = true;
         }
     }
 
-    
+    let currRiverDirections = initBasicRiverDirections(tile);
+    currRiverDirections = getRestOfRiverDirections(tile, currRiverDirections);
 
-    return false;
+    // check river edges
+    // has to be a 'river' tile as civ6 represents rivers as tiles but visually as edges
+    if (theCity && tile.IsRiver)
+    {
+        const sameRiverEdge = getSharedRiverEdgeWithCity(theCity, currRiverDirections);
+        let waterSourceCount = 0;
+
+        if (sameRiverEdge.E)
+            --waterSourceCount;
+        else if (currRiverDirections.E) // means no shared edge
+            ++waterSourceCount;
+
+        if (sameRiverEdge.W)
+            --waterSourceCount;
+        else if (currRiverDirections.W) 
+            ++waterSourceCount;
+
+        if (sameRiverEdge.NE)
+            --waterSourceCount;
+        else if (currRiverDirections.NE) 
+            ++waterSourceCount;
+
+        if (sameRiverEdge.SE)
+            --waterSourceCount;
+        else if (currRiverDirections.SE)
+            ++waterSourceCount;
+
+        if (sameRiverEdge.SW)
+            --waterSourceCount;
+        else if (currRiverDirections.SW)
+            ++waterSourceCount;
+
+        if (sameRiverEdge.NW)
+            --waterSourceCount;
+        else if (currRiverDirections.NW)
+            ++waterSourceCount;
+        
+        // if there is a shared edge and no other sources this would be negative
+        if (waterSourceCount >= 0)
+            hasRiverWaterSource = true;
+    }
+
+    // has water and adjacent city
+    if ((hasRiverWaterSource || hasNonRiverWaterSource) && theCity)
+        return true;
+    else
+        return false;
 }

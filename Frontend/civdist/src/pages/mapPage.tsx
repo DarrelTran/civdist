@@ -14,6 +14,8 @@ import { getAngleBetweenTwoOddrHex, getHexPoint, getOffsets, isFacingTargetHex, 
 import { getScaledGridAndTileSizes, getScaledGridSizesFromTile, getScaleFromType } from '../utils/functions/imgScaling/scaling';
 import { isValidAqueductTile } from '../utils/functions/civ/civFunctions';
 
+// assuming all strategic resources are revealed
+
 /*
 /////////////////////////////////////////////////////////////////
 
@@ -412,9 +414,6 @@ const MapPage = () =>
 
     const handleMouseClick = useCallback((e: MouseEvent) => 
     {
-        if (currentTile)
-            console.log(isValidAqueductTile(currentTile, hexmapCache.current))
-
         const { minX, maxX, minY, maxY } = minAndMaxCoords;
         const mousePos = getMousePos(e);
 

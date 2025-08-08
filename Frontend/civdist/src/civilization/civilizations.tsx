@@ -1,8 +1,8 @@
 import { TileType, LeaderName, TileNone, TileFeatures, TileTerrain, TileDistricts, TileNaturalWonders, TileBonusResources, TileLuxuryResources, TileImprovements, TileStrategicResources, TilePantheons, TileYields, TileWonders, PossibleErrors } from "../utils/types";
 import { isSeaResource, hasNaturalWonder, hasCampus, getCityPantheon, isLand, isWater, isBonusResource, isLuxuryResource, isStrategicResource, isPlains, isGrassland, isDesert, isOcean, isCoast, isTundra, isSnow, hasTheater, hasHolySite, hasCommercial, hasHarbor, hasIndustrial, hasEntertainment, hasAqueduct, hasSpaceport, ruinsAdjacentTileAppeal, hasEncampment, isMountainWonder, hasAerodrome } from "../utils/functions/civ/civFunctions";
 import { canPlaceAlhambra, canPlaceBigBen, canPlaceBolshoiTheatre, canPlaceBroadway, canPlaceChichenItza, canPlaceColosseum, canPlaceColossus, canPlaceCristoRedentor, canPlaceEiffelTower, canPlaceEstadioDoMaracana, canPlaceForbiddenCity, canPlaceGreatLibrary, canPlaceGreatLighthouse, canPlaceGreatZimbabwe, canPlaceHagiaSophia, canPlaceHangingGardens, canPlaceHermitage, canPlaceHueyTeocalli, canPlaceMahabodhiTemple, canPlaceMontStMichel, canPlaceOracle, canPlaceOxfordUniversity, canPlacePetra, canPlacePotalaPalace, canPlacePyramids, canPlaceRuhrValley, canPlaceStonehenge, canPlaceSydneyOperaHouse, canPlaceTerracottaArmy, canPlaceVenetianArsenal } from "./wonderPlacement"
-import { getMapOddrString, getOffsets } from "../utils/functions/misc/misc";
-import { getDistanceBetweenTwoOddrHex, isFacingTargetHex } from "../utils/functions/hex/genericHex";
+import { getMapOddrString } from "../utils/functions/misc/misc";
+import { getDistanceBetweenTwoOddrHex, getOffsets, isFacingTargetHex } from "../utils/functions/hex/genericHex";
 
 /*
 Rules:

@@ -201,3 +201,15 @@ export function isFacingTargetHex(baseTile: TileType, targetTile: TileType, chec
 
     return false;
 }
+
+/**
+ * Offsets are ordered counterclockwise - uses oddr coordinates.
+ * @param row 
+ * @returns 
+ */
+export function getOffsets(row: number): number[][]
+{
+    const offsets = (row % 2 === 0) ? [[1, 0], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1]] : [[1, 0], [1, 1], [0, 1], [-1, 0], [0, -1], [1, -1]];
+
+    return offsets;
+}

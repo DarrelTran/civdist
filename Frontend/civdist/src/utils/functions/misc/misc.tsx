@@ -14,18 +14,6 @@ export function getMinMaxXY(theJSON: TileType[])
 }
 
 /**
- * Offsets are ordered counterclockwise.
- * @param row 
- * @returns 
- */
-export function getOffsets(row: number): number[][]
-{
-    const offsets = (row % 2 === 0) ? [[1, 0], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1]] : [[1, 0], [1, 1], [0, 1], [-1, 0], [0, -1], [1, -1]];
-
-    return offsets;
-}
-
-/**
  * 
  * @param x 
  * @param y 

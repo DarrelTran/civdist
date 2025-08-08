@@ -1,5 +1,6 @@
 import { TileType, TileTerrain, TileNaturalWonders, TileBonusResources, TileLuxuryResources, TileDistricts, TileUniqueDistricts, TileNone, TileBuildings, TileStrategicResources, TileFeatures, TileWonders } from "../../types";
-import { getMapOddrString, getOffsets } from "../misc/misc";
+import { getOffsets } from "../hex/genericHex";
+import { getMapOddrString } from "../misc/misc";
 
 export function isBonusResource(tile: TileType): boolean
 {
@@ -350,8 +351,60 @@ export function isMountainWonder(tile: TileType)
     return false;
 }
 
-export function isValidAcqueductTile(tile: TileType, mapCache: Map<string, TileType>): boolean 
+export function isValidAqueductTile(tile: TileType, mapCache: Map<string, TileType>)
 {
+    const initBasicRiverDirections = (tile: TileType) => 
+    {
+        let tileRiverDirections = {E: false, NE: false, NW: false, W: false, SW: false, SE: false};
+
+        if (tile.IsNEOfRiver)
+            tileRiverDirections.SW = true;
+        if (tile.IsNWOfRiver)
+            tileRiverDirections.SE = true;
+        if (tile.IsWOfRiver)
+            tileRiverDirections.E = true;
+
+        return tileRiverDirections;
+    }
+
+    const isNWNeighbor = (tile: TileType, adj: TileType): boolean => 
+    {
+        const parity = tile.Y % 2;
+        return  (parity === 0 && adj.X === tile.X - 1 && adj.Y === tile.Y + 1) || // even row
+                (parity === 1 && adj.X === tile.X     && adj.Y === tile.Y + 1);   // odd row
+    }
+
+    const isNENeighbor = (tile: TileType, adj: TileType): boolean => 
+    {
+        const parity = tile.Y % 2;
+        return  (parity === 0 && adj.X === tile.X     && adj.Y === tile.Y + 1) || // even row
+                (parity === 1 && adj.X === tile.X + 1 && adj.Y === tile.Y + 1);   // odd row
+    }
+
+    let currTileRiverDirections = initBasicRiverDirections(tile);
+
+    // find directions with river
+    const offsets = getOffsets(tile.Y); 
+    for (let i = 0; i < offsets.length; i++)
+    {
+        const dx = offsets[i][0];
+        const dy = offsets[i][1];
+
+        const oddrStr = getMapOddrString(tile.X + dx, tile.Y + dy);
+        const adjTile = mapCache.get(oddrStr);
+
+        if (adjTile)
+        {
+            const adjTileRiverDirections = initBasicRiverDirections(adjTile);
+            if (adjTileRiverDirections.E && adjTile.Y === tile.Y)
+                currTileRiverDirections.W = true;
+            if (adjTileRiverDirections.SE && isNWNeighbor(tile, adjTile)) // because hexmap y coords are flipped, to match with visual change
+                currTileRiverDirections.NW = true;
+            if (adjTileRiverDirections.SW && isNENeighbor(tile, adjTile)) // because hexmap y coords are flipped, to match with visual change
+                currTileRiverDirections.NE = true;
+        }
+    }
+
     
 
     return false;

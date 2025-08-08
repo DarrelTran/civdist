@@ -9,13 +9,15 @@ import { getTerrain, getDistrict, getNaturalWonder, getWonder } from '../images/
 import { baseTileSize, allPossibleDistricts, allPossibleYields, CIV_NAME_DEFAULT, CITY_NAME_DEFAULT } from '../utils/constants';
 import { Civilization, getCivilizationObject } from '../civilization/civilizations';
 import { mapPageSelectStyle, nearbyCityFontSize, NearbyCityOption, nearbyCityStyles, YieldOption } from './mapPageSelectStyles';
-import { getMapOddrString, getMinMaxXY, getOffsets, getTextWidth } from '../utils/functions/misc/misc';
-import { getAngleBetweenTwoOddrHex, getHexPoint, isFacingTargetHex, oddrToPixel, pixelToOddr } from '../utils/functions/hex/genericHex';
+import { getMapOddrString, getMinMaxXY, getTextWidth } from '../utils/functions/misc/misc';
+import { getAngleBetweenTwoOddrHex, getHexPoint, getOffsets, isFacingTargetHex, oddrToPixel, pixelToOddr } from '../utils/functions/hex/genericHex';
 import { getScaledGridAndTileSizes, getScaledGridSizesFromTile, getScaleFromType } from '../utils/functions/imgScaling/scaling';
-import { isValidAcqueductTile } from '../utils/functions/civ/civFunctions';
+import { isValidAqueductTile } from '../utils/functions/civ/civFunctions';
 
 /*
 /////////////////////////////////////////////////////////////////
+
+TODO: FINISH AQUEDUCT PLACEMENT isValidAqueductTile FUNCTION!!!!!
 
 TODO: Add question mark for the target city & yield dropdown.
 
@@ -26,8 +28,6 @@ TODO: Take into account if district will delete a worked tile. If it is worked &
 TODO: Add option to consider wonders when scoring. Give wonders weight depending on typical civ victory type.
 
 TODO: Put encampment on side towards civ player expects to be an enemy.
-
-TODO: Add/fix proper aqueduct placement!!!!!!!!! Make sure no u-turns.
 
 TODO: Fix scoring system - BROKEN????
 
@@ -113,7 +113,6 @@ const MapPage = () =>
     const civDropdownRef = useRef<HTMLSelectElement>(null);
     const cityDropdownRef = useRef<HTMLSelectElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const nearbyCityRef = useRef<Select>(null)
 
     const terrainImagesCache = useRef<Map<TerrainFeatureKey, HTMLImageElement>>(new Map());
     const wondersImagesCache = useRef<Map<TileWonders, HTMLImageElement>>(new Map());
@@ -414,7 +413,7 @@ const MapPage = () =>
     const handleMouseClick = useCallback((e: MouseEvent) => 
     {
         if (currentTile)
-            console.log(isValidAcqueductTile(currentTile, hexmapCache.current))
+            console.log(isValidAqueductTile(currentTile, hexmapCache.current))
 
         const { minX, maxX, minY, maxY } = minAndMaxCoords;
         const mousePos = getMousePos(e);

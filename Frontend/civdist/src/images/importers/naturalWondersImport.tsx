@@ -10,7 +10,7 @@ import piopiotahi from '../natural_wonders/piopiotahi2.png'
 import torres_del_paine from '../natural_wonders/torres_del_paine2.png'
 import tsingy_de_bemaraha from '../natural_wonders/tsingy_de_bemaraha2.png'
 import yosemite from '../natural_wonders/yosemite2.png'
-import { TileNaturalWonders } from '../../utils/types'
+import { TileNaturalWonders } from '../../types/types'
 
 export const allNaturalWonderImages: Record<TileNaturalWonders, string> = 
 {

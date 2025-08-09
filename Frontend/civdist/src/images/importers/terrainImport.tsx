@@ -28,7 +28,7 @@ import tundra from '../terrain/tundra.png';
 import oasis from '../terrain/oasis2.png';
 import marsh from '../terrain/marsh.png';
 import ice from '../terrain/ice.png';
-import { TileTerrain, TileFeatures, TileNone, TerrainFeatureKey } from '../../utils/types';
+import { TileTerrain, TileFeatures, TileNone, TerrainFeatureKey } from '../../types/types';
 
 export const allTerrainImages: Partial<Record<TerrainFeatureKey, string>> = 
 {

@@ -28,7 +28,7 @@ import stonehenge from '../wonders/stonehenge.png'
 import sydney_opera_house from '../wonders/sydney_opera_house.png'
 import terracotta_army from '../wonders/terracotta_army.png'
 import venetian_arsenal from '../wonders/venetian_arsenal.png'
-import { TileWonders } from '../../utils/types'
+import { TileWonders } from '../../types/types'
 
 export const allWonderImages: Record<TileWonders, string> = 
 {

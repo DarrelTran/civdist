@@ -4,7 +4,7 @@ import culture from '../resources/culture2.png'
 import gold from '../resources/gold2.png'
 import faith from '../resources/faith2.png'
 import science from '../resources/science2.png'
-import { TileYields } from '../../utils/types'
+import { TileYields } from '../../types/types'
 
 export const allYieldImages: Record<TileYields, string> = 
 {

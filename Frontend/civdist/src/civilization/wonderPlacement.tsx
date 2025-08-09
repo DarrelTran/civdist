@@ -1,4 +1,4 @@
-import { TileType, LeaderName, TileNone, TileFeatures, TileTerrain, TileWonders, TileDistricts, TileUniqueDistricts, TileNaturalWonders, TileBonusResources, TileLuxuryResources, TileImprovements, TileStrategicResources, TilePantheons, TileYields, TileBuildings } from "../utils/types";
+import { TileType, LeaderName, TileNone, TileFeatures, TileTerrain, TileWonders, TileDistricts, TileUniqueDistricts, TileNaturalWonders, TileBonusResources, TileLuxuryResources, TileImprovements, TileStrategicResources, TilePantheons, TileYields, TileBuildings } from "../types/types";
 import { getCityFoundedReligion, isCityCenter, isCommercialHub, isDesert, isTundra, isEncampment, isEntertainmentComplex, isHarbor, isHolySite, isLand, isTheaterSquare, isGrassland, isPlains, isCampus, isIndustrialZone, isMountainWonder } from "../utils/functions/civ/civFunctions";
 import { getMapOddrString } from "../utils/functions/misc/misc";
 import { getOffsets } from "../utils/functions/hex/genericHex";

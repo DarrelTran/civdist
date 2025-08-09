@@ -1,10 +1,10 @@
-import { TileDistricts, TileYields, VictoryType } from "./types";
+import { TileDistricts, TileYields, VictoryType } from "../types/types";
 
 export const baseTileSize : number = 10;
-export const CIV_NAME_DEFAULT = "Unknown Civilization";
-export const CITY_NAME_DEFAULT = "Unknown City";
+export const CIV_NAME_DEFAULT = "Select a civilization";
+export const CITY_NAME_DEFAULT = "Select a city";
 
-export const allPossibleDistricts = () =>
+export const getAllPossibleDistricts = () =>
 {
     const allDistricts: TileDistricts[] = [];
 
@@ -15,7 +15,7 @@ export const allPossibleDistricts = () =>
 
     return allDistricts;
 }
-export const allPossibleYields = () =>
+export const getAllPossibleYields = () =>
 {
     const allYields: TileYields[] = [];
 
@@ -26,7 +26,7 @@ export const allPossibleYields = () =>
 
     return allYields;
 }
-export const allPossibleVictoryTypes = () =>
+export const getAllPossibleVictoryTypes = () =>
 {
     const allVict: VictoryType[] = [];
 

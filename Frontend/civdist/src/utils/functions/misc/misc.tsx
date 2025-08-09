@@ -1,4 +1,4 @@
-import { TileType } from "../../types";
+import { TileType } from "../../../types/types";
 
 export function getMinMaxXY(theJSON: TileType[]) 
 {

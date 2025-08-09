@@ -1,16 +1,17 @@
-import React, {useEffect, useState, useRef, useCallback, JSX, cache} from 'react';
+import React, {useEffect, useState, useRef, useCallback, JSX} from 'react';
 import Select from 'react-select'
 import { Link } from 'react-router-dom';
 import './mapPage.css'
 import './allPages.css';
-import { TileNone, TileWonders, TileDistricts, TileNaturalWonders, TerrainFeatureKey, RiverDirections, TileType, LeaderName, TileYields, PossibleErrors} from '../utils/types'
+import { TileNone, TileWonders, TileDistricts, TileNaturalWonders, TerrainFeatureKey, RiverDirections, TileType, LeaderName, TileYields, PossibleErrors} from '../types/types'
 import { loadDistrictImages, loadNaturalWonderImages, loadTerrainImages, loadWonderImages, loadYieldImages } from '../images/imageLoaders';
 import { getTerrain, getDistrict, getNaturalWonder, getWonder } from '../images/imageAttributeFinders';
-import { baseTileSize, allPossibleDistricts, allPossibleYields, CIV_NAME_DEFAULT, CITY_NAME_DEFAULT, allPossibleVictoryTypes } from '../utils/constants';
+import { baseTileSize, getAllPossibleDistricts, getAllPossibleYields, CIV_NAME_DEFAULT, CITY_NAME_DEFAULT, getAllPossibleVictoryTypes } from '../utils/constants';
 import { Civilization, getCivilizationObject } from '../civilization/civilizations';
-import { mapPageSelectStyle, nearbyCityFontSize, NearbyCityOption, nearbyCityStyles, YieldOption } from './mapPageSelectStyles';
+import { yieldSelectStyle, nearbyCityFontSize, nearbyCityStyles, genericSingleSelectStyle } from './mapPageSelectStyles';
+import { OptionsWithImage, OptionsWithSpecialText, OptionsGenericString } from '../types/selectionTypes';
 import { getMapOddrString, getMinMaxXY, getTextWidth } from '../utils/functions/misc/misc';
-import { getAngleBetweenTwoOddrHex, getHexPoint, getOffsets, isFacingTargetHex, oddrToPixel, pixelToOddr } from '../utils/functions/hex/genericHex';
+import { getHexPoint, getOffsets, oddrToPixel, pixelToOddr } from '../utils/functions/hex/genericHex';
 import { getScaledGridAndTileSizes, getScaledGridSizesFromTile, getScaleFromType } from '../utils/functions/imgScaling/scaling';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCircleQuestion } from '@fortawesome/free-regular-svg-icons';
@@ -21,7 +22,9 @@ import Tooltip from '../components/tooltip';
 /*
 /////////////////////////////////////////////////////////////////
 
-TODO: Add question mark for the target city & yield dropdown.
+TODO: Fix bad encampment???
+
+TODO: Add toggable hover with tile data and resize if too long with max width
 
 TODO: Update hexmapCache and cityOwnedTiles when adding new district - WHEN ADDING DISTRICT ACCOUNT FOR EFFECTS OF DISTRICT LIKE THEATER ADDING APPEAL TO ADJ OR REMOVING STUFF LIKE IMPROVEMENTS
 
@@ -38,8 +41,6 @@ TODO: Retrieve all saved JSON maps from player profile. Max 5?
 TODO: Refactor code to make it nicer/more organized and remove redundancies. Remove unnecessary useCallbacks. Remove unnecessary dependencies or refactor them.
 
 TODO: Add documentation to functions. Read random comments to see if any extra issues need fixing.
-
-TODO: Add toggable hover with tile data and resize if too long with max width
 
 TODO: Can civ6 cities have same name??
 
@@ -87,12 +88,14 @@ const MapPage = () =>
     const [uniqueCivilizations, setUniqueCivilizations] = useState<Set<string>>(new Set());
     const [uniqueCities, setUniqueCities] = useState<Map<string, string[]>>(new Map()); // <civilization, cities>
     const [dropdownCiv, setDropdownCiv] = useState<string>(CIV_NAME_DEFAULT);
+    const [dropdownCivVisual, setDropdownCivVisual] = useState<string | null>(null);
     const [includeCityStates, setIncludeCityStates] = useState<boolean>(false);
     const [includeWonders, setIncludeWonders] = useState<boolean>(false);
     const [dropdownCity, setDropdownCity] = useState<string>(CITY_NAME_DEFAULT);
-    const [dropdownDistrict, setDropdownDistrict] = useState<string>(allPossibleDistricts()[0]);
+    const [dropdownCityVisual, setDropdownCityVisual] = useState<string | null>(null);
+    const [dropdownDistrict, setDropdownDistrict] = useState<string>(getAllPossibleDistricts()[0]);
     const [dropdownYields, setDropdownYields] = useState<TileYields[]>([]);
-
+    const [dropdownVictoryType, setDropdownVictoryType] = useState<string>(getAllPossibleVictoryTypes()[0]);
     const [dropdownNearbyCity, setDropdownNearbyCity] = useState<TileType>();
 
     /**
@@ -104,8 +107,6 @@ const MapPage = () =>
     const theCanvas = useRef<HTMLCanvasElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const zoomInputRef = useRef<HTMLInputElement>(null);
-    const civDropdownRef = useRef<HTMLSelectElement>(null);
-    const cityDropdownRef = useRef<HTMLSelectElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const terrainImagesCache = useRef<Map<TerrainFeatureKey, HTMLImageElement>>(new Map());
@@ -523,24 +524,9 @@ const MapPage = () =>
             }
         }
 
-        setDropdownCiv(firstCiv);
-        setDropdownCity(firstCity);
         setUniqueCivilizations(tempCivSet);
         setUniqueCities(tempCitySet);
     }
-
-    useEffect(() => 
-    {
-        const civVal = civDropdownRef.current ? civDropdownRef.current.value : CIV_NAME_DEFAULT;
-        const cityVal = cityDropdownRef.current ? cityDropdownRef.current.value : CITY_NAME_DEFAULT;
-
-        // get latest values
-        if (civVal !== dropdownCiv)
-            setDropdownCiv(civVal);
-
-        if (cityVal !== dropdownCity)
-            setDropdownCity(cityVal);
-    }, [includeCityStates, dropdownCity, dropdownCiv]) 
 
     useEffect(() => 
     {
@@ -932,8 +918,8 @@ const MapPage = () =>
 
     const getSelectionYields = useCallback(() => 
     {
-        const allYields = allPossibleYields();
-        const tempArr: YieldOption[] = [];
+        const allYields = getAllPossibleYields();
+        const tempArr: OptionsWithImage[] = [];
 
         for (let i = 0; i < allYields.length; i++)
         {
@@ -950,7 +936,7 @@ const MapPage = () =>
         return tempArr;
     }, [areImagesLoaded])   
 
-    function formatSelectionYields(option: YieldOption): JSX.Element
+    function formatSelectionYields(option: OptionsWithImage): JSX.Element
     {
         return <div>
             <span style={{paddingRight: '10px'}}>{option.label}</span>
@@ -960,20 +946,79 @@ const MapPage = () =>
 
     const getNearbyCityOptions = useCallback(() => 
     {
-        const tempArr: NearbyCityOption[] = [];
-        let i = 0;
+        const tempArr: OptionsWithSpecialText[] = [];
 
         uniqueCities.forEach((cities, civ) => 
         {
             cities.forEach((city) => 
             {
-                tempArr.push({value: `${civ},${city}`, label: <div key={i}> <span>{city}</span> <br/> <span>({civ})</span> </div>, text: `${city} (${civ})`});
-                ++i;
+                if (city !== dropdownCity)
+                    tempArr.push({value: `${civ},${city}`, label: <div> <span>{city}</span> <br/> <span>({civ})</span> </div>, text: `${city} (${civ})`});
             })
         })
 
         return tempArr;
-    }, [uniqueCities])  
+    }, [uniqueCities, dropdownCity])  
+
+    const getCivilizationOptions = useCallback(() => 
+    {
+        const tempArr: OptionsGenericString[] = [];
+
+        uniqueCivilizations.forEach((civ) => 
+        {
+            if (includeCityStates || (!includeCityStates && !civ.includes("city-state")))
+            {
+                tempArr.push({value: civ, label: civ});
+            }
+        })
+
+        return tempArr;
+    }, [uniqueCivilizations, includeCityStates])   
+
+    const getCityOptions = useCallback(() => 
+    {
+        const tempArr: OptionsGenericString[] = [];
+        const cityList = uniqueCities.get(dropdownCiv);
+
+        if (cityList)
+        {
+            for (let i = 0; i < cityList.length; i++)
+            {
+                const theCity = cityList[i];
+                tempArr.push({value: theCity, label: theCity});
+            }
+        }
+
+        return tempArr;
+    }, [uniqueCities, dropdownCiv, getCivilizationOptions]) 
+
+    function getDistrictOptions() 
+    {
+        const tempArr: OptionsGenericString[] = [];
+        const allDistricts = getAllPossibleDistricts();
+
+        for (let i = 0; i < allDistricts.length; i++)
+        {
+            const theDistrict = allDistricts[i];
+            tempArr.push({value: theDistrict, label: theDistrict});
+        }
+
+        return tempArr;
+    }
+
+    function getVictoryTypeOptions() 
+    {
+        const tempArr: OptionsGenericString[] = [];
+        const allVictoryTypes = getAllPossibleVictoryTypes();
+
+        for (let i = 0; i < allVictoryTypes.length; i++)
+        {
+            const theVictoryType = allVictoryTypes[i];
+            tempArr.push({value: theVictoryType, label: theVictoryType});
+        }
+
+        return tempArr;
+    }
 
     function getNearbyCityTextMaxWidth()
     {
@@ -1017,169 +1062,186 @@ const MapPage = () =>
                 />
             </div>
 
-            <div style={{alignContent: 'center', marginLeft: '10px', paddingLeft: '5px', paddingRight: '5px', marginRight: '10px', border: '1px solid black'}}>
+            <div style={{alignContent: 'center', margin: '0px 10px', padding: '0px 10px', border: '1px solid black'}}>
                 <span style={{color: 'red', fontWeight: 'bold', fontSize: '1.25em'}}>{errorText}</span>
                 <div style={{display: 'grid'}}>
+
                     <div style={{display: 'flex'}}>
                         <span>Include City States</span>
                         <input type='checkbox' onChange={(e) => {setIncludeCityStates(e.target.checked)}}/>
                     </div>
+
+                    <div style={{display: 'flex'}}>
+                        <span>Account For Possible Wonders</span>
+                        <input type='checkbox' onChange={(e) => {setIncludeWonders(e.target.checked)}}/>
+                    </div>
+                    
                     {/*Select Civilization*/}
                     <div style={{display: 'flex'}}>
                         <span className='mandatory'>*</span>
-                        <select ref={civDropdownRef} onChange={(e) => {setDropdownCiv(e.target.value)}}>
-                            {(  // return function and then call it
-                                () => 
-                                {
-                                    const civArr = Array.from(uniqueCivilizations);
-                                    const elements: JSX.Element[] = [];
-                                    
-                                    for (let i = 0; i < civArr.length; i++)
+
+                        <Select 
+                            value={dropdownCivVisual ? {label: dropdownCivVisual, value: dropdownCivVisual} : null}
+                            options={getCivilizationOptions()} 
+                            styles={genericSingleSelectStyle} 
+                            onChange=
+                            {
+                                val => 
+                                { 
+                                    if (val && val.value) 
                                     {
-                                        let civ = civArr[i];
-                                        if (includeCityStates || (!includeCityStates && !civ.includes("city-state")))
+                                        setDropdownCiv(val.value); 
+                                        setDropdownCivVisual(val.value);
+                                        const cityList = uniqueCities.get(dropdownCiv);
+
+                                        if (cityList && cityList.length > 0)
                                         {
-                                            elements.push(<option value={civ} key={i}>{civ}</option>);
+                                            setDropdownCity(CITY_NAME_DEFAULT);
+                                            setDropdownCityVisual(null);
                                         }
                                     }
+                                    else 
+                                    {
+                                        setDropdownCiv(CIV_NAME_DEFAULT);
+                                        setDropdownCivVisual(null);
 
-                                    if (elements.length > 0)
-                                        return elements;
-                                    else
-                                        return <option>{CIV_NAME_DEFAULT}</option>
+                                        setDropdownCity(CITY_NAME_DEFAULT);
+                                        setDropdownCityVisual(null);
+                                    } 
                                 }
-                            )()}
-                        </select> 
+                            } 
+                            placeholder={CIV_NAME_DEFAULT}
+                        />
 
                         <Tooltip text='Select a civilization.'>
                             <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
                         </Tooltip>
 
                     </div>
-                </div>
-                <div>
-                    {/*Select City*/}
-                    <span className='mandatory'>*</span>
-                    <select ref={cityDropdownRef} onChange={(e) => {setDropdownCity(e.target.value)}}>
-                        {(
-                            () => 
+
+                    <div style={{display: 'flex'}}>
+                        {/*Select City*/}
+                        <span className='mandatory'>*</span>
+                        
+                        <Select 
+                            value={dropdownCityVisual ? {label: dropdownCityVisual, value: dropdownCityVisual} : null}
+                            options={getCityOptions()} 
+                            styles={genericSingleSelectStyle} 
+                            onChange=
                             {
-                                // can't use civDropdownRef as this select doesnt know when to re-render compared to something like an useEffect
-                                if (dropdownCiv !== CIV_NAME_DEFAULT)
-                                {
-                                    let cityList = uniqueCities.get(dropdownCiv);
-                                    if (cityList)
+                                val => 
+                                { 
+                                    if (val && val.value) 
                                     {
-                                        return cityList.map((city, index) => 
-                                        (
-                                            <option value={city} key={index}>{city}</option>
-                                        ))
+                                        setDropdownCity(val.value); 
+                                        setDropdownCityVisual(val.value);
+                                    }
+                                    else 
+                                    {
+                                        setDropdownCity(CITY_NAME_DEFAULT); 
+                                        setDropdownCityVisual(null);
                                     }
                                 }
-                                else
-                                {
-                                    return <option>{CITY_NAME_DEFAULT}</option>
-                                }
-                            }
-                        )()}
-                    </select> 
-                    
-                    <Tooltip text={`${dropdownCiv}'s cities.`}>
-                        <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
-                    </Tooltip>
+                            } 
+                            placeholder={CITY_NAME_DEFAULT}
+                        />
+                        
+                        <Tooltip text={`${dropdownCiv}'s cities.`}>
+                            <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
+                        </Tooltip>
+                    </div>
 
-                    <div>
-                        {/*Select District Type*/}
+                    <div style={{display: 'flex'}}>
+                        {/* District Type Selection */}
                         <span className='mandatory'>*</span>
-                        <select onChange={e => {setDropdownDistrict(e.target.value)}}>
-                            {
-                                allPossibleDistricts().map((value, index) => 
-                                (
-                                    <option value={value} key={index}>{value}</option>
-                                ))
-                            }
-                        </select>
+                        <Select
+                            options={getDistrictOptions()}
+                            placeholder='Select a district'
+                            styles={genericSingleSelectStyle}
+                            onChange={val => {if (val && val.value) setDropdownDistrict(val.value)}}
+                        />
 
                         <Tooltip text='Select a district.'>
                             <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
                         </Tooltip>
+                    </div>
 
-                        <div style={{display: 'grid'}}>
-                            <div style={{display: 'flex'}}>
-                                <span className='mandatory'>*</span>
-                                <Select 
-                                    onChange=
-                                    {
-                                        val =>
-                                        {
-                                            if (val)
-                                            {
-                                                const allCities = cityOwnedTiles.get(val.value);
-                                                if (allCities)
-                                                    setDropdownNearbyCity(allCities[allCities.length - 1]);
-                                            }
-                                        }
-
-                                    }
-                                    options={getNearbyCityOptions()} 
-                                    styles={nearbyCityStyles(getNearbyCityTextMaxWidth() * 1.25)}
-                                />
-
-                                <Tooltip text='A city you see as a threat.'>
-                                    <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
-                                </Tooltip>
-
-                            </div>
-                        </div>
-
-                        <span>Account For Possible Wonders</span>
-                        <input type='checkbox' onChange={(e) => {setIncludeWonders(e.target.checked)}}/>
-                        
-                        <div style={{display: 'flex'}}>
-                            <Select 
-                                value={visualYieldDropdown}
-                                options={getSelectionYields()} 
-                                isMulti 
-                                styles={mapPageSelectStyle}
-                                onChange=
+                    <div style={{display: 'flex'}}>
+                        <span className='mandatory'>*</span>
+                        {/* Nearby City Selection */}
+                        <Select 
+                            onChange=
+                            {
+                                val =>
                                 {
-                                    (e) => 
+                                    if (val)
                                     {
-                                        const yields: TileYields[] = [];
-                                        const opts: {value: TileYields, label: TileYields, image: HTMLImageElement}[] = [];
-
-                                        e.forEach((opt) => { yields.push(opt.value); opts.push(opt);})
-
-                                        setDropdownYields(yields);
-                                        setVisualYieldDropdown(opts);
+                                        const allCities = cityOwnedTiles.get(val.value);
+                                        if (allCities)
+                                            setDropdownNearbyCity(allCities[allCities.length - 1]);
                                     }
                                 }
-                                formatOptionLabel={formatSelectionYields}
-                            />
 
-                            <Tooltip text='Your most important yields.'>
-                                <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
-                            </Tooltip>
-                        </div>
-
-                        <select>
-                            {
-                                allPossibleVictoryTypes().map((value, index) => 
-                                (
-                                    <option value={value} key={index}>{value}</option>
-                                ))
                             }
-                        </select>
+                            options={getNearbyCityOptions()} 
+                            styles={nearbyCityStyles(getNearbyCityTextMaxWidth() * 1.25)}
+                            placeholder='Select a nearby city'
+                        />
+
+                        <Tooltip text='A city you see as a threat.'>
+                            <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
+                        </Tooltip>
+
+                    </div>
+
+                    <div style={{display: 'flex'}}>
+                        {/* Yields Selection */}
+                        <Select 
+                            value={visualYieldDropdown}
+                            options={getSelectionYields()} 
+                            isMulti 
+                            styles={yieldSelectStyle}
+                            onChange=
+                            {
+                                (e) => 
+                                {
+                                    const yields: TileYields[] = [];
+                                    const opts: {value: TileYields, label: TileYields, image: HTMLImageElement}[] = [];
+
+                                    e.forEach((opt) => { yields.push(opt.value); opts.push(opt);})
+
+                                    setDropdownYields(yields);
+                                    setVisualYieldDropdown(opts);
+                                }
+                            }
+                            formatOptionLabel={formatSelectionYields}
+                            placeholder='Select your yield(s)'
+                        />
+
+                        <Tooltip text='Your most important yields.'>
+                            <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
+                        </Tooltip>
+                    </div>
+
+                    <div style={{display: 'flex'}}>
+                        {/* Victory Type Selection */}
+                        <Select
+                            options={getVictoryTypeOptions()}
+                            placeholder='Select a victory type'
+                            styles={genericSingleSelectStyle}
+                            onChange={val => {if (val && val.value) setDropdownVictoryType(val.value)}}
+                        />
 
                         <Tooltip text={'The victory type you\'re aiming for.'}>
                             <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
                         </Tooltip>
-
-                        <br/>
-
-                        <button onClick={handleAddButton}>ADD</button>
                     </div>
-                    <div>
+
+                    <br/>
+
+                    <button onClick={handleAddButton}>ADD</button>
+
+                    <div style={{display: 'flex'}}>
                         <span style={{paddingRight: '5px'}}>Zoom Level:</span>
                         <input 
                             onKeyDown={e => handleZoomKeyDown(e)} 
@@ -1196,8 +1258,8 @@ const MapPage = () =>
                         <Tooltip text={'50 - 200%'}>
                             <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
                         </Tooltip>
-
                     </div>
+
                     <div style={{display: 'grid'}}>
                         <div style={{display: 'flex', alignItems: 'center'}}>
                             <button>EXPORT</button>
@@ -1258,44 +1320,7 @@ const MapPage = () =>
 
     function testStuff()
     {
-        /*
-        const german = cityOwnedTiles.get("German Empire,Aachen");
-        const aztec = cityOwnedTiles.get("Nan Madol city-state,Nan Madol");
-
-        if (german && aztec)
-        {
-            const germanCity = german[german.length - 1];
-            const aztecCity = aztec[aztec.length - 1];
-
-            const x1 = germanCity.X;
-            const y1 = germanCity.Y;
-            const x2 = aztecCity.X;
-            const y2 = aztecCity.Y;
-
-            const even = (num: number) => {return (num % 2 == 0)};
-            const odd = (num: number) => {return (num % 2 == 1)};
-
-            const dx = x2 - x1;
-            const dy = y2 - y1;
-            const penalty = ( (even(y1) && odd(y2) && (x1 < x2)) || (even(y2) && odd(y1) && (x2 < x1)) ) ? 1 : 0;
-            const distance = Math.max(Math.abs(dy), Math.abs(dx) + Math.floor(Math.abs(dy)/2) + penalty); 
-
-            console.log('dist: ' + distance)
-        }
-        */
-
-        const aachen = cityOwnedTiles.get(`German Empire,Aachen`);
-        const nanMadol = cityOwnedTiles.get(`Aztec Empire,Tenochtitlan`);
-
-        if (aachen && nanMadol)
-        {
-            const aachenCity = aachen[aachen.length - 1];
-            const nanMadolCity = nanMadol[nanMadol.length - 1];
-
-            const angle = getAngleBetweenTwoOddrHex({x: aachenCity.X, y: aachenCity.Y}, {x: nanMadolCity.X, y: nanMadolCity.Y});
-
-            console.log(angle)
-        }
+        
     }
 };
 

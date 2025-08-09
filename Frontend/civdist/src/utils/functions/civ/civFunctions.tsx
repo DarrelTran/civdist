@@ -1,4 +1,4 @@
-import { TileType, TileTerrain, TileNaturalWonders, TileBonusResources, TileLuxuryResources, TileDistricts, TileUniqueDistricts, TileNone, TileBuildings, TileStrategicResources, TileFeatures, TileWonders } from "../../types";
+import { TileType, TileTerrain, TileNaturalWonders, TileBonusResources, TileLuxuryResources, TileDistricts, TileUniqueDistricts, TileNone, TileBuildings, TileStrategicResources, TileFeatures, TileWonders } from "../../../types/types";
 import { getOffsets } from "../hex/genericHex";
 import { getMapOddrString } from "../misc/misc";
 

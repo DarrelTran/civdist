@@ -1,4 +1,4 @@
-import { TileNone, TileDistricts, TileFeatures, TileTerrain, TileWonders, TileNaturalWonders, TerrainFeatureKey, TileYields } from "../utils/types";
+import { TileNone, TileDistricts, TileFeatures, TileTerrain, TileWonders, TileNaturalWonders, TerrainFeatureKey, TileYields } from "../types/types";
 import { allWonderImages } from "./importers/wondersImport";
 import { allDistrictImages } from "./importers/districtImport";
 import { allTerrainImages } from "./importers/terrainImport";

@@ -1,15 +1,116 @@
-import {JSX} from 'react'
 import { CSSObjectWithLabel, StylesConfig } from "react-select";
-import { TileYields } from "../utils/types";
+import { OptionsWithSpecialText, OptionsGenericString, OptionsWithImage } from "../types/selectionTypes";
 
-export type YieldOption = 
+export const genericMultiSelectStyle: StylesConfig<OptionsGenericString, true> = 
 {
-  value: TileYields;
-  label: TileYields;
-  image: HTMLImageElement;
-};
+    control: (baseStyles: CSSObjectWithLabel, state) => 
+    ({
+        ...baseStyles,
+        backgroundColor: state.isFocused ? '#d0d0d7' : '#e8e8ec',
+        ':hover': 
+        {
+            backgroundColor: '#d0d0d7'
+        }
+    }),
+    menu: (baseStyles: CSSObjectWithLabel) => 
+    ({
+        ...baseStyles,
+        marginTop: 0,
+        backgroundColor: '#edf1f2'
+    }),
+    dropdownIndicator: (baseStyles: CSSObjectWithLabel) => 
+    ({
+        ...baseStyles,
+        color: '#020202',
+        ':hover': 
+        {
+            color: '#020202'
+        }
+    }),
+    clearIndicator: (baseStyles: CSSObjectWithLabel) => 
+    ({
+        ...baseStyles,
+        color: 'firebrick',
+        ':hover': 
+        {
+            color: 'red'
+        }
+    }),
+    multiValueLabel: (baseStyles: CSSObjectWithLabel) => 
+    ({
+        ...baseStyles,
+        backgroundColor: 'darkgrey',
+        color: 'black'
+    }),
+    option: (baseStyles: CSSObjectWithLabel, state) => 
+    ({
+        ...baseStyles,
+        backgroundColor: state.isSelected ? '#edf1f2': '#edf1f2',
+        ':hover': 
+        {
+            backgroundColor: '#cfd4d6'
+        }
+    }),
+    multiValueRemove: (baseStyles: CSSObjectWithLabel) => 
+    ({
+        ...baseStyles,
+        backgroundColor: 'grey'
+    }),
+}
 
-export const mapPageSelectStyle: StylesConfig<YieldOption, true> = 
+export const genericSingleSelectStyle: StylesConfig<OptionsGenericString, false> =
+{
+    singleValue: (baseStyles: CSSObjectWithLabel) => 
+    ({
+        ...baseStyles,
+        color: 'black'
+    }),
+    control: (baseStyles: CSSObjectWithLabel, state) => 
+    ({
+        ...baseStyles,
+        backgroundColor: state.isFocused ? '#d0d0d7' : '#e8e8ec',
+        ':hover': 
+        {
+            backgroundColor: '#d0d0d7'
+        }
+    }),
+    menu: (baseStyles: CSSObjectWithLabel) => 
+    ({
+        ...baseStyles,
+        marginTop: 0,
+        backgroundColor: '#edf1f2'
+    }),
+    dropdownIndicator: (baseStyles: CSSObjectWithLabel) => 
+    ({
+        ...baseStyles,
+        color: '#020202',
+        ':hover': 
+        {
+            color: '#020202'
+        }
+    }),
+    clearIndicator: (baseStyles: CSSObjectWithLabel) => 
+    ({
+        ...baseStyles,
+        color: 'firebrick',
+        ':hover': 
+        {
+            color: 'red'
+        }
+    }),
+    option: (baseStyles: CSSObjectWithLabel, state) => 
+    ({
+        ...baseStyles,
+        backgroundColor: state.isSelected ? '#edf1f2': '#edf1f2',
+        ':hover': 
+        {
+            backgroundColor: '#cfd4d6'
+        },
+        color: 'black'
+    })
+}
+
+export const yieldSelectStyle: StylesConfig<OptionsWithImage, true> = 
 {
     control: (baseStyles: CSSObjectWithLabel, state) => 
     ({
@@ -67,16 +168,9 @@ export const mapPageSelectStyle: StylesConfig<YieldOption, true> =
     }),
 }
 
-export type NearbyCityOption = 
-{
-  value: string;
-  label: JSX.Element;
-  text: string
-};
-
 export const nearbyCityFontSize = 16;
 
-export const nearbyCityStyles = (theWidth: number): StylesConfig<NearbyCityOption, false> => 
+export const nearbyCityStyles = (theWidth: number): StylesConfig<OptionsWithSpecialText, false> => 
 {
     return {
         singleValue: (baseStyles: CSSObjectWithLabel) => 

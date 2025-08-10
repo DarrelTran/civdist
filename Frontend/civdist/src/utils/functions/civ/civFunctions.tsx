@@ -2,7 +2,7 @@ import { TileType, TileTerrain, TileNaturalWonders, TileBonusResources, TileLuxu
 import { getOffsets } from "../hex/genericHex";
 import { getMapOddrString } from "../misc/misc";
 
-export function isBonusResource(tile: TileType): boolean
+export function hasBonusResource(tile: TileType): boolean
 {
     for (const bonus of Object.values(TileBonusResources)) 
     {
@@ -13,7 +13,7 @@ export function isBonusResource(tile: TileType): boolean
     return false;
 }
 
-export function isLuxuryResource(tile: TileType): boolean
+export function hasLuxuryResource(tile: TileType): boolean
 {
     for (const luxury of Object.values(TileLuxuryResources)) 
     {
@@ -24,7 +24,7 @@ export function isLuxuryResource(tile: TileType): boolean
     return false;
 }
 
-export function isStrategicResource(tile: TileType): boolean
+export function hasStrategicResource(tile: TileType): boolean
 {
     for (const strategic of Object.values(TileStrategicResources)) 
     {
@@ -51,7 +51,7 @@ export function isWater(tile: TileType)
     return false;
 }
 
-export function isSeaResource(tile: TileType): boolean
+export function hasSeaResource(tile: TileType): boolean
 {
     if (tile.ResourceType === TileBonusResources.CRABS || 
         tile.ResourceType === TileBonusResources.FISH ||
@@ -510,4 +510,31 @@ export function isValidAqueductTile(tile: TileType, mapCache: Map<string, TileTy
         return true;
     else
         return false;
+}
+
+/**
+ * Removes bonuses resources, features, yields, improvements, and if a tile is worked, reassigns another tile to be worked. ASSUMES that the isFreeTile function was called beforehand from civilizations.tsx.
+ * @param districtTile 
+ * @param cityTile 
+ * @returns 
+ */
+export function purgeTileForDistrict(districtTile: TileType, cityTile: TileType): TileType
+{
+    const dist = districtTile;
+
+    dist.ResourceType = TileNone.NONE;
+
+    dist.Food = 0;
+    dist.Science = 0;
+    dist.Culture = 0;
+    dist.Faith = 0;
+    dist.Gold = 0;
+
+    dist.IsWorked = false;
+
+    dist.FeatureType = TileNone.NONE;
+
+    dist.ImprovementType = TileNone.NONE;
+
+    return dist;
 }

@@ -366,6 +366,7 @@ export type TileType =
   Leader: LeaderName,
   CityName: string,
   District: TileDistricts | TileUniqueDistricts | TileNone.NONE,
+  /** ONLY EXISTS ON THE CITY TILE */
   Buildings: TileBuildings[],
   /** DOES NOT CONTAIN NATURAL WONDERS */
   Wonder: TileWonders | TileNone.NONE,
@@ -374,14 +375,17 @@ export type TileType =
   Gold: number, 
   Science: number, 
   Culture: number, 
-  Faith: number
+  Faith: number,
+  /** ONLY EXISTS ON THE CITY TILE */
+  FavoredYields: TileYields[],
+  /** ONLY EXISTS ON THE CITY TILE */
+  DisfavoredYields: TileYields[]
 }
 
 export enum PossibleErrors
 {
   NONE = "No error",
   DISTRICT_ALREADY_EXISTS = "District exists",
-  NEARBY_CITY_UNDEFINED = "Nearby city undefined",
   FAILED_TO_FIND_TILE = "Failed to find a tile"
 }
 

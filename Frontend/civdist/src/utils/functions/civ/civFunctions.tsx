@@ -1,4 +1,4 @@
-import { TileType, TileTerrain, TileNaturalWonders, TileBonusResources, TileLuxuryResources, TileDistricts, TileUniqueDistricts, TileNone, TileBuildings, TileStrategicResources, TileFeatures, TileWonders } from "../../../types/types";
+import { TileType, TileTerrain, TileNaturalWonders, TileBonusResources, TileLuxuryResources, TileDistricts, TileUniqueDistricts, TileNone, TileBuildings, TileStrategicResources, TileFeatures, TileWonders, TileYields, TileBuildingsCitizenSlots } from "../../../types/types";
 import { getOffsets } from "../hex/genericHex";
 import { getMapOddrString } from "../misc/misc";
 
@@ -529,6 +529,7 @@ export function purgeTileForDistrict(districtTile: TileType, cityTile: TileType)
     dist.Culture = 0;
     dist.Faith = 0;
     dist.Gold = 0;
+    dist.Production = 0;
 
     dist.IsWorked = false;
 
@@ -537,4 +538,288 @@ export function purgeTileForDistrict(districtTile: TileType, cityTile: TileType)
     dist.ImprovementType = TileNone.NONE;
 
     return dist;
+}
+
+type YieldKey = 'Food' | 'Production' | 'Gold' | 'Science' | 'Culture' | 'Faith';
+
+interface AllocOptions 
+{
+    maxDistance?: number;                       
+    population: number;                        
+    baseWeights?: Record<YieldKey, number>;
+    favoredMultiplier?: number;                 
+    disfavoredMultiplier?: number;              
+}
+
+function calculateDistrictYieldsFromCitizens(districtTile: TileType, cityTile: TileType): TileType[]
+{
+    const newTiles: TileType[] = [];
+
+    if (districtTile.District !== TileNone.NONE && districtTile.Wonder === TileNone.NONE)
+    {
+        const correctDistrictBuildings = TileBuildingsCitizenSlots[districtTile.District]; // buildings for district the tile contains
+        const cityBuildings = cityTile.Buildings; // all buildings from all districts in the city
+        
+        if (correctDistrictBuildings.length > 0)
+        {
+            cityBuildings.forEach((theBuilding) => 
+            {
+                const newDistrictTile: TileType = Object.assign({}, districtTile);
+
+                if (correctDistrictBuildings.includes(theBuilding))
+                {
+                    if (isCampus(districtTile))
+                    {
+                        newDistrictTile.Science = newDistrictTile.Science + 2;
+                    }
+                    else if (isHolySite(districtTile))
+                    {
+                        newDistrictTile.Faith = newDistrictTile.Faith + 2;
+                    }
+                    else if (isEncampment(districtTile))
+                    {
+                        newDistrictTile.Production = newDistrictTile.Production + 1;
+                        newDistrictTile.Gold = newDistrictTile.Gold + 2;
+                    }
+                    else if (isHarbor(districtTile))
+                    {
+                        newDistrictTile.Food = newDistrictTile.Food + 1;
+                        newDistrictTile.Gold = newDistrictTile.Gold + 2;
+                    }
+                    else if (isCommercialHub(districtTile))
+                    {
+                        newDistrictTile.Gold = newDistrictTile.Gold + 4;
+                    }
+                    else if (isIndustrialZone(districtTile))
+                    {
+                        newDistrictTile.Production = newDistrictTile.Production + 2;
+                    }
+                    else if (isTheaterSquare(districtTile))
+                    {
+                        newDistrictTile.Culture = newDistrictTile.Culture + 2;
+                    }
+
+                    newTiles.push(newDistrictTile);
+                }
+            })
+        }
+    }
+
+    return newTiles;
+}
+
+/**
+ * 
+ * @param allTiles 
+ * @param cityTile 
+ * @param opts 
+ * @returns Returns an array of worked tiles for the city named cityName.
+ */
+export function allocateCitizensAuto(
+    allTiles: TileType[],
+    cityTile: TileType,
+    opts: AllocOptions
+): TileType[] 
+{
+    opts.maxDistance = opts.maxDistance ? opts.maxDistance : 3;
+    // these random numbers seem to work
+    opts.baseWeights = opts.baseWeights ? opts.baseWeights : { Food: 1.6, Production: 2, Gold: 0.75, Science: 0.75, Culture: 0.75, Faith: 0.75}; 
+    opts.favoredMultiplier = opts.favoredMultiplier ? opts.favoredMultiplier : 25;
+    opts.disfavoredMultiplier = opts.disfavoredMultiplier ? opts.disfavoredMultiplier : 0.5;
+
+    type TileTypeWithSpecialist = TileType & {IsSpecialist: boolean};
+
+    if (!cityTile) return [];
+
+    const allTilesModified: TileTypeWithSpecialist[] = allTiles.map(tile => ({...tile, IsSpecialist: false}))
+
+    const slots = Math.max(0, opts.population);
+    if (slots === 0) return [];
+
+    // Setup yield weights
+    const favoredSet = new Set(cityTile.FavoredYields || []);
+    const disfavoredSet = new Set(cityTile.DisfavoredYields || []);
+    const yieldKeys: YieldKey[] = ['Food', 'Production', 'Gold', 'Science', 'Culture', 'Faith'];
+
+    // remove typescript errors
+    const weights = opts.baseWeights;
+    const maxDistance = opts.maxDistance;
+    const favoredMultiplier = opts.favoredMultiplier;
+    const disfavoredMultiplier = opts.disfavoredMultiplier;
+    const population = opts.population;
+
+    for (const y of yieldKeys) 
+    {
+        if (favoredSet.has(y as TileYields)) 
+            weights[y] = weights[y] * favoredMultiplier;
+
+        if (disfavoredSet.has(y as TileYields)) 
+            weights[y] = weights[y] * disfavoredMultiplier;
+    }
+
+    // === Gather normal workable tiles ===
+    const normalTiles = allTilesModified.filter
+    (t =>
+        !t.IsCity &&
+        t.District === TileNone.NONE &&
+        (t.Food > 0 || t.Production > 0 || t.Gold > 0 || t.Science > 0 || t.Culture > 0 || t.Faith > 0) &&
+        distanceToTile(cityTile, t) <= maxDistance &&
+        !hasNaturalWonder(t.FeatureType)
+    );
+
+    // === Gather specialist "virtual tiles" ===
+    function getSpecialistVirtualTiles(): TileTypeWithSpecialist[] 
+    {
+        const virtualTiles: TileTypeWithSpecialist[] = [];
+        
+        for (const districtTile of allTilesModified.filter
+        (t =>
+            !t.IsCity &&
+            t.District !== TileNone.NONE &&
+            distanceToTile(cityTile, t) <= maxDistance &&
+            t.Wonder === TileNone.NONE
+        )) 
+        {
+            const specialistTiles = calculateDistrictYieldsFromCitizens(districtTile, cityTile);
+            for (let i = 0; i < specialistTiles.length; i++) 
+            {
+                const specialistTile = specialistTiles[i];
+
+                virtualTiles.push
+                ({
+                    ...specialistTile,
+                    IsSpecialist: true
+                });
+            }
+        }
+
+        return virtualTiles;
+    }
+
+    const specialistTiles = getSpecialistVirtualTiles();
+
+    // merge all candidate tiles
+    const candidates = [...normalTiles, ...specialistTiles];
+
+    if (candidates.length === 0) return [];
+
+    function tileScore(t: TileType) 
+    {
+        const rawScore =
+            (t.Food || 0) * weights.Food +
+            (t.Production || 0) * weights.Production +
+            (t.Gold || 0) * weights.Gold +
+            (t.Science || 0) * weights.Science +
+            (t.Culture || 0) * weights.Culture +
+            (t.Faith || 0) * weights.Faith;
+
+        // ignore zero yields
+        const diversityCount = 
+        [
+            t.Food, t.Production, t.Gold, t.Science, t.Culture, t.Faith
+        ].filter(v => (v || 0) > 0).length;
+
+        // slight bonus for diverse yields
+        const diversityBonus = 1 + (diversityCount - 1) * 0.05; // 5% per extra type beyond the first
+
+        const diversityScore = rawScore * diversityBonus;
+
+        // prioritize non-district tiles
+        let totalScore = diversityScore;
+        if (t.District === TileNone.NONE)
+            totalScore = totalScore * 2;
+
+        return totalScore;
+    }
+
+    /* Sorted in descending order */
+
+    // food-first to avoid starvation
+    const cityBaseFood = cityTile.Food || 0;
+    // how much food we still need as city is always worked
+    const requiredFood = Math.max(0, population - cityBaseFood);
+
+    const sortedByFood = [...candidates].sort((a, b) => 
+    {
+        if (b.Food !== a.Food) 
+            return b.Food - a.Food;
+
+        if (b.Production !== a.Production) 
+            return b.Production - a.Production;
+
+        if (b.Gold !== a.Gold) 
+            return b.Gold - a.Gold;
+
+        // fallback to closer tiles
+        return distanceToTile(cityTile, a) - distanceToTile(cityTile, b);
+    });
+
+    const chosen: TileTypeWithSpecialist[] = [];
+    let foodSum = cityBaseFood;
+
+    // add food-heavy tiles until no longer need a lot of food
+    for (const t of sortedByFood) 
+    {
+        if (chosen.length >= slots) 
+            break;
+
+        if (foodSum >= requiredFood) 
+            break;
+
+        chosen.push(t);
+        foodSum = foodSum + t.Food || 0;
+    }
+
+    // fill remaining slots by score
+    const remainingSlots = slots - chosen.length;
+    if (remainingSlots > 0) 
+    {
+        const chosenSet = new Set(chosen.map(t => `${t.X},${t.Y},${t.IsSpecialist}`));
+
+        const pool = candidates
+            .filter(t => !chosenSet.has(`${t.X},${t.Y},${t.IsSpecialist}`))
+            .map(t => ({ tile: t, score: tileScore(t), dist: distanceToTile(cityTile, t) }));
+
+        pool.sort((a, b) => 
+        {
+            if (b.score !== a.score) 
+                return b.score - a.score;
+
+            if (b.tile.Food !== a.tile.Food) 
+                return b.tile.Food - a.tile.Food;
+
+            if (b.tile.Production !== a.tile.Production) 
+                return b.tile.Production - a.tile.Production;
+
+            if (b.tile.Gold !== a.tile.Gold) 
+                return b.tile.Gold - a.tile.Gold;
+
+            return a.dist - b.dist;
+        });
+
+        for (let i = 0; i < Math.min(remainingSlots, pool.length); i++) 
+        {
+            chosen.push(pool[i].tile);
+        }
+    }
+
+    // consistent sort for stability
+    chosen.sort((a, b) => 
+    {
+        if ((b.Food || 0) !== (a.Food || 0)) 
+            return (b.Food || 0) - (a.Food || 0);
+
+        if ((b.Production || 0) !== (a.Production || 0)) 
+            return (b.Production || 0) - (a.Production || 0);
+
+        if ((b.Gold || 0) !== (a.Gold || 0)) 
+            return (b.Gold || 0) - (a.Gold || 0);
+
+        if (a.X !== b.X) 
+            return a.X - b.X;
+
+        return a.Y - b.Y;
+    });
+
+    return chosen.slice(0, slots);
 }

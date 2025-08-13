@@ -11,11 +11,12 @@ import { Civilization, getCivilizationObject } from '../civilization/civilizatio
 import { yieldSelectStyle, nearbyCityFontSize, nearbyCityStyles, genericSingleSelectStyle } from './mapPageSelectStyles';
 import { OptionsWithImage, OptionsWithSpecialText, OptionsGenericString } from '../types/selectionTypes';
 import { getMapOddrString, getMinMaxXY, getTextWidth } from '../utils/functions/misc/misc';
-import { getHexPoint, getOffsets, oddrToPixel, pixelToOddr } from '../utils/functions/hex/genericHex';
+import { getDistanceBetweenTwoOddrHex, getHexPoint, getOffsets, oddrToPixel, pixelToOddr } from '../utils/functions/hex/genericHex';
 import { getScaledGridAndTileSizes, getScaledGridSizesFromTile, getScaleFromType } from '../utils/functions/imgScaling/scaling';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCircleQuestion } from '@fortawesome/free-regular-svg-icons';
 import Tooltip from '../components/tooltip';
+import { allocateCitizensAuto } from '../utils/functions/civ/civFunctions';
 
 // assuming all strategic resources are revealed
 
@@ -26,6 +27,8 @@ TODO: Districts & citizens can only be put 3 tiles away from the city center!!!!
 
 TODO: Get new worked tile if district is placed over worked one!! RULES: Yields affected by favored or disfavored yields. Prioritzes food? Districts are least priority? Disfavored = remove tiles that have more of the disfavored yield. Favored = keep tiles that have more of this.
 TODO: Test calculated worked tile by manually adding favored/disfavored yields and checking yieldTesting.json.
+
+TODO: Account for unique buildings in districts and in the TileBuildingsList.
 
 TODO: Add toggable hover with tile data and resize if too long with max width
 
@@ -329,6 +332,16 @@ const MapPage = () =>
 
     function drawMapWithHoveredTile(context: CanvasRenderingContext2D, oddrCoord: {col: number, row: number}, opacity: number)
     {
+        let newTiles: TileType[] = [];
+        const aachenTiles = cityOwnedTiles.get("German Empire,Aachen");
+        const aachenTilesReal = structuredClone(aachenTiles);
+        if (aachenTilesReal && aachenTiles)
+        {
+            const aachenCity = aachenTiles[aachenTiles.length - 1];
+
+            newTiles = allocateCitizensAuto(aachenTilesReal, aachenCity, {population: 10});
+        }
+
         context.clearRect(0, 0, gridSize.x, gridSize.y);
 
         let textBoxPos = {x: -1, y: -1};
@@ -362,8 +375,15 @@ const MapPage = () =>
                 theOpacity = 1;
             }
 
-            if (tile.IsWorked)
-                theOpacity = 0.25;
+            //if (tile.IsWorked)
+                //theOpacity = 0.25;
+
+            newTiles.forEach((tileN) => 
+            {
+                //console.log('Food: ' + tile.Food + ' Production: ' + tile.Production + ' Gold: ' + tile.Gold + ' Culture: ' + tile.Culture + ' Faith: ' + tile.Faith)
+                if (tileN.X === tile.X && tileN.Y === tile.Y)
+                    theOpacity = 0.25;
+            })
 
             const theImage = getImageAttributes(tile).imgElement;
             if (theImage)
@@ -413,6 +433,7 @@ const MapPage = () =>
 
     const handleMouseClick = useCallback((e: MouseEvent) => 
     {
+
         const { minX, maxX, minY, maxY } = minAndMaxCoords;
         const mousePos = getMousePos(e);
 

@@ -1,8 +1,8 @@
 import { TileDistricts, TileYields, VictoryType } from "../types/types";
 
 export const baseTileSize : number = 10;
-export const CIV_NAME_DEFAULT = "Select a civilization";
-export const CITY_NAME_DEFAULT = "Select a city";
+export const minZoom = 50;
+export const maxZoom = 300;
 
 export const getAllPossibleDistricts = () =>
 {

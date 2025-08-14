@@ -1,79 +1,54 @@
-import { TileNone, TileDistricts, TileFeatures, TileTerrain, TileWonders, TileNaturalWonders, TerrainFeatureKey, TileYields } from "../types/types";
+import { TileNone, TileDistricts, TileFeatures, TileTerrain, TileWonders, TileNaturalWonders, TerrainFeatureKey, TileYields, TileBonusResources, TileLuxuryResources, TileStrategicResources, TileArtifactResources, TileUniqueDistricts } from "../types/types";
 import { allWonderImages } from "./importers/wondersImport";
 import { allDistrictImages } from "./importers/districtImport";
 import { allTerrainImages } from "./importers/terrainImport";
 import { allNaturalWonderImages } from "./importers/naturalWondersImport";
 import { allYieldImages } from "./importers/yieldsImport";
+import { allResourceImages } from "./importers/resourcesImport";
 
-export async function loadTerrainImages(terrainMap: Map<string, HTMLImageElement>) 
+async function loadImages<T extends string | number | symbol>(theMap: Map<T, HTMLImageElement>, imageImport: Record<T, string>)
 {
-    for (const key in allTerrainImages) 
+    for (const key of Object.keys(imageImport) as T[]) 
     {
-        const src = allTerrainImages[key as TerrainFeatureKey];
+        const src = imageImport[key];
         const img = new Image();
         if (src)
         {
             img.src = src;
 
-            await new Promise(resolve => (img.onload = resolve));
+            await new Promise<void>(resolve => {img.onload = () => resolve()});
 
-            terrainMap.set(key, img);
+            theMap.set(key, img);
         }
     }
 }
 
+export async function loadTerrainImages(terrainMap: Map<string, HTMLImageElement>) 
+{
+    loadImages(terrainMap, allTerrainImages);
+}
+
 export async function loadWonderImages(wonder: Map<TileWonders, HTMLImageElement>)
 {
-    for (const wonders of Object.values(TileWonders)) 
-    {
-        const src = allWonderImages[wonders];
-        const img = new Image();
-        img.src = src;
-        
-        await new Promise(resolve => (img.onload = resolve));
-
-        wonder.set(wonders, img);
-    }
+    loadImages(wonder, allWonderImages);
 }
 
 export async function loadNaturalWonderImages(nat: Map<TileNaturalWonders, HTMLImageElement>)
 {
-    for (const wonders of Object.values(TileNaturalWonders)) 
-    {
-        const src = allNaturalWonderImages[wonders];
-        const img = new Image();
-        img.src = src;
-        
-        await new Promise(resolve => (img.onload = resolve));
-
-        nat.set(wonders, img);
-    }
+    loadImages(nat, allNaturalWonderImages);
 }
 
-export async function loadDistrictImages(dist: Map<TileDistricts, HTMLImageElement>)
+export async function loadDistrictImages(dist: Map<TileDistricts | TileUniqueDistricts, HTMLImageElement>)
 {
-    for (const district of Object.values(TileDistricts)) 
-    {
-        const src = allDistrictImages[district];
-        const img = new Image();
-        img.src = src;
-        
-        await new Promise(resolve => (img.onload = resolve));
-
-        dist.set(district, img);
-    }
+    loadImages(dist, allDistrictImages);
 }
 
 export async function loadYieldImages(yieldCache: Map<TileYields, HTMLImageElement>)
 {
-    for (const yields of Object.values(TileYields)) 
-    {
-        const src = allYieldImages[yields];
-        const img = new Image();
-        img.src = src;
-        
-        await new Promise(resolve => (img.onload = resolve));
+    loadImages(yieldCache, allYieldImages);
+}
 
-        yieldCache.set(yields, img);
-    }
+export async function loadResourceImages(resources: Map<TileBonusResources | TileLuxuryResources | TileStrategicResources | TileArtifactResources, HTMLImageElement>)
+{
+    loadImages(resources, allResourceImages);
 }

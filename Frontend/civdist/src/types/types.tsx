@@ -1,7 +1,8 @@
 export enum HexType
 {
     TERRAIN,
-    DISTRICT
+    DISTRICT,
+    RESOURCE
 }
 
 export enum RiverDirections
@@ -25,7 +26,7 @@ export enum TileNone {NONE = "NONE"}
 export enum TileNaturalWonders
 {
   CLIFFS_OF_DOVER = 'Cliffs of Dover',
-  CRATER_LAKE = 'CRATER_LAKE',
+  CRATER_LAKE = 'Crater Lake',
   DEAD_SEA = 'Dead Sea',
   GALAPAGOS_ISLANDS = 'Galápagos Islands',
   GREAT_BARRIER_REEF = 'Great Barrier Reef',
@@ -321,6 +322,12 @@ export enum TileStrategicResources
   URANIUM = 'Uranium'
 }
 
+export enum TileArtifactResources
+{
+  ANTIQUITY_SITE = 'Antiquity Site',
+  SHIPWRECK = 'Shipwreck'
+}
+
 export enum TilePantheons
 {
   DANCE_OF_THE_AURORA = 'Dance of the Aurora',
@@ -391,7 +398,7 @@ export type TileType =
   TerrainType: TileTerrain | TileNone.NONE,
   /** CONTAINS NATURAL WONDERS */
   FeatureType: TileFeatures | TileNaturalWonders | TileNone.NONE,
-  ResourceType: TileBonusResources | TileStrategicResources | TileLuxuryResources | TileNone.NONE,
+  ResourceType: TileBonusResources | TileStrategicResources | TileLuxuryResources | TileArtifactResources | TileNone.NONE,
   ImprovementType: TileImprovements | TileNone.NONE,
   IsHills: boolean,
   IsMountain: boolean,
@@ -399,6 +406,7 @@ export type TileType =
   IsLake: boolean,
   IsFlatlands: boolean,
   IsCity: boolean,
+  Population: number,
   IsWorked: boolean,
   TileCity: string,
   CityPantheon: TilePantheons | TileNone.NONE,

@@ -10,7 +10,7 @@ import { getMinMaxXY } from "../misc/misc";
  * @param imgTileSize 
  * The size of the hex/tile in the image in terms of:
  * - x (size/length from the center -> horizontal edge)
- * - y (size/length from the center -> vertical edge (pointy top))
+ * - y (size/length from the center -> vertical edge)
  * @returns 
  * The multiplicative scale factor in terms of: 
  * - width
@@ -44,6 +44,7 @@ export function getScaleFromType(imgType: number): {scaleW: number, scaleH: numb
 
     if (imgType === HexType.DISTRICT) return getScale({x: 128, y: 128}, {x: 32, y: 32}); // actually 56x64, but this is to make the tile fit nicer
     else if (imgType === HexType.TERRAIN) return getScale({x: 128, y: 128}, {x: 32, y: 32});
+    else if (imgType === HexType.RESOURCE) return getScale({x: 38, y: 38}, {x: 19, y: 19});
 
     return {scaleW: -1, scaleH: -1};
 }

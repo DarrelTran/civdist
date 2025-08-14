@@ -11,9 +11,9 @@ import neighborhood_district from '../districts/neighborhood_district2.png';
 import rocket_district from '../districts/rocket_district2.png';
 import science_district from '../districts/science_district2.png';
 import theater_district from '../districts/theater_district2.png';
-import { TileDistricts } from '../../types/types';
+import { TileDistricts, TileUniqueDistricts } from '../../types/types';
 
-export const allDistrictImages: Record<TileDistricts, string> = 
+export const allDistrictImages: Record<TileDistricts | TileUniqueDistricts, string> = 
 {
   [TileDistricts.AQUEDUCT_DISTRICT]: aqueduct_district,
   [TileDistricts.AERODROME_DISTRICT]: aerodome_district,
@@ -27,5 +27,13 @@ export const allDistrictImages: Record<TileDistricts, string> =
   [TileDistricts.NEIGHBORHOOD_DISTRICT]: neighborhood_district,
   [TileDistricts.ROCKET_DISTRICT]: rocket_district,
   [TileDistricts.SCIENCE_DISTRICT]: science_district,
-  [TileDistricts.THEATER_DISTRICT]: theater_district
+  [TileDistricts.THEATER_DISTRICT]: theater_district,
+
+  [TileUniqueDistricts.BATH_DISTRICT]: aqueduct_district,
+  [TileUniqueDistricts.STREET_CARNIVAL_DISTRICT]: entertainment_district,
+  [TileUniqueDistricts.LAVRA_DISTRICT]: faith_district,
+  [TileUniqueDistricts.ROYAL_NAVY_DOCKYARD_DISTRICT]: harbor_district,
+  [TileUniqueDistricts.HANSA_DISTRICT]: industrial_district,
+  [TileUniqueDistricts.MBANZA_DISTRICT]: neighborhood_district,
+  [TileUniqueDistricts.ACROPOLIS_DISTRICT]: theater_district,
 };

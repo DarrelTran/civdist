@@ -1,34 +1,34 @@
 import React, {useEffect, useState, useRef, useCallback, JSX} from 'react';
-import Select from 'react-select'
+import Select, { GroupBase, SelectInstance } from 'react-select'
 import { Link } from 'react-router-dom';
 import './mapPage.css'
 import './allPages.css';
-import { TileNone, TileWonders, TileDistricts, TileNaturalWonders, TerrainFeatureKey, RiverDirections, TileType, LeaderName, TileYields, PossibleErrors, VictoryType} from '../types/types'
-import { loadDistrictImages, loadNaturalWonderImages, loadTerrainImages, loadWonderImages, loadYieldImages } from '../images/imageLoaders';
-import { getTerrain, getDistrict, getNaturalWonder, getWonder } from '../images/imageAttributeFinders';
-import { baseTileSize, getAllPossibleDistricts, getAllPossibleYields, CIV_NAME_DEFAULT, CITY_NAME_DEFAULT, getAllPossibleVictoryTypes } from '../utils/constants';
+import { TileNone, TileWonders, TileDistricts, TileNaturalWonders, TerrainFeatureKey, RiverDirections, TileType, LeaderName, TileYields, PossibleErrors, VictoryType, TileBonusResources, TileLuxuryResources, TileStrategicResources, TileArtifactResources, TileUniqueDistricts} from '../types/types'
+import { loadDistrictImages, loadNaturalWonderImages, loadResourceImages, loadTerrainImages, loadWonderImages, loadYieldImages } from '../images/imageLoaders';
+import { getTerrain, getDistrict, getNaturalWonder, getWonder, getResource } from '../images/imageAttributeFinders';
+import { baseTileSize, getAllPossibleDistricts, getAllPossibleYields, getAllPossibleVictoryTypes, minZoom, maxZoom } from '../utils/constants';
 import { Civilization, getCivilizationObject } from '../civilization/civilizations';
 import { yieldSelectStyle, nearbyCityFontSize, nearbyCityStyles, genericSingleSelectStyle } from './mapPageSelectStyles';
 import { OptionsWithImage, OptionsWithSpecialText, OptionsGenericString } from '../types/selectionTypes';
 import { getMapOddrString, getMinMaxXY, getTextWidth } from '../utils/functions/misc/misc';
-import { getDistanceBetweenTwoOddrHex, getHexPoint, getOffsets, oddrToPixel, pixelToOddr } from '../utils/functions/hex/genericHex';
+import { getHexPoint, getOffsets, oddrToPixel, pixelToOddr } from '../utils/functions/hex/genericHex';
 import { getScaledGridAndTileSizes, getScaledGridSizesFromTile, getScaleFromType } from '../utils/functions/imgScaling/scaling';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCircleQuestion } from '@fortawesome/free-regular-svg-icons';
 import Tooltip from '../components/tooltip';
-import { allocateCitizensAuto } from '../utils/functions/civ/civFunctions';
+import { allocateCitizensAuto, purgeTileForDistrict } from '../utils/functions/civ/civFunctions';
 
-// assuming all strategic resources are revealed
+// assuming all resources are revealed
 
 /*
 /////////////////////////////////////////////////////////////////
 
-TODO: Districts & citizens can only be put 3 tiles away from the city center!!!!!!!!!!!
+TODO: yieldTesting.json wrong encampment????
+
+TODO: Add resources and tile yield images to map.
 
 TODO: Get new worked tile if district is placed over worked one!! RULES: Yields affected by favored or disfavored yields. Prioritzes food? Districts are least priority? Disfavored = remove tiles that have more of the disfavored yield. Favored = keep tiles that have more of this.
 TODO: Test calculated worked tile by manually adding favored/disfavored yields and checking yieldTesting.json.
-
-TODO: Account for unique buildings in districts and in the TileBuildingsList.
 
 TODO: Add toggable hover with tile data and resize if too long with max width
 
@@ -74,7 +74,6 @@ const MapPage = () =>
     const [winSize, setWinSize] = useState<{width: number, height: number}>({width: window.innerWidth, height: window.innerHeight});
 
     const [visualZoomInput, setVisualZoomInput] = useState<number>(100);
-    const [visualYieldDropdown, setVisualYieldDropdown] = useState<{value: TileYields, label: TileYields, image: HTMLImageElement}[]>([]);
 
     const [originalGridSize, setOriginalGridSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(baseTileSize, minAndMaxCoords, winSize).tileX, y: getScaledGridAndTileSizes(baseTileSize, minAndMaxCoords, winSize).tileY}); 
     const [gridSize, setGridSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(baseTileSize, minAndMaxCoords, winSize).gridX, y: getScaledGridAndTileSizes(baseTileSize, minAndMaxCoords, winSize).gridY});
@@ -93,16 +92,22 @@ const MapPage = () =>
     // assuming civ has at least one city
     const [uniqueCivilizations, setUniqueCivilizations] = useState<Set<string>>(new Set());
     const [uniqueCities, setUniqueCities] = useState<Map<string, string[]>>(new Map()); // <civilization, cities>
-    const [dropdownCiv, setDropdownCiv] = useState<string>(CIV_NAME_DEFAULT);
-    const [dropdownCivVisual, setDropdownCivVisual] = useState<string | null>(null);
+
+    const [dropdownCiv, setDropdownCiv] = useState<string | null>(null);
+
     const [includeCityStates, setIncludeCityStates] = useState<boolean>(false);
     const [includeWonders, setIncludeWonders] = useState<boolean>(false);
-    const [dropdownCity, setDropdownCity] = useState<string>(CITY_NAME_DEFAULT);
-    const [dropdownCityVisual, setDropdownCityVisual] = useState<string | null>(null);
+
+    const [dropdownCity, setDropdownCity] = useState<string | null>(null);
+
     const [dropdownDistrict, setDropdownDistrict] = useState<string | null>(null);
+
     const [dropdownYields, setDropdownYields] = useState<TileYields[]>([]);
+    const [visualYieldDropdown, setVisualYieldDropdown] = useState<{value: TileYields, label: TileYields, image: HTMLImageElement}[]>([]);
+
     const [dropdownVictoryType, setDropdownVictoryType] = useState<string | null>(null);
-    const [dropdownNearbyCity, setDropdownNearbyCity] = useState<TileType>();
+
+    const [dropdownNearbyCity, setDropdownNearbyCity] = useState<TileType | null>(null);
 
     /**
      * - Shifting hex img's by the subtraction seen in drawMap() keeps correct oddr coordinate detection but visuals will break
@@ -114,12 +119,14 @@ const MapPage = () =>
     const scrollRef = useRef<HTMLDivElement>(null);
     const zoomInputRef = useRef<HTMLInputElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const nearbyCityRef = useRef<SelectInstance<OptionsWithSpecialText, false, GroupBase<OptionsWithSpecialText>> | null>(null)
 
     const terrainImagesCache = useRef<Map<TerrainFeatureKey, HTMLImageElement>>(new Map());
     const wondersImagesCache = useRef<Map<TileWonders, HTMLImageElement>>(new Map());
     const naturalWondersImagesCache = useRef<Map<TileNaturalWonders, HTMLImageElement>>(new Map());
-    const districtsImagesCache = useRef<Map<TileDistricts, HTMLImageElement>>(new Map());
+    const districtsImagesCache = useRef<Map<TileDistricts | TileUniqueDistricts, HTMLImageElement>>(new Map());
     const yieldImagesCache = useRef<Map<TileYields, HTMLImageElement>>(new Map());
+    const resourceImagesCache = useRef<Map<TileBonusResources | TileLuxuryResources | TileStrategicResources | TileArtifactResources, HTMLImageElement>>(new Map());
 
     const [areImagesLoaded, setAreImagesLoaded] = useState<boolean>(false);
 
@@ -130,6 +137,7 @@ const MapPage = () =>
         await loadNaturalWonderImages(naturalWondersImagesCache.current);
         await loadDistrictImages(districtsImagesCache.current);
         await loadYieldImages(yieldImagesCache.current);
+        await loadResourceImages(resourceImagesCache.current);
 
         setAreImagesLoaded(true);
     }
@@ -307,6 +315,37 @@ const MapPage = () =>
         });
     }
 
+    function drawResources(context: CanvasRenderingContext2D)
+    {
+        hexmapCache.current.forEach(tile => 
+        {
+            if (tile.ResourceType !== TileNone.NONE && tile.District === TileNone.NONE)
+            {
+                const px = oddrToPixel(tile.X, tile.Y, tileSize.x, tileSize.y, hexMapOffset);
+                const imgAttributes = getResource(tile, resourceImagesCache.current);
+                const scale = getScaleFromType(imgAttributes.scaleType); 
+                const img = imgAttributes.imgElement;
+
+                // divide 2 since want img centered on tile and resources are roughly half the tile's size
+                // resource = 19x19 ; tile = 32x32
+                const drawWidth = tileSize.x / 2 * scale.scaleW;
+                const drawHeight = tileSize.y / 2 * scale.scaleH;
+
+                if (img)
+                {
+                    context.save();
+
+                    context.scale(1, -1);
+                    context.translate(0, -gridSize.y);
+
+                    context.drawImage(img, px.x - drawWidth / 2, px.y - drawHeight / 2, drawWidth, drawHeight);
+
+                    context.restore();
+                }
+            }
+        })
+    }
+
     function drawHexImage(context: CanvasRenderingContext2D, tile: TileType, opacity: number, img: HTMLImageElement)
     {
         const px = oddrToPixel(tile.X, tile.Y, tileSize.x, tileSize.y, hexMapOffset);
@@ -332,16 +371,6 @@ const MapPage = () =>
 
     function drawMapWithHoveredTile(context: CanvasRenderingContext2D, oddrCoord: {col: number, row: number}, opacity: number)
     {
-        let newTiles: TileType[] = [];
-        const aachenTiles = cityOwnedTiles.get("German Empire,Aachen");
-        const aachenTilesReal = structuredClone(aachenTiles);
-        if (aachenTilesReal && aachenTiles)
-        {
-            const aachenCity = aachenTiles[aachenTiles.length - 1];
-
-            newTiles = allocateCitizensAuto(aachenTilesReal, aachenCity, {population: 10});
-        }
-
         context.clearRect(0, 0, gridSize.x, gridSize.y);
 
         let textBoxPos = {x: -1, y: -1};
@@ -375,16 +404,6 @@ const MapPage = () =>
                 theOpacity = 1;
             }
 
-            //if (tile.IsWorked)
-                //theOpacity = 0.25;
-
-            newTiles.forEach((tileN) => 
-            {
-                //console.log('Food: ' + tile.Food + ' Production: ' + tile.Production + ' Gold: ' + tile.Gold + ' Culture: ' + tile.Culture + ' Faith: ' + tile.Faith)
-                if (tileN.X === tile.X && tileN.Y === tile.Y)
-                    theOpacity = 0.25;
-            })
-
             const theImage = getImageAttributes(tile).imgElement;
             if (theImage)
                 drawHexImage(context, tile, theOpacity, theImage);
@@ -392,6 +411,7 @@ const MapPage = () =>
 
         drawRiversFromCache(context);
         drawBorderLines(context);
+        drawResources(context);
 
         drawTextWithBox(context, {x: textBoxPos.x, y: textBoxPos.y}, textBoxText);
     }
@@ -433,7 +453,6 @@ const MapPage = () =>
 
     const handleMouseClick = useCallback((e: MouseEvent) => 
     {
-
         const { minX, maxX, minY, maxY } = minAndMaxCoords;
         const mousePos = getMousePos(e);
 
@@ -517,9 +536,6 @@ const MapPage = () =>
         let tempCivSet = new Set<string>();
         let tempCitySet = new Map<string, string[]>();
 
-        let firstCiv = CIV_NAME_DEFAULT;
-        let firstCity = CITY_NAME_DEFAULT;
-
         for (let i = 0; i < theJSON.length; i++)
         {
             const tile = theJSON[i];
@@ -538,14 +554,6 @@ const MapPage = () =>
                     else
                     {
                         tempCitySet.set(tile.Civilization, [tile.CityName]);
-                    }
-                    
-                    if (includeCityStates || (!includeCityStates && !tile.Civilization.includes("city-state")))
-                    {
-                        if (firstCiv === CIV_NAME_DEFAULT)
-                            firstCiv = tile.Civilization;
-                        if (firstCity === CITY_NAME_DEFAULT)
-                            firstCity = tile.CityName;
                     }
                 }
             }
@@ -588,7 +596,7 @@ const MapPage = () =>
     {
         context.clearRect(0, 0, context.canvas.width, context.canvas.height);
 
-        hexmapCache.current.forEach((tile, oddr) => 
+        hexmapCache.current.forEach(tile => 
         {
             let theOpacity = 1;
             if (tile.IsCity && dropdownCity && tile.CityName === dropdownCity)
@@ -601,6 +609,7 @@ const MapPage = () =>
 
         drawRiversFromCache(context);
         drawBorderLines(context);
+        drawResources(context);
     }, [tileSize, gridSize, cityBoundaryTiles, dropdownCity, areImagesLoaded, mapJSON, mapCacheVersion]);
 
     const initHexmapCache = useCallback(() => 
@@ -687,7 +696,7 @@ const MapPage = () =>
     useEffect(() => 
     {
         // wait until the necessary data is ready
-        if (!dropdownCity || !areImagesLoaded || mapJSON.length === 0) return;
+        if (!areImagesLoaded || mapJSON.length === 0) return;
 
         if (hexmapCache.current.size === 0) 
         {
@@ -699,20 +708,20 @@ const MapPage = () =>
             if (context) 
                 drawMapFromCache(context);
         }
-    }, [dropdownCity, areImagesLoaded, mapJSON, minAndMaxCoords, mapCacheVersion, initHexmapCache, drawMapFromCache]);
+    }, [areImagesLoaded, mapJSON, minAndMaxCoords, mapCacheVersion, initHexmapCache, drawMapFromCache]);
 
     const handleZoomChange = useCallback((zoomLevel: number) =>
     {
         let theZoom = zoomLevel;
-        if (theZoom < 50)
+        if (theZoom < minZoom)
         {
-            theZoom = 50;
-            setVisualZoomInput(50);
+            theZoom = minZoom;
+            setVisualZoomInput(minZoom);
         }
-        else if (theZoom > 200)
+        else if (theZoom > maxZoom)
         {
-            theZoom = 200;
-            setVisualZoomInput(200);
+            theZoom = maxZoom;
+            setVisualZoomInput(maxZoom);
         }
 
         const multiplier = Math.abs(theZoom) / 100.0;
@@ -766,6 +775,14 @@ const MapPage = () =>
         setVisualYieldDropdown([]);
         setCityOwnedTiles(new Map());
         setCivCompletedWonders(new Set());
+        setDropdownVictoryType(null);
+        setDropdownCity(null);
+        setDropdownCiv(null);
+        setDropdownDistrict(null);
+        setDropdownNearbyCity(null);
+
+        if (nearbyCityRef.current)
+            nearbyCityRef.current.clearValue();
     }
 
     function handleInputChange(e: React.ChangeEvent<HTMLInputElement>)
@@ -795,29 +812,42 @@ const MapPage = () =>
         }
     }   
 
-    function updateTilesWithDistrict(foundTile: TileType)
+    function updateTilesWithDistrict(foundTile: TileType, cityTiles: TileType[])
     {
         if (dropdownCity)
         {
+            // update city local variable
+            for (let i = 0; i < cityTiles.length; i++)
+            {
+                const currTile = cityTiles[i];
+                if (currTile.X === foundTile.X && currTile.Y === foundTile.Y)
+                {
+                    cityTiles[i] = foundTile;
+                    break;
+                }
+            }
+            
+            let newCityTiles = cityTiles;
+            let workerReassigned = false;
+
+            if (foundTile.IsWorked) // means will not be worked anymore after district placement
+                workerReassigned = true;
+
+            purgeTileForDistrict(foundTile);
+
+            if (workerReassigned)
+            {
+                const theCity = cityTiles[cityTiles.length - 1];
+                newCityTiles = allocateCitizensAuto(cityTiles, theCity, {population: theCity.Population});
+            }
+
             const oddr = getMapOddrString(foundTile.X, foundTile.Y);
             hexmapCache.current.set(oddr, foundTile);
 
             const cityMap = new Map(cityOwnedTiles);
             const tileList = cityMap.get(dropdownCity);
             if (tileList)
-            {
-                for (let i = 0; i < tileList.length; i++)
-                {
-                    const tile = tileList[i];
-                    if (tile.X === foundTile.X && tile.Y === foundTile.Y)
-                    {
-                        tileList[i] = foundTile;
-                        break;
-                    }
-                }
-
-                cityMap.set(dropdownCity, tileList);
-            }
+                cityMap.set(dropdownCity, newCityTiles);
 
             setCityOwnedTiles(cityMap);
             setMapCacheVersion(mapCacheVersion + 1);
@@ -901,9 +931,9 @@ const MapPage = () =>
 
         if (mapJSON.length <= 0)
                 theError = "ERROR: Need to load a map first!"; 
-        else if (dropdownCiv === CIV_NAME_DEFAULT)
+        else if (!dropdownCiv)
             theError = "ERROR: Need to select a civilization!"; 
-        else if (dropdownCity === CITY_NAME_DEFAULT)
+        else if (!dropdownCity)
             theError = "ERROR: Need to select a city!"; 
         else if (!dropdownDistrict)
             theError = "ERROR: Need to select a district!"; 
@@ -931,11 +961,13 @@ const MapPage = () =>
                 const dropdownCityOwnedTiles = cityOwnedTiles.get(`${dropdownCiv},${dropdownCity}`);
 
                 if (dropdownCityOwnedTiles)
+                {
                     foundTile = getTileFromDistrictType(theCiv, dropdownCityOwnedTiles);
-            }
 
-            if (foundTile)
-                updateTilesWithDistrict(foundTile);
+                    if (foundTile)
+                        updateTilesWithDistrict(foundTile, dropdownCityOwnedTiles);
+                }
+            }
         }
         catch(err)
         {
@@ -1020,14 +1052,17 @@ const MapPage = () =>
     const getCityOptions = useCallback(() => 
     {
         const tempArr: OptionsGenericString[] = [];
-        const cityList = uniqueCities.get(dropdownCiv);
-
-        if (cityList)
+        if (dropdownCiv)
         {
-            for (let i = 0; i < cityList.length; i++)
+            const cityList = uniqueCities.get(dropdownCiv);
+
+            if (cityList)
             {
-                const theCity = cityList[i];
-                tempArr.push({value: theCity, label: theCity});
+                for (let i = 0; i < cityList.length; i++)
+                {
+                    const theCity = cityList[i];
+                    tempArr.push({value: theCity, label: theCity});
+                }
             }
         }
 
@@ -1078,7 +1113,7 @@ const MapPage = () =>
         }
         else
         {
-            const theString = `${CITY_NAME_DEFAULT} (${CIV_NAME_DEFAULT})`;
+            const theString = 'Select a nearby city.';
             const width = getTextWidth(theString, `${nearbyCityFontSize}px arial`, theCanvas.current);
             if (width)
                 max = Math.max(width);
@@ -1123,7 +1158,7 @@ const MapPage = () =>
                         <span className='mandatory'>*</span>
 
                         <Select 
-                            value={dropdownCivVisual ? {label: dropdownCivVisual, value: dropdownCivVisual} : null}
+                            value={dropdownCiv ? {label: dropdownCiv, value: dropdownCiv} : null}
                             options={getCivilizationOptions()} 
                             styles={genericSingleSelectStyle} 
                             onChange=
@@ -1131,28 +1166,14 @@ const MapPage = () =>
                                 val => 
                                 { 
                                     if (val && val.value) 
-                                    {
                                         setDropdownCiv(val.value); 
-                                        setDropdownCivVisual(val.value);
-                                        const cityList = uniqueCities.get(dropdownCiv);
-
-                                        if (cityList && cityList.length > 0)
-                                        {
-                                            setDropdownCity(CITY_NAME_DEFAULT);
-                                            setDropdownCityVisual(null);
-                                        }
-                                    }
                                     else 
-                                    {
-                                        setDropdownCiv(CIV_NAME_DEFAULT);
-                                        setDropdownCivVisual(null);
+                                        setDropdownCiv(null);
 
-                                        setDropdownCity(CITY_NAME_DEFAULT);
-                                        setDropdownCityVisual(null);
-                                    } 
+                                    setDropdownCity(null);
                                 }
                             } 
-                            placeholder={CIV_NAME_DEFAULT}
+                            placeholder={'Select a civilization'}
                         />
 
                         <Tooltip text='Select a civilization.'>
@@ -1166,7 +1187,7 @@ const MapPage = () =>
                         <span className='mandatory'>*</span>
                         
                         <Select 
-                            value={dropdownCityVisual ? {label: dropdownCityVisual, value: dropdownCityVisual} : null}
+                            value={dropdownCity ? {label: dropdownCity, value: dropdownCity} : null}
                             options={getCityOptions()} 
                             styles={genericSingleSelectStyle} 
                             onChange=
@@ -1176,19 +1197,17 @@ const MapPage = () =>
                                     if (val && val.value) 
                                     {
                                         setDropdownCity(val.value); 
-                                        setDropdownCityVisual(val.value);
                                     }
                                     else 
                                     {
-                                        setDropdownCity(CITY_NAME_DEFAULT); 
-                                        setDropdownCityVisual(null);
+                                        setDropdownCity(null); 
                                     }
                                 }
                             } 
-                            placeholder={CITY_NAME_DEFAULT}
+                            placeholder={'Select a city'}
                         />
                         
-                        <Tooltip text={`${dropdownCiv}'s cities.`}>
+                        <Tooltip text={dropdownCiv ? `${dropdownCiv}'s cities.` : 'Select a civilization first!'}>
                             <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
                         </Tooltip>
                     </div>
@@ -1197,6 +1216,7 @@ const MapPage = () =>
                         {/* District Type Selection */}
                         <span className='mandatory'>*</span>
                         <Select
+                            value={dropdownDistrict ? {label: dropdownDistrict, value: dropdownDistrict} : null}
                             options={getDistrictOptions()}
                             placeholder='Select a district'
                             styles={genericSingleSelectStyle}
@@ -1212,6 +1232,7 @@ const MapPage = () =>
                         <span className='mandatory'>*</span>
                         {/* Nearby City Selection */}
                         <Select 
+                            
                             onChange=
                             {
                                 val =>
@@ -1224,7 +1245,7 @@ const MapPage = () =>
                                     }
                                     else
                                     {
-                                        setDropdownNearbyCity(undefined);
+                                        setDropdownNearbyCity(null);
                                     }
                                 }
 
@@ -1232,6 +1253,7 @@ const MapPage = () =>
                             options={getNearbyCityOptions()} 
                             styles={nearbyCityStyles(getNearbyCityTextMaxWidth() * 1.25)}
                             placeholder='Select a nearby city'
+                            ref={nearbyCityRef}
                         />
 
                         <Tooltip text='A city you see as a threat.'>
@@ -1272,6 +1294,7 @@ const MapPage = () =>
                     <div style={{display: 'flex'}}>
                         {/* Victory Type Selection */}
                         <Select
+                            value={dropdownVictoryType ? {label: dropdownVictoryType, value: dropdownVictoryType} : null}
                             options={getVictoryTypeOptions()}
                             placeholder='Select a victory type'
                             styles={genericSingleSelectStyle}
@@ -1295,14 +1318,14 @@ const MapPage = () =>
                             onClick={e => handleZoomClick(e)} 
                             ref={zoomInputRef} 
                             type='number' 
-                            min={50} 
-                            max={200} 
+                            min={minZoom} 
+                            max={maxZoom} 
                             value={visualZoomInput} 
                             onChange={e => setVisualZoomInput(Number(e.target.value))} 
                             onBlur={e => handleZoomChange(Number(e.target.value))}
                         />
 
-                        <Tooltip text={'50 - 200%'}>
+                        <Tooltip text={'50 - 300%'}>
                             <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
                         </Tooltip>
                     </div>

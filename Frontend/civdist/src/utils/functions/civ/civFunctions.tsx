@@ -2,6 +2,40 @@ import { TileType, TileTerrain, TileNaturalWonders, TileBonusResources, TileLuxu
 import { getOffsets } from "../hex/genericHex";
 import { getMapOddrString } from "../misc/misc";
 
+/**
+ * 
+ * @param ownedTiles Assuming the city is the last element and that ownedTiles is not empty!
+ * @returns
+ */
+export function getCityTile(ownedTiles: readonly TileType[])
+{
+    if (ownedTiles.length <= 0)
+        throw new Error("City tiles are empty when trying to retrieve the city tile!");
+
+    return ownedTiles[ownedTiles.length - 1]
+}
+
+export function isAdjacentToCityCenter(tile: TileType, mapCache: Map<string, TileType>)
+{
+    const offsets = getOffsets(tile.Y);
+    for (let i = 0; i < offsets.length; i++)
+    {
+        const dx = offsets[i][0];
+        const dy = offsets[i][1];
+
+        const oddrStr = getMapOddrString(tile.X + dx, tile.Y + dy);
+        const adjTile = mapCache.get(oddrStr);
+
+        if (adjTile)
+        {
+            if (adjTile.IsCity) 
+                return true;
+        }
+    }
+
+    return false;
+}
+
 export function hasBonusResource(tile: TileType): boolean
 {
     for (const bonus of Object.values(TileBonusResources)) 
@@ -63,7 +97,7 @@ export function hasSeaResource(tile: TileType): boolean
     return false;
 }
 
-export function hasNaturalWonder(wonder: string): boolean
+export function hasNaturalWonder(wonder: TileFeatures | TileNaturalWonders | TileNone): wonder is TileNaturalWonders // 'is' tells typescript that if true, then wonder is a TileNaturalWonders
 {
     for (const natWonder of Object.values(TileNaturalWonders)) 
     {
@@ -91,30 +125,16 @@ export function getCityBuildings(ownedTiles: readonly TileType[]): TileBuildings
 
 export function getCityPantheon(ownedTiles: readonly TileType[])
 {
-    for (let i = 0; i < ownedTiles.length; i++)
-    {
-        const theTile = ownedTiles[i];
-        if (theTile.IsCity)
-        {
-            return theTile.CityPantheon;
-        }
-    }
+    const cityTile = getCityTile(ownedTiles);
 
-    return TileNone.NONE;
+    return cityTile.CityPantheon;
 }
 
 export function getCityFoundedReligion(ownedTiles: readonly TileType[])
 {
-    for (let i = 0; i < ownedTiles.length; i++)
-    {
-        const theTile = ownedTiles[i];
-        if (theTile.IsCity)
-        {
-            return theTile.FoundedReligion;
-        }
-    }
+    const cityTile = getCityTile(ownedTiles);
 
-    return TileNone.NONE;
+    return cityTile.FoundedReligion;
 }
 
 export function isDesert(tile: TileType)
@@ -518,7 +538,7 @@ export function isValidAqueductTile(tile: TileType, mapCache: Map<string, TileTy
  * @param cityTile 
  * @returns 
  */
-export function purgeTileForDistrict(districtTile: TileType, cityTile: TileType): TileType
+export function purgeTileForDistrict(districtTile: TileType): TileType
 {
     const dist = districtTile;
 
@@ -551,7 +571,7 @@ interface AllocOptions
     disfavoredMultiplier?: number;              
 }
 
-function calculateDistrictYieldsFromCitizens(districtTile: TileType, cityTile: TileType): TileType[]
+export function calculateDistrictYieldsFromCitizens(districtTile: TileType, cityTile: TileType): TileType[]
 {
     const newTiles: TileType[] = [];
 
@@ -609,17 +629,13 @@ function calculateDistrictYieldsFromCitizens(districtTile: TileType, cityTile: T
 }
 
 /**
- * 
+ * May not be the most accurate.
  * @param allTiles 
  * @param cityTile 
  * @param opts 
  * @returns Returns an array of worked tiles for the city named cityName.
  */
-export function allocateCitizensAuto(
-    allTiles: TileType[],
-    cityTile: TileType,
-    opts: AllocOptions
-): TileType[] 
+export function allocateCitizensAuto(allTiles: TileType[], cityTile: TileType, opts: AllocOptions): TileType[] 
 {
     opts.maxDistance = opts.maxDistance ? opts.maxDistance : 3;
     // these random numbers seem to work
@@ -637,8 +653,8 @@ export function allocateCitizensAuto(
     if (slots === 0) return [];
 
     // Setup yield weights
-    const favoredSet = new Set(cityTile.FavoredYields || []);
-    const disfavoredSet = new Set(cityTile.DisfavoredYields || []);
+    const favoredSet = new Set(cityTile.FavoredYields);
+    const disfavoredSet = new Set(cityTile.DisfavoredYields);
     const yieldKeys: YieldKey[] = ['Food', 'Production', 'Gold', 'Science', 'Culture', 'Faith'];
 
     // remove typescript errors
@@ -657,7 +673,6 @@ export function allocateCitizensAuto(
             weights[y] = weights[y] * disfavoredMultiplier;
     }
 
-    // === Gather normal workable tiles ===
     const normalTiles = allTilesModified.filter
     (t =>
         !t.IsCity &&
@@ -667,7 +682,7 @@ export function allocateCitizensAuto(
         !hasNaturalWonder(t.FeatureType)
     );
 
-    // === Gather specialist "virtual tiles" ===
+    // "virtual tiles" to represent each specialist so can sort them
     function getSpecialistVirtualTiles(): TileTypeWithSpecialist[] 
     {
         const virtualTiles: TileTypeWithSpecialist[] = [];

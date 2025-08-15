@@ -1,9 +1,9 @@
-import { TileNone, TileDistricts, TileFeatures, TileTerrain, TileWonders, TileNaturalWonders, TerrainFeatureKey, TileYields, TileBonusResources, TileLuxuryResources, TileStrategicResources, TileArtifactResources, TileUniqueDistricts } from "../types/types";
+import { TileNone, TileDistricts, TileFeatures, TileTerrain, TileWonders, TileNaturalWonders, TerrainFeatureKey, TileYields, TileBonusResources, TileLuxuryResources, TileStrategicResources, TileArtifactResources, TileUniqueDistricts, YieldImagesKey } from "../types/types";
 import { allWonderImages } from "./importers/wondersImport";
 import { allDistrictImages } from "./importers/districtImport";
 import { allTerrainImages } from "./importers/terrainImport";
 import { allNaturalWonderImages } from "./importers/naturalWondersImport";
-import { allYieldImages } from "./importers/yieldsImport";
+import { yieldDropdownImages, yieldHexmapImages } from "./importers/yieldsImport";
 import { allResourceImages } from "./importers/resourcesImport";
 
 async function loadImages<T extends string | number | symbol>(theMap: Map<T, HTMLImageElement>, imageImport: Record<T, string>)
@@ -43,9 +43,14 @@ export async function loadDistrictImages(dist: Map<TileDistricts | TileUniqueDis
     loadImages(dist, allDistrictImages);
 }
 
-export async function loadYieldImages(yieldCache: Map<TileYields, HTMLImageElement>)
+export async function loadYieldDropdownImages(yieldCache: Map<TileYields, HTMLImageElement>)
 {
-    loadImages(yieldCache, allYieldImages);
+    loadImages(yieldCache, yieldDropdownImages);
+}
+
+export async function loadYieldImages(yieldCache: Map<YieldImagesKey, HTMLImageElement>)
+{
+    loadImages(yieldCache, yieldHexmapImages);
 }
 
 export async function loadResourceImages(resources: Map<TileBonusResources | TileLuxuryResources | TileStrategicResources | TileArtifactResources, HTMLImageElement>)

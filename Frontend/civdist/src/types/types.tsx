@@ -1,8 +1,10 @@
 export enum HexType
 {
+    UNKNOWN,
     TERRAIN,
     DISTRICT,
-    RESOURCE
+    RESOURCE,
+    YIELD
 }
 
 export enum RiverDirections
@@ -15,9 +17,11 @@ export enum RiverDirections
   NORTHWEST
 }
 
-// FOR terrain images
-/** Format is: "TileTerrain_[TileFeatures | TileNone]" EXCLUDING the brackets */
-export type TerrainFeatureKey = `${TileTerrain}_${TileFeatures | TileNone}`;
+export enum OptionalVisualOptions
+{
+  SHOW_YIELDS = 'Show Yields',
+  SHOW_RESOURCES = 'Show Resources'
+}
 
 export enum TileNone {NONE = "NONE"}
 /*********************** CIV TILE NAMES ***********************/
@@ -456,3 +460,11 @@ export enum VictoryType
   DIPLOMATIC = "Diplomatic",
   NONE = "None"
 }
+
+/*********************** FOR IMAGES ***********************/
+
+/** Format is: "TileTerrain_[TileFeatures | TileNone]" EXCLUDING the brackets */
+export type TerrainFeatureKey = `${TileTerrain}_${TileFeatures | TileNone}`;
+
+/** Format is: "TileYields_theYieldValue" */
+export type YieldImagesKey = `${TileYields}_${number}`;

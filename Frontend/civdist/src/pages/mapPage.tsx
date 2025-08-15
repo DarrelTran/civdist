@@ -3,16 +3,16 @@ import Select, { GroupBase, SelectInstance } from 'react-select'
 import { Link } from 'react-router-dom';
 import './mapPage.css'
 import './allPages.css';
-import { TileNone, TileWonders, TileDistricts, TileNaturalWonders, TerrainFeatureKey, RiverDirections, TileType, LeaderName, TileYields, PossibleErrors, VictoryType, TileBonusResources, TileLuxuryResources, TileStrategicResources, TileArtifactResources, TileUniqueDistricts} from '../types/types'
-import { loadDistrictImages, loadNaturalWonderImages, loadResourceImages, loadTerrainImages, loadWonderImages, loadYieldImages } from '../images/imageLoaders';
-import { getTerrain, getDistrict, getNaturalWonder, getWonder, getResource } from '../images/imageAttributeFinders';
+import { TileNone, TileWonders, TileDistricts, TileNaturalWonders, TerrainFeatureKey, RiverDirections, TileType, LeaderName, TileYields, PossibleErrors, VictoryType, TileBonusResources, TileLuxuryResources, TileStrategicResources, TileArtifactResources, TileUniqueDistricts, HexType, YieldImagesKey, OptionalVisualOptions} from '../types/types'
+import { loadDistrictImages, loadNaturalWonderImages, loadResourceImages, loadTerrainImages, loadWonderImages, loadYieldDropdownImages, loadYieldImages } from '../images/imageLoaders';
+import { getTerrain, getDistrict, getNaturalWonder, getWonder, getResource, getYields } from '../images/imageAttributeFinders';
 import { baseTileSize, getAllPossibleDistricts, getAllPossibleYields, getAllPossibleVictoryTypes, minZoom, maxZoom } from '../utils/constants';
 import { Civilization, getCivilizationObject } from '../civilization/civilizations';
 import { yieldSelectStyle, nearbyCityFontSize, nearbyCityStyles, genericSingleSelectStyle } from './mapPageSelectStyles';
 import { OptionsWithImage, OptionsWithSpecialText, OptionsGenericString } from '../types/selectionTypes';
 import { getMapOddrString, getMinMaxXY, getTextWidth } from '../utils/functions/misc/misc';
 import { getHexPoint, getOffsets, oddrToPixel, pixelToOddr } from '../utils/functions/hex/genericHex';
-import { getScaledGridAndTileSizes, getScaledGridSizesFromTile, getScaleFromType } from '../utils/functions/imgScaling/scaling';
+import { getScaledGridAndTileSizes, getScaledGridSizesFromTile, getScaleFromType, getTileScaleOddr } from '../utils/functions/imgScaling/scaling';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCircleQuestion } from '@fortawesome/free-regular-svg-icons';
 import Tooltip from '../components/tooltip';
@@ -23,9 +23,9 @@ import { allocateCitizensAuto, purgeTileForDistrict } from '../utils/functions/c
 /*
 /////////////////////////////////////////////////////////////////
 
-TODO: yieldTesting.json wrong encampment????
+TODO: Optimize hexmap drawing.
 
-TODO: Add resources and tile yield images to map.
+TODO: yieldTesting.json wrong encampment????
 
 TODO: Get new worked tile if district is placed over worked one!! RULES: Yields affected by favored or disfavored yields. Prioritzes food? Districts are least priority? Disfavored = remove tiles that have more of the disfavored yield. Favored = keep tiles that have more of this.
 TODO: Test calculated worked tile by manually adding favored/disfavored yields and checking yieldTesting.json.
@@ -109,6 +109,8 @@ const MapPage = () =>
 
     const [dropdownNearbyCity, setDropdownNearbyCity] = useState<TileType | null>(null);
 
+    const [optionalVisual, setOptionalVisual] = useState<{yields: boolean, resources: boolean}>({yields: false, resources: false});
+
     /**
      * - Shifting hex img's by the subtraction seen in drawMap() keeps correct oddr coordinate detection but visuals will break
      * - Adding this offset fixes the visuals and keeps the coordinates correct
@@ -119,13 +121,16 @@ const MapPage = () =>
     const scrollRef = useRef<HTMLDivElement>(null);
     const zoomInputRef = useRef<HTMLInputElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const nearbyCityRef = useRef<SelectInstance<OptionsWithSpecialText, false, GroupBase<OptionsWithSpecialText>> | null>(null)
+
+    const nearbyCityRef = useRef<SelectInstance<OptionsWithSpecialText, false, GroupBase<OptionsWithSpecialText>> | null>(null);
+    const optionalVisualRef = useRef<SelectInstance<OptionsGenericString, false, GroupBase<OptionsGenericString>> | null>(null);
 
     const terrainImagesCache = useRef<Map<TerrainFeatureKey, HTMLImageElement>>(new Map());
     const wondersImagesCache = useRef<Map<TileWonders, HTMLImageElement>>(new Map());
     const naturalWondersImagesCache = useRef<Map<TileNaturalWonders, HTMLImageElement>>(new Map());
     const districtsImagesCache = useRef<Map<TileDistricts | TileUniqueDistricts, HTMLImageElement>>(new Map());
-    const yieldImagesCache = useRef<Map<TileYields, HTMLImageElement>>(new Map());
+    const dropdownYieldImagesCache = useRef<Map<TileYields, HTMLImageElement>>(new Map());
+    const yieldImagesCache = useRef<Map<YieldImagesKey, HTMLImageElement>>(new Map());
     const resourceImagesCache = useRef<Map<TileBonusResources | TileLuxuryResources | TileStrategicResources | TileArtifactResources, HTMLImageElement>>(new Map());
 
     const [areImagesLoaded, setAreImagesLoaded] = useState<boolean>(false);
@@ -136,8 +141,9 @@ const MapPage = () =>
         await loadWonderImages(wondersImagesCache.current);
         await loadNaturalWonderImages(naturalWondersImagesCache.current);
         await loadDistrictImages(districtsImagesCache.current);
-        await loadYieldImages(yieldImagesCache.current);
+        await loadYieldDropdownImages(dropdownYieldImagesCache.current);
         await loadResourceImages(resourceImagesCache.current);
+        await loadYieldImages(yieldImagesCache.current);
 
         setAreImagesLoaded(true);
     }
@@ -346,6 +352,66 @@ const MapPage = () =>
         })
     }
 
+    function drawYields(context: CanvasRenderingContext2D)
+    {
+        hexmapCache.current.forEach(tile => 
+        {
+            const px = oddrToPixel(tile.X, tile.Y, tileSize.x, tileSize.y, hexMapOffset);
+            const imgAttributes = getYields(tile, yieldImagesCache.current);
+
+            // only using the tile scale instead of the img scale as the tile scale changes on zoom change
+            const tileScaleY = tileSize.y / baseTileSize;
+            const tileScaleX = tileSize.x / baseTileSize;
+            
+            const leftTop = getHexPoint(3, px, tileSize);
+            const leftBottom = getHexPoint(4, px, tileSize);
+            const left = {x: leftTop.x, y: (leftTop.y + leftBottom.y) / 2};
+
+            const rightTop = getHexPoint(0, px, tileSize);
+            const rightBottom = getHexPoint(1, px, tileSize);
+            const right = {x: rightTop.x, y: (rightTop.y + rightBottom.y) / 2};
+
+            let yieldPosIndex = 0;
+            const yieldPositions: {x: number, y: number}[] = 
+            [
+                // top-left
+                {x: left.x + 4 * tileScaleX, y: left.y + 4 * tileScaleY},
+                // top-middle
+                {x: px.x, y: px.y + 4 * tileScaleY},
+                // top-right
+                {x: right.x - 4 * tileScaleX, y: right.y + 4 * tileScaleX},
+                // bottom-left 
+                {x: left.x + 4 * tileScaleX, y: left.y - 4 * tileScaleY},
+                // bottom-middle
+                {x: px.x, y: px.y - 4 * tileScaleY},
+                // bottom-right
+                {x: right.x - 4 * tileScaleX, y: right.y - 4 * tileScaleX}
+            ];
+
+            imgAttributes.forEach((attr) => 
+            {
+                const scale = getScaleFromType(attr.scaleType); 
+                const img = attr.imgElement;
+
+                const drawWidth = tileSize.x / 8 * scale.scaleW;
+                const drawHeight = tileSize.y / 8 * scale.scaleH;
+
+                if (img)
+                {
+                    context.save();
+
+                    context.scale(1, -1);
+                    context.translate(0, -gridSize.y);
+
+                    context.drawImage(img, yieldPositions[yieldPosIndex].x - drawWidth / 2, yieldPositions[yieldPosIndex].y - drawHeight / 2, drawWidth, drawHeight);
+                    context.restore();
+
+                    ++yieldPosIndex;
+                }
+            })
+        })
+    }
+
     function drawHexImage(context: CanvasRenderingContext2D, tile: TileType, opacity: number, img: HTMLImageElement)
     {
         const px = oddrToPixel(tile.X, tile.Y, tileSize.x, tileSize.y, hexMapOffset);
@@ -411,7 +477,11 @@ const MapPage = () =>
 
         drawRiversFromCache(context);
         drawBorderLines(context);
-        drawResources(context);
+
+        if (optionalVisual.yields)
+            drawYields(context);
+        else if (optionalVisual.resources)
+            drawResources(context);
 
         drawTextWithBox(context, {x: textBoxPos.x, y: textBoxPos.y}, textBoxText);
     }
@@ -424,7 +494,7 @@ const MapPage = () =>
         {
             drawMapWithHoveredTile(context, oddrCoord, 0.3);
         }
-    }, [tileSize, gridSize, cityBoundaryTiles, dropdownCity]); // to ensure latest values are used
+    }, [tileSize, gridSize, cityBoundaryTiles, dropdownCity, optionalVisual]); // to ensure latest values are used
 
     function getMousePos(e: MouseEvent): {x: number, y: number} | undefined
     {
@@ -609,8 +679,12 @@ const MapPage = () =>
 
         drawRiversFromCache(context);
         drawBorderLines(context);
-        drawResources(context);
-    }, [tileSize, gridSize, cityBoundaryTiles, dropdownCity, areImagesLoaded, mapJSON, mapCacheVersion]);
+        
+        if (optionalVisual.yields)
+            drawYields(context);
+        else if (optionalVisual.resources)
+            drawResources(context);
+    }, [tileSize, gridSize, cityBoundaryTiles, dropdownCity, areImagesLoaded, mapJSON, mapCacheVersion, optionalVisual]);
 
     const initHexmapCache = useCallback(() => 
     {
@@ -783,6 +857,9 @@ const MapPage = () =>
 
         if (nearbyCityRef.current)
             nearbyCityRef.current.clearValue();
+
+        if (optionalVisualRef.current)
+            optionalVisualRef.current.clearValue();
     }
 
     function handleInputChange(e: React.ChangeEvent<HTMLInputElement>)
@@ -995,20 +1072,19 @@ const MapPage = () =>
         const allYields = getAllPossibleYields();
         const tempArr: OptionsWithImage[] = [];
 
-        for (let i = 0; i < allYields.length; i++)
+        if (areImagesLoaded)
         {
-            const currYield = allYields[i];
-            const currImage = yieldImagesCache.current.get(currYield);
-            if (!currImage)
-                tempArr.push({value: currYield, label: currYield, image: new Image()});
-            else
+            for (let i = 0; i < allYields.length; i++)
             {
-                tempArr.push({value: currYield, label: currYield, image: currImage});
+                const currYield = allYields[i];
+                const currImage = dropdownYieldImagesCache.current.get(currYield);
+                if (currImage)
+                    tempArr.push({value: currYield, label: currYield, image: currImage});
             }
         }
 
         return tempArr;
-    }, [areImagesLoaded])   
+    }, [areImagesLoaded])    
 
     function formatSelectionYields(option: OptionsWithImage): JSX.Element
     {
@@ -1122,6 +1198,18 @@ const MapPage = () =>
         return max;
     }
 
+    function getOptionalVisualOptions() 
+    {
+        const tempArr: OptionsGenericString[] = [];
+
+        for (const visuals of Object.values(OptionalVisualOptions))
+        {
+            tempArr.push({label: visuals, value: visuals});
+        }
+
+        return tempArr;
+    }
+
     return (
         <div style={{display: 'flex'}}>
             <div
@@ -1144,13 +1232,43 @@ const MapPage = () =>
                 <div style={{display: 'grid'}}>
 
                     <div style={{display: 'flex'}}>
+                        <Select 
+                            options={getOptionalVisualOptions()} 
+                            styles={genericSingleSelectStyle} 
+                            onChange=
+                            {
+                                val =>
+                                {
+                                    if (val)
+                                    {
+                                        if (val.value === OptionalVisualOptions.SHOW_YIELDS)
+                                            setOptionalVisual({yields: true, resources: false});
+                                        else if (val.value === OptionalVisualOptions.SHOW_RESOURCES)
+                                            setOptionalVisual({yields: false, resources: true});
+                                    }
+                                    else
+                                    {
+                                        setOptionalVisual({yields: false, resources: false});
+                                    }
+                                }
+                            }
+                            placeholder={'Select an optional visual'}
+                            isClearable
+                            ref={optionalVisualRef}
+                        />
+                    </div>
+
+                    <div style={{display: 'flex'}}>
                         <span>Include City States</span>
                         <input type='checkbox' onChange={(e) => {setIncludeCityStates(e.target.checked)}}/>
                     </div>
 
                     <div style={{display: 'flex'}}>
-                        <span>Account For Possible Wonders</span>
+                        <span>Account For Wonders</span>
                         <input type='checkbox' onChange={(e) => {setIncludeWonders(e.target.checked)}}/>
+                        <Tooltip text='Consider wonders that may be built in the future.'>
+                            <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
+                        </Tooltip>
                     </div>
                     
                     {/*Select Civilization*/}
@@ -1376,13 +1494,13 @@ const MapPage = () =>
         const district = getDistrict(tile, districtsImagesCache.current);
         const terrain = getTerrain(tile, terrainImagesCache.current);
 
-        if (natWonder.imgElement && natWonder.scaleType !== -1)
+        if (natWonder.imgElement && natWonder.scaleType !== HexType.UNKNOWN)
             return natWonder;
-        else if (wonder.imgElement && wonder.scaleType !== -1)
+        else if (wonder.imgElement && wonder.scaleType !== HexType.UNKNOWN)
             return wonder;
-        else if (district.imgElement && district.scaleType !== -1)
+        else if (district.imgElement && district.scaleType !== HexType.UNKNOWN)
             return district;
-        else if (terrain.imgElement && terrain.scaleType !== -1)
+        else if (terrain.imgElement && terrain.scaleType !== HexType.UNKNOWN)
             return terrain;
 
         return {imgElement: undefined, scaleType: -1};

@@ -2,7 +2,8 @@ import { HexType, TileType } from "../../../types/types";
 import { getMinMaxXY } from "../misc/misc";
 
 /**
- * 
+ * How small the hex is compared to the image itself because the <image> element uses the whole image, not just the hex.
+ * Want to scale the hex inside to the image so that it fills the tiles and images have no gaps between each other.
  * @param imgSize 
  * The size of the image on file in terms of:
  * - x (width)
@@ -18,9 +19,6 @@ import { getMinMaxXY } from "../misc/misc";
  */
 export function getScale(imgSize: {x: number, y: number}, imgTileSize: {x: number, y: number}): {scaleW: number, scaleH: number}
 {
-    // how small the hex is compared to the image itself
-    // because the <image> element uses the whole image, not just the hex
-    // want to scale the hex inside to the image so that it fills the tiles
     let ratioX = imgTileSize.x / imgSize.x;
     let ratioY = imgTileSize.y / imgSize.y;
 
@@ -42,9 +40,10 @@ export function getScaleFromType(imgType: number): {scaleW: number, scaleH: numb
     // and all district, terrain, etc images are of the same size if they belong to the same category 
     // ex: terrain images are always the same size (img and hex wise)
 
-    if (imgType === HexType.DISTRICT) return getScale({x: 128, y: 128}, {x: 32, y: 32}); // actually 56x64, but this is to make the tile fit nicer
-    else if (imgType === HexType.TERRAIN) return getScale({x: 128, y: 128}, {x: 32, y: 32});
-    else if (imgType === HexType.RESOURCE) return getScale({x: 38, y: 38}, {x: 19, y: 19});
+    if (imgType === HexType.DISTRICT)           return getScale({x: 128, y: 128}, {x: 32, y: 32}); // actually 56x64, but this is to make the tile fit nicer
+    else if (imgType === HexType.TERRAIN)       return getScale({x: 128, y: 128}, {x: 32, y: 32});
+    else if (imgType === HexType.RESOURCE)      return getScale({x: 38, y: 38}, {x: 19, y: 19});
+    else if (imgType === HexType.YIELD)   return getScale({x: 128, y: 128}, {x: 24, y: 24});
 
     return {scaleW: -1, scaleH: -1};
 }

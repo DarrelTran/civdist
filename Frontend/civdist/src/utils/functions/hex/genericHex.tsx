@@ -47,7 +47,7 @@ export function axialToOddr(hex: {q: number, r: number, s: number})
 /**
  * 
  * @param n The nth point on the hex. Point 0 is the bottom point on the right side of the hex and subsequent points are located on a counter-clockwise basis. Values >6 are the same as n % 6.
- * @param startingPos Typically the center of the hex.
+ * @param startingPos Typically the center of the hex, in pixels.
  * @returns 
  */
 export function getHexPoint(n: number, startingPos: {x: number, y: number}, tileSize: {x: number, y: number}): {x: number, y: number}

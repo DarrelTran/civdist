@@ -1,7 +1,7 @@
-import { TileType, TileNone, TileFeatures, TileTerrain, TileWonders, TileDistricts, TileUniqueDistricts, TileNaturalWonders, TerrainFeatureKey, HexType, TileBonusResources, TileStrategicResources, TileLuxuryResources, TileArtifactResources } from "../types/types";
+import { TileType, TileNone, TileFeatures, TileTerrain, TileWonders, TileDistricts, TileUniqueDistricts, TileNaturalWonders, TerrainFeatureKey, HexType, TileBonusResources, TileStrategicResources, TileLuxuryResources, TileArtifactResources, YieldImagesKey, TileYields } from "../types/types";
 import { hasNaturalWonder } from "../utils/functions/civ/civFunctions";
 
-export function getNaturalWonder(tile: TileType, natWonderMap: Map<TileNaturalWonders, HTMLImageElement>): {imgElement: HTMLImageElement | undefined, scaleType: number}
+export function getNaturalWonder(tile: TileType, natWonderMap: Map<TileNaturalWonders, HTMLImageElement>): {imgElement: HTMLImageElement | undefined, scaleType: HexType}
 {
     if (tile.FeatureType !== TileNone.NONE && hasNaturalWonder(tile.FeatureType))
     {
@@ -11,10 +11,10 @@ export function getNaturalWonder(tile: TileType, natWonderMap: Map<TileNaturalWo
             return {imgElement: natWonder, scaleType: HexType.TERRAIN};
     }
 
-    return {imgElement: undefined, scaleType: -1};
+    return {imgElement: undefined, scaleType: HexType.UNKNOWN};
 }
 
-export function getWonder(tile: TileType, wonderMap: Map<TileWonders, HTMLImageElement>): {imgElement: HTMLImageElement | undefined, scaleType: number}
+export function getWonder(tile: TileType, wonderMap: Map<TileWonders, HTMLImageElement>): {imgElement: HTMLImageElement | undefined, scaleType: HexType}
 {
     if (tile.Wonder !== TileNone.NONE)
     {
@@ -24,10 +24,10 @@ export function getWonder(tile: TileType, wonderMap: Map<TileWonders, HTMLImageE
             return {imgElement: wonder, scaleType: HexType.DISTRICT};
     }
 
-    return {imgElement: undefined, scaleType: -1};
+    return {imgElement: undefined, scaleType: HexType.UNKNOWN};
 }
 
-export function getDistrict(tile: TileType, districtMap: Map<TileDistricts | TileUniqueDistricts, HTMLImageElement>): {imgElement: HTMLImageElement | undefined, scaleType: number}
+export function getDistrict(tile: TileType, districtMap: Map<TileDistricts | TileUniqueDistricts, HTMLImageElement>): {imgElement: HTMLImageElement | undefined, scaleType: HexType}
 {
     if (tile.District !== TileNone.NONE)
     {
@@ -37,10 +37,10 @@ export function getDistrict(tile: TileType, districtMap: Map<TileDistricts | Til
             return {imgElement: district, scaleType: HexType.DISTRICT};
     }
 
-    return {imgElement: undefined, scaleType: -1};
+    return {imgElement: undefined, scaleType: HexType.UNKNOWN};
 }
 
-export function getTerrain(tile: TileType, terrainMap: Map<TerrainFeatureKey, HTMLImageElement>): {imgElement: HTMLImageElement | undefined, scaleType: number}
+export function getTerrain(tile: TileType, terrainMap: Map<TerrainFeatureKey, HTMLImageElement>): {imgElement: HTMLImageElement | undefined, scaleType: HexType}
 {
     if (tile.TerrainType !== TileNone.NONE && tile.TerrainType !== TileTerrain.RIVER && !hasNaturalWonder(tile.FeatureType))
     {
@@ -50,18 +50,53 @@ export function getTerrain(tile: TileType, terrainMap: Map<TerrainFeatureKey, HT
             return {imgElement: terrain, scaleType: HexType.TERRAIN};
     }
 
-    return {imgElement: undefined, scaleType: -1};
+    return {imgElement: undefined, scaleType: HexType.UNKNOWN};
 }
 
-export function getResource(tile: TileType, terrainMap: Map<TileBonusResources | TileLuxuryResources | TileStrategicResources | TileArtifactResources, HTMLImageElement>): {imgElement: HTMLImageElement | undefined, scaleType: number}
+export function getResource(tile: TileType, resourceMap: Map<TileBonusResources | TileLuxuryResources | TileStrategicResources | TileArtifactResources, HTMLImageElement>): {imgElement: HTMLImageElement | undefined, scaleType: HexType}
 {
     if (tile.ResourceType !== TileNone.NONE)
     {
-        const resource = terrainMap.get(tile.ResourceType);
+        const resource = resourceMap.get(tile.ResourceType);
 
         if (resource)
             return {imgElement: resource, scaleType: HexType.RESOURCE};
     }
 
-    return {imgElement: undefined, scaleType: -1};
+    return {imgElement: undefined, scaleType: HexType.UNKNOWN};
+}
+
+export function getYields(tile: TileType, yieldMap: Map<YieldImagesKey, HTMLImageElement>): {imgElement: HTMLImageElement | undefined, scaleType: HexType}[]
+{
+    const jsonKeys = Object.keys(tile);
+    const possibleYields = Object.values(TileYields);
+    const yieldImages: {imgElement: HTMLImageElement | undefined, scaleType: number}[] = [];
+
+    jsonKeys.forEach((key) => 
+    {
+        possibleYields.forEach((theYield) => 
+        {
+            if (key === theYield)
+            {
+                const yieldValue = tile[theYield];
+
+                if (yieldValue > 12)
+                {
+                    const bigYield = yieldMap.get(`${theYield}_12`);
+                    if (bigYield)
+                        yieldImages.push({imgElement: bigYield, scaleType: HexType.YIELD});
+                }
+                else
+                {
+                    const normalYield = yieldMap.get(`${theYield}_${yieldValue}`);
+                    if (normalYield)
+                    {
+                        yieldImages.push({imgElement: normalYield, scaleType: HexType.YIELD});
+                    }
+                }
+            }
+        })
+    })
+
+    return yieldImages;
 }

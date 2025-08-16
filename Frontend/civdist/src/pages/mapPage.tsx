@@ -324,28 +324,27 @@ const MapPage = () =>
      */
     function drawBorderLines(context: CanvasRenderingContext2D) 
     {
-        if (currentCity)
+        cityBoundaryTiles.forEach((neighbors, tileKey) => 
         {
-            cityBoundaryTiles.forEach((neighbors, tileKey) => 
+            const [col, row] = tileKey.split(',').map(Number);
+            const center = oddrToPixel(col, row, tileSize.x, tileSize.y, hexMapOffset);
+            
+            // check against all hex edges
+            const offsets = getOffsets(row);
+
+            offsets.forEach(([dx, dy], i) => 
             {
-                const [col, row] = tileKey.split(',').map(Number);
-                const center = oddrToPixel(col, row, tileSize.x, tileSize.y, hexMapOffset);
+                const neighborKey = getMapOddrString(wrapCol(col + dx), wrapRow(row + dy));
                 
-                // check against all hex edges
-                const offsets = getOffsets(row);
+                if (!neighbors.includes(neighborKey)) 
+                    return; // if hex edge has neighbor not owned by city = draw on that edge
 
-                offsets.forEach(([dx, dy], i) => 
-                {
-                    const neighborKey = getMapOddrString(wrapCol(col + dx), wrapRow(row + dy));
-                    if (!neighbors.includes(neighborKey)) return; // if hex edge has neighbor not owned by city = draw on that edge
+                const start = getHexPoint(i, center, tileSize);
+                const end = getHexPoint((i + 1) % 6, center, tileSize);
 
-                    const start = getHexPoint(i, center, tileSize);
-                    const end = getHexPoint((i + 1) % 6, center, tileSize);
-
-                    drawLine(context, start, end, 'yellow', Math.min(tileSize.x, tileSize.y) / 20);
-                });
+                drawLine(context, start, end, 'yellow', Math.min(tileSize.x, tileSize.y) / 20);
             });
-        }
+        });
     }
 
     function drawResourceOnTile(context: CanvasRenderingContext2D, tile: TileType)
@@ -522,7 +521,7 @@ const MapPage = () =>
         {
             drawMapWithHoveredTile(context, oddrCoord, 0.3);
         }
-    }, [tileSize, gridSize, cityBoundaryTiles, dropdownCity, optionalVisual, currentCity, riverTiles]); // to ensure latest values are used
+    }, [tileSize, gridSize, cityBoundaryTiles, dropdownCity, optionalVisual, riverTiles]); // to ensure latest values are used
 
     function getMousePos(e: MouseEvent): {x: number, y: number} | undefined
     {
@@ -594,10 +593,9 @@ const MapPage = () =>
                                     const neighborStringCoord = getMapOddrString(neighborCoord.x, neighborCoord.y);
                                     let cacheTile = hexmapCache.current.get(neighborStringCoord);
 
+                                    // if tile is not part of city's owned tiles, that means the connecting edge to the current tile's edge must be a 'border edge'
                                     if (cacheTile && cacheTile.TileCity !== currentTile.CityName)
-                                    {
                                         neighborList.push(neighborStringCoord);
-                                    }
                                 });
                             }
 
@@ -758,19 +756,20 @@ const MapPage = () =>
 
                 if (tile.TileCity !== TileNone.NONE && tile.Civilization !== TileNone.NONE)
                 {
-                    const cityTilesKey = `${tile.Civilization},${tile.TileCity}`;
+                    const cityTilesKey = `${tile.Civilization},${tile.TileCity}`; // only tiles with this exact data will be added to tileDatas
                     const tileDatas = cityTiles.get(cityTilesKey);
                     if (tileDatas)
                     {
-                        if (tile.IsCity)
+                        if (tile.IsCity) // store city for later so it can be placed last (below)
                             cityCenterMap.set(cityTilesKey, tile);
                         else
-                            tileDatas.push(tile);
+                            tileDatas.push(tile); // add tile to map, no need to worry about correct civ/city as the map takes care of that
+
                         cityTiles.set(cityTilesKey, tileDatas);
                     }
                     else
                     {
-                        cityTiles.set(cityTilesKey, []);
+                        cityTiles.set(cityTilesKey, [tile]);
                     }
                 }
 
@@ -1548,7 +1547,19 @@ const MapPage = () =>
 
     function testStuff()
     {
-        
+        if (currentTile)
+        {
+            const cityTiles = cityOwnedTiles.get(`German Empire,Aachen`);
+
+            if (cityTiles)
+            {
+                cityTiles.forEach((tile) => 
+                {
+                    if (tile.X === 9 && tile.Y === 12)
+                        console.log('found ' + tile.X + ' and ' + tile.Y )
+                })
+            }
+        }
     }
 };
 

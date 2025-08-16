@@ -68,11 +68,10 @@ export function getResource(tile: TileType, resourceMap: Map<TileBonusResources 
 
 export function getYields(tile: TileType, yieldMap: Map<YieldImagesKey, HTMLImageElement>): {imgElement: HTMLImageElement | undefined, scaleType: HexType}[]
 {
-    const jsonKeys = Object.keys(tile);
     const possibleYields = Object.values(TileYields);
     const yieldImages: {imgElement: HTMLImageElement | undefined, scaleType: number}[] = [];
 
-    jsonKeys.forEach((key) => 
+    for (const key of Object.values(TileYields))
     {
         possibleYields.forEach((theYield) => 
         {
@@ -96,7 +95,7 @@ export function getYields(tile: TileType, yieldMap: Map<YieldImagesKey, HTMLImag
                 }
             }
         })
-    })
+    }
 
     return yieldImages;
 }

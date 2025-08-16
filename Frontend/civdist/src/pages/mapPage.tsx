@@ -65,9 +65,11 @@ const MapPage = () =>
 {
     const [errorText, setErrorText] = useState<string>("");
 
+    // use ref since this will probably be updated a lot
     const hexmapCache = useRef<Map<string, TileType>>(new Map()); // oddr coords, tile
     const [mapCacheVersion, setMapCacheVersion] = useState<number>(0);
     const [mapJSON, setMapJSON] = useState<TileType[]>([]);
+    const [yieldAttributeCache, setYieldAttributeCache] = useState<Map<string, {imgElement: HTMLImageElement | undefined, scaleType: HexType}[]>>(new Map()); // oddr str, attr
 
     const [civCompletedWonders, setCivCompletedWonders] = useState<Set<TileWonders>>(new Set());
 
@@ -353,6 +355,10 @@ const MapPage = () =>
         {
             const px = oddrToPixel(tile.X, tile.Y, tileSize.x, tileSize.y, hexMapOffset);
             const imgAttributes = getResource(tile, resourceImagesCache.current);
+
+            if (!imgAttributes.imgElement || imgAttributes.scaleType === HexType.UNKNOWN)
+                return;
+
             const scale = getScaleFromType(imgAttributes.scaleType); 
             const img = imgAttributes.imgElement;
 
@@ -375,10 +381,10 @@ const MapPage = () =>
         }
     }
 
-    function drawYieldsOnTile(context: CanvasRenderingContext2D, tile: TileType)
+    function drawYieldsOnTile(context: CanvasRenderingContext2D, tile: TileType, yieldAttr: {imgElement: HTMLImageElement | undefined, scaleType: HexType}[])
     {
         const px = oddrToPixel(tile.X, tile.Y, tileSize.x, tileSize.y, hexMapOffset);
-        const imgAttributes = getYields(tile, yieldImagesCache.current);
+        const imgAttributes = yieldAttr;
 
         // only using the tile scale instead of the img scale as the tile scale changes on zoom change
         const tileScaleY = tileSize.y / baseTileSize;
@@ -411,6 +417,9 @@ const MapPage = () =>
 
         imgAttributes.forEach((attr) => 
         {
+            if (!attr.imgElement || attr.scaleType === HexType.UNKNOWN)
+                return;
+
             const scale = getScaleFromType(attr.scaleType); 
             const img = attr.imgElement;
 
@@ -495,8 +504,9 @@ const MapPage = () =>
             if (theImage)
                 drawHexImage(context, tile, theOpacity, theImage);
 
-            if (optionalVisual.yields)
-                drawYieldsOnTile(context, tile);
+            const yieldAttr = yieldAttributeCache.get(getMapOddrString(tile.X, tile.Y));
+            if (optionalVisual.yields && yieldAttr)
+                drawYieldsOnTile(context, tile, yieldAttr);
             else if (optionalVisual.resources)
                 drawResourceOnTile(context, tile);
 
@@ -708,8 +718,9 @@ const MapPage = () =>
             if (theImage)
                 drawHexImage(context, tile, theOpacity, theImage);
 
-            if (optionalVisual.yields)
-                drawYieldsOnTile(context, tile);
+            const yieldAttr = yieldAttributeCache.get(getMapOddrString(tile.X, tile.Y));
+            if (optionalVisual.yields && yieldAttr)
+                drawYieldsOnTile(context, tile, yieldAttr);
             else if (optionalVisual.resources)
                 drawResourceOnTile(context, tile);
 
@@ -731,6 +742,7 @@ const MapPage = () =>
         const cityTiles = new Map<string, TileType[]>();
         const cityCenterMap = new Map<string, TileType>();
         const civCompletedWondersTemp = new Set<TileWonders>();
+        const yieldMap = new Map<string, {imgElement: HTMLImageElement | undefined, scaleType: HexType}[]>();
 
         let loadCount = 0;
         let totalTiles = mapJSON.length;
@@ -789,6 +801,9 @@ const MapPage = () =>
 
                     drawMapFromCache(context);
                 }
+
+                const yieldAttributes = getYields(tile, yieldImagesCache.current);
+                yieldMap.set(getMapOddrString(tile.X, tile.Y), yieldAttributes);
             }
         });
 
@@ -803,6 +818,7 @@ const MapPage = () =>
 
         setCityOwnedTiles(cityTiles);
         setCivCompletedWonders(civCompletedWondersTemp);
+        setYieldAttributeCache(yieldMap);
     }, [drawMapFromCache, mapJSON]);
 
     useEffect(() => 
@@ -1547,19 +1563,10 @@ const MapPage = () =>
 
     function testStuff()
     {
-        if (currentTile)
+        yieldAttributeCache.forEach((a, b) => 
         {
-            const cityTiles = cityOwnedTiles.get(`German Empire,Aachen`);
-
-            if (cityTiles)
-            {
-                cityTiles.forEach((tile) => 
-                {
-                    if (tile.X === 9 && tile.Y === 12)
-                        console.log('found ' + tile.X + ' and ' + tile.Y )
-                })
-            }
-        }
+            console.log(a + ', ' + b)
+        })
     }
 };
 

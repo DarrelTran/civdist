@@ -360,6 +360,7 @@ export enum TilePantheons
   EARTH_GODDESS = 'Earth Goddess'
 }
 
+/** Make sure the values of this match the corresponding key names in the json - it's used for iteration and key lookup */
 export enum TileYields
 {
   FOOD = 'Food', 

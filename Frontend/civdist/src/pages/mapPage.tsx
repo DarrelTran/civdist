@@ -893,6 +893,7 @@ const MapPage = () =>
         setDropdownCiv(null);
         setDropdownDistrict(null);
         setDropdownNearbyCity(null);
+        setRiverTiles([]);
 
         if (nearbyCityRef.current)
             nearbyCityRef.current.clearValue();

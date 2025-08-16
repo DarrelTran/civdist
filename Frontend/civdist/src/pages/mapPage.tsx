@@ -321,94 +321,88 @@ const MapPage = () =>
         });
     }
 
-    function drawResources(context: CanvasRenderingContext2D)
+    function drawResourceOnTile(context: CanvasRenderingContext2D, tile: TileType)
     {
-        hexmapCache.current.forEach(tile => 
-        {
-            if (tile.ResourceType !== TileNone.NONE && tile.District === TileNone.NONE)
-            {
-                const px = oddrToPixel(tile.X, tile.Y, tileSize.x, tileSize.y, hexMapOffset);
-                const imgAttributes = getResource(tile, resourceImagesCache.current);
-                const scale = getScaleFromType(imgAttributes.scaleType); 
-                const img = imgAttributes.imgElement;
-
-                // divide 2 since want img centered on tile and resources are roughly half the tile's size
-                // resource = 19x19 ; tile = 32x32
-                const drawWidth = tileSize.x / 2 * scale.scaleW;
-                const drawHeight = tileSize.y / 2 * scale.scaleH;
-
-                if (img)
-                {
-                    context.save();
-
-                    context.scale(1, -1);
-                    context.translate(0, -gridSize.y);
-
-                    context.drawImage(img, px.x - drawWidth / 2, px.y - drawHeight / 2, drawWidth, drawHeight);
-
-                    context.restore();
-                }
-            }
-        })
-    }
-
-    function drawYields(context: CanvasRenderingContext2D)
-    {
-        hexmapCache.current.forEach(tile => 
+        if (tile.ResourceType !== TileNone.NONE && tile.District === TileNone.NONE)
         {
             const px = oddrToPixel(tile.X, tile.Y, tileSize.x, tileSize.y, hexMapOffset);
-            const imgAttributes = getYields(tile, yieldImagesCache.current);
+            const imgAttributes = getResource(tile, resourceImagesCache.current);
+            const scale = getScaleFromType(imgAttributes.scaleType); 
+            const img = imgAttributes.imgElement;
 
-            // only using the tile scale instead of the img scale as the tile scale changes on zoom change
-            const tileScaleY = tileSize.y / baseTileSize;
-            const tileScaleX = tileSize.x / baseTileSize;
-            
-            const leftTop = getHexPoint(3, px, tileSize);
-            const leftBottom = getHexPoint(4, px, tileSize);
-            const left = {x: leftTop.x, y: (leftTop.y + leftBottom.y) / 2};
+            // divide 2 since want img centered on tile and resources are roughly half the tile's size
+            // resource = 19x19 ; tile = 32x32
+            const drawWidth = tileSize.x / 2 * scale.scaleW;
+            const drawHeight = tileSize.y / 2 * scale.scaleH;
 
-            const rightTop = getHexPoint(0, px, tileSize);
-            const rightBottom = getHexPoint(1, px, tileSize);
-            const right = {x: rightTop.x, y: (rightTop.y + rightBottom.y) / 2};
-
-            let yieldPosIndex = 0;
-            const yieldPositions: {x: number, y: number}[] = 
-            [
-                // top-left
-                {x: left.x + 4 * tileScaleX, y: left.y + 4 * tileScaleY},
-                // top-middle
-                {x: px.x, y: px.y + 4 * tileScaleY},
-                // top-right
-                {x: right.x - 4 * tileScaleX, y: right.y + 4 * tileScaleX},
-                // bottom-left 
-                {x: left.x + 4 * tileScaleX, y: left.y - 4 * tileScaleY},
-                // bottom-middle
-                {x: px.x, y: px.y - 4 * tileScaleY},
-                // bottom-right
-                {x: right.x - 4 * tileScaleX, y: right.y - 4 * tileScaleX}
-            ];
-
-            imgAttributes.forEach((attr) => 
+            if (img)
             {
-                const scale = getScaleFromType(attr.scaleType); 
-                const img = attr.imgElement;
+                context.save();
 
-                const drawWidth = tileSize.x / 8 * scale.scaleW;
-                const drawHeight = tileSize.y / 8 * scale.scaleH;
+                context.scale(1, -1);
+                context.translate(0, -gridSize.y);
 
-                if (img)
-                {
-                    context.save();
+                context.drawImage(img, px.x - drawWidth / 2, px.y - drawHeight / 2, drawWidth, drawHeight);
 
-                    context.scale(1, -1);
-                    context.translate(0, -gridSize.y);
+                context.restore();
+            }
+        }
+    }
 
-                    context.drawImage(img, yieldPositions[yieldPosIndex].x - drawWidth / 2, yieldPositions[yieldPosIndex].y - drawHeight / 2, drawWidth, drawHeight);
-                    context.restore();
+    function drawYieldsOnTile(context: CanvasRenderingContext2D, tile: TileType)
+    {
+        const px = oddrToPixel(tile.X, tile.Y, tileSize.x, tileSize.y, hexMapOffset);
+        const imgAttributes = getYields(tile, yieldImagesCache.current);
 
-                    ++yieldPosIndex;
-                }
-            })
+        // only using the tile scale instead of the img scale as the tile scale changes on zoom change
+        const tileScaleY = tileSize.y / baseTileSize;
+        const tileScaleX = tileSize.x / baseTileSize;
+        
+        const leftTop = getHexPoint(3, px, tileSize);
+        const leftBottom = getHexPoint(4, px, tileSize);
+        const left = {x: leftTop.x, y: (leftTop.y + leftBottom.y) / 2};
+
+        const rightTop = getHexPoint(0, px, tileSize);
+        const rightBottom = getHexPoint(1, px, tileSize);
+        const right = {x: rightTop.x, y: (rightTop.y + rightBottom.y) / 2};
+
+        let yieldPosIndex = 0;
+        const yieldPositions: {x: number, y: number}[] = 
+        [
+            // top-left
+            {x: left.x + 4 * tileScaleX, y: left.y + 4 * tileScaleY},
+            // top-middle
+            {x: px.x, y: px.y + 4 * tileScaleY},
+            // top-right
+            {x: right.x - 4 * tileScaleX, y: right.y + 4 * tileScaleX},
+            // bottom-left 
+            {x: left.x + 4 * tileScaleX, y: left.y - 4 * tileScaleY},
+            // bottom-middle
+            {x: px.x, y: px.y - 4 * tileScaleY},
+            // bottom-right
+            {x: right.x - 4 * tileScaleX, y: right.y - 4 * tileScaleX}
+        ];
+
+        imgAttributes.forEach((attr) => 
+        {
+            const scale = getScaleFromType(attr.scaleType); 
+            const img = attr.imgElement;
+
+            const drawWidth = tileSize.x / 8 * scale.scaleW;
+            const drawHeight = tileSize.y / 8 * scale.scaleH;
+
+            if (img)
+            {
+                context.save();
+
+                context.scale(1, -1);
+                context.translate(0, -gridSize.y);
+
+                context.drawImage(img, yieldPositions[yieldPosIndex].x - drawWidth / 2, yieldPositions[yieldPosIndex].y - drawHeight / 2, drawWidth, drawHeight);
+                context.restore();
+
+                ++yieldPosIndex;
+            }
         })
     }
 
@@ -473,15 +467,15 @@ const MapPage = () =>
             const theImage = getImageAttributes(tile).imgElement;
             if (theImage)
                 drawHexImage(context, tile, theOpacity, theImage);
+
+            if (optionalVisual.yields)
+                drawYieldsOnTile(context, tile);
+            else if (optionalVisual.resources)
+                drawResourceOnTile(context, tile);
         });
 
         drawRiversFromCache(context);
         drawBorderLines(context);
-
-        if (optionalVisual.yields)
-            drawYields(context);
-        else if (optionalVisual.resources)
-            drawResources(context);
 
         drawTextWithBox(context, {x: textBoxPos.x, y: textBoxPos.y}, textBoxText);
     }
@@ -675,15 +669,15 @@ const MapPage = () =>
             const theImage = getImageAttributes(tile).imgElement;
             if (theImage)
                 drawHexImage(context, tile, theOpacity, theImage);
+
+            if (optionalVisual.yields)
+                drawYieldsOnTile(context, tile);
+            else if (optionalVisual.resources)
+                drawResourceOnTile(context, tile);
         });
 
         drawRiversFromCache(context);
         drawBorderLines(context);
-        
-        if (optionalVisual.yields)
-            drawYields(context);
-        else if (optionalVisual.resources)
-            drawResources(context);
     }, [tileSize, gridSize, cityBoundaryTiles, dropdownCity, areImagesLoaded, mapJSON, mapCacheVersion, optionalVisual]);
 
     const initHexmapCache = useCallback(() => 

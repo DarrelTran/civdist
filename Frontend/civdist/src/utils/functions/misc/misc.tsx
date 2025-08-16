@@ -15,8 +15,8 @@ export function getMinMaxXY(theJSON: TileType[])
 
 /**
  * 
- * @param x 
- * @param y 
+ * @param x Oddr X;
+ * @param y Oddr Y;
  * @returns Converts the x and y into an oddr string for use in the mapPage's map caches.
  */
 export function getMapOddrString(x: number, y: number)

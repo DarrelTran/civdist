@@ -134,6 +134,7 @@ const MapPage = () =>
     const resourceImagesCache = useRef<Map<TileBonusResources | TileLuxuryResources | TileStrategicResources | TileArtifactResources, HTMLImageElement>>(new Map());
 
     const [areImagesLoaded, setAreImagesLoaded] = useState<boolean>(false);
+    const [riverTiles, setRiverTiles] = useState<TileType[]>([]);
 
     async function loadAllImages()
     {
@@ -259,11 +260,17 @@ const MapPage = () =>
         }
     }
 
+    function updateRiverCacheWithTile(tile: TileType, riverArray: TileType[])
+    {
+        if (riverTiles.length <= 0 && (tile.IsNEOfRiver || tile.IsNWOfRiver || tile.IsWOfRiver))
+                riverArray.push(tile);
+    }
+
     function drawRiversFromCache(context: CanvasRenderingContext2D)
     {
-        hexmapCache.current.forEach((tile, oddr) => 
+        const drawRiverTile = (context: CanvasRenderingContext2D, tile: TileType) => 
         {
-            const [col, row] = oddr.split(',').map(Number);
+            const [col, row] = [tile.X, tile.Y];
             const px = oddrToPixel(col, row, tileSize.x, tileSize.y, hexMapOffset);
 
             let IsNEOfRiver = tile.IsNEOfRiver;
@@ -276,7 +283,22 @@ const MapPage = () =>
                 drawRiver6PossibleDirections(context, RiverDirections.SOUTHEAST, px);
             if (IsWOfRiver)
                 drawRiver6PossibleDirections(context, RiverDirections.EAST, px);
-        });
+        }
+
+        if (riverTiles.length <= 0)
+        {
+            hexmapCache.current.forEach((tile, oddr) => 
+            {
+                drawRiverTile(context, tile)
+            });
+        }
+        else
+        {
+            riverTiles.forEach((tile) => 
+            {
+                drawRiverTile(context, tile);
+            })
+        }
     }
 
     function wrapCol(x: number)
@@ -300,25 +322,28 @@ const MapPage = () =>
      */
     function drawBorderLines(context: CanvasRenderingContext2D) 
     {
-        cityBoundaryTiles.forEach((neighbors, tileKey) => 
+        if (currentCity)
         {
-            const [col, row] = tileKey.split(',').map(Number);
-            const center = oddrToPixel(col, row, tileSize.x, tileSize.y, hexMapOffset);
-            
-            // check against all hex edges
-            const offsets = getOffsets(row);
-
-            offsets.forEach(([dx, dy], i) => 
+            cityBoundaryTiles.forEach((neighbors, tileKey) => 
             {
-                const neighborKey = getMapOddrString(wrapCol(col + dx), wrapRow(row + dy));
-                if (!neighbors.includes(neighborKey)) return; // if hex edge has neighbor not owned by city = draw on that edge
+                const [col, row] = tileKey.split(',').map(Number);
+                const center = oddrToPixel(col, row, tileSize.x, tileSize.y, hexMapOffset);
+                
+                // check against all hex edges
+                const offsets = getOffsets(row);
 
-                const start = getHexPoint(i, center, tileSize);
-                const end = getHexPoint((i + 1) % 6, center, tileSize);
+                offsets.forEach(([dx, dy], i) => 
+                {
+                    const neighborKey = getMapOddrString(wrapCol(col + dx), wrapRow(row + dy));
+                    if (!neighbors.includes(neighborKey)) return; // if hex edge has neighbor not owned by city = draw on that edge
 
-                drawLine(context, start, end, 'yellow', Math.min(tileSize.x, tileSize.y) / 20);
+                    const start = getHexPoint(i, center, tileSize);
+                    const end = getHexPoint((i + 1) % 6, center, tileSize);
+
+                    drawLine(context, start, end, 'yellow', Math.min(tileSize.x, tileSize.y) / 20);
+                });
             });
-        });
+        }
     }
 
     function drawResourceOnTile(context: CanvasRenderingContext2D, tile: TileType)
@@ -431,6 +456,7 @@ const MapPage = () =>
 
     function drawMapWithHoveredTile(context: CanvasRenderingContext2D, oddrCoord: {col: number, row: number}, opacity: number)
     {
+        const riverArray: TileType[] = [];
         context.clearRect(0, 0, gridSize.x, gridSize.y);
 
         let textBoxPos = {x: -1, y: -1};
@@ -472,12 +498,18 @@ const MapPage = () =>
                 drawYieldsOnTile(context, tile);
             else if (optionalVisual.resources)
                 drawResourceOnTile(context, tile);
+
+            updateRiverCacheWithTile(tile, riverArray);
+                
         });
 
         drawRiversFromCache(context);
         drawBorderLines(context);
 
         drawTextWithBox(context, {x: textBoxPos.x, y: textBoxPos.y}, textBoxText);
+
+        if (riverTiles.length <= 0)
+            setRiverTiles(riverArray);
     }
     
     const handleMouseHover = useCallback((key: string, oddrCoord: { col: number, row: number }) => 
@@ -488,7 +520,7 @@ const MapPage = () =>
         {
             drawMapWithHoveredTile(context, oddrCoord, 0.3);
         }
-    }, [tileSize, gridSize, cityBoundaryTiles, dropdownCity, optionalVisual]); // to ensure latest values are used
+    }, [tileSize, gridSize, cityBoundaryTiles, dropdownCity, optionalVisual, currentCity, riverTiles]); // to ensure latest values are used
 
     function getMousePos(e: MouseEvent): {x: number, y: number} | undefined
     {
@@ -538,34 +570,39 @@ const MapPage = () =>
             {
                 if (!currentCity || (currentCity && currentCity.CityName !== currentTile.CityName))
                 {
-                    if (currentCity && currentCity.CityName !== currentTile.CityName)
-                        setCurrentCity(currentTile);
+                    setCurrentCity(currentTile);
 
                     let tempMap = new Map<string, string[]>();
-                    hexmapCache.current.forEach((tile, oddr) => 
+
+                    const cityTiles = cityOwnedTiles.get(`${currentTile.Civilization},${currentTile.CityName}`);
+
+                    if (cityTiles)
                     {
-                        const [col, row] = oddr.split(',').map(Number);
-
-                        let neighborList: string[] = [];
-                        if (tile.TileCity === currentTile.CityName)
+                        cityTiles.forEach(tile => 
                         {
-                            const offsets = getOffsets(row);
-                            offsets.forEach((neighbor) => 
+                            const [col, row] = [tile.X, tile.Y];
+
+                            let neighborList: string[] = [];
+                            if (tile.TileCity === currentTile.CityName)
                             {
-                                let neighborCoord = {x: wrapCol(col + neighbor[0]), y: wrapRow(row + neighbor[1])};
-                                const neighborStringCoord = getMapOddrString(neighborCoord.x, neighborCoord.y);
-                                let cacheTile = hexmapCache.current.get(neighborStringCoord);
-
-                                if (cacheTile && cacheTile.TileCity !== currentTile.CityName)
+                                const offsets = getOffsets(row);
+                                offsets.forEach((neighbor) => 
                                 {
-                                    neighborList.push(neighborStringCoord);
-                                }
-                            });
-                        }
+                                    let neighborCoord = {x: wrapCol(col + neighbor[0]), y: wrapRow(row + neighbor[1])};
+                                    const neighborStringCoord = getMapOddrString(neighborCoord.x, neighborCoord.y);
+                                    let cacheTile = hexmapCache.current.get(neighborStringCoord);
 
-                        if (neighborList.length > 0)
-                            tempMap.set(oddr, neighborList);
-                    });
+                                    if (cacheTile && cacheTile.TileCity !== currentTile.CityName)
+                                    {
+                                        neighborList.push(neighborStringCoord);
+                                    }
+                                });
+                            }
+
+                            if (neighborList.length > 0)
+                                tempMap.set(getMapOddrString(tile.X, tile.Y), neighborList);
+                        });
+                    }
 
                     setCityBoundaryTiles(tempMap);
                 }
@@ -581,7 +618,7 @@ const MapPage = () =>
                 setCurrentCity(undefined);
             }
         }
-    }, [tileSize, gridSize, currentTile, currentCity]);
+    }, [tileSize, gridSize, currentTile, currentCity, cityOwnedTiles]);
 
     useEffect(() => 
     {
@@ -658,6 +695,7 @@ const MapPage = () =>
 
     const drawMapFromCache = useCallback((context: CanvasRenderingContext2D) =>
     {
+        const riverArray: TileType[] = [];
         context.clearRect(0, 0, context.canvas.width, context.canvas.height);
 
         hexmapCache.current.forEach(tile => 
@@ -674,11 +712,16 @@ const MapPage = () =>
                 drawYieldsOnTile(context, tile);
             else if (optionalVisual.resources)
                 drawResourceOnTile(context, tile);
+
+            updateRiverCacheWithTile(tile, riverArray);
         });
 
         drawRiversFromCache(context);
         drawBorderLines(context);
-    }, [tileSize, gridSize, cityBoundaryTiles, dropdownCity, areImagesLoaded, mapJSON, mapCacheVersion, optionalVisual]);
+
+        if (riverTiles.length <= 0)
+            setRiverTiles(riverArray);
+    }, [tileSize, gridSize, cityBoundaryTiles, dropdownCity, areImagesLoaded, mapJSON, mapCacheVersion, optionalVisual, riverTiles]);
 
     const initHexmapCache = useCallback(() => 
     {

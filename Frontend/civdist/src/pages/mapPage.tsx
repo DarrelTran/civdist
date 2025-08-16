@@ -23,6 +23,8 @@ import { allocateCitizensAuto, purgeTileForDistrict } from '../utils/functions/c
 /*
 /////////////////////////////////////////////////////////////////
 
+TODO: Fix gap in city border lines!
+
 TODO: Optimize hexmap drawing.
 
 TODO: yieldTesting.json wrong encampment????

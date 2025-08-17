@@ -538,26 +538,54 @@ export function isValidAqueductTile(tile: TileType, mapCache: Map<string, TileTy
  * @param cityTile 
  * @returns 
  */
-export function purgeTileForDistrict(districtTile: TileType): TileType
+export function purgeTileForDistrict(districtTile: TileType)
 {
-    const dist = districtTile;
+    districtTile.ResourceType = TileNone.NONE;
 
-    dist.ResourceType = TileNone.NONE;
+    districtTile.Food = 0;
+    districtTile.Science = 0;
+    districtTile.Culture = 0;
+    districtTile.Faith = 0;
+    districtTile.Gold = 0;
+    districtTile.Production = 0;
 
-    dist.Food = 0;
-    dist.Science = 0;
-    dist.Culture = 0;
-    dist.Faith = 0;
-    dist.Gold = 0;
-    dist.Production = 0;
+    districtTile.IsWorked = false;
 
-    dist.IsWorked = false;
+    districtTile.FeatureType = TileNone.NONE;
 
-    dist.FeatureType = TileNone.NONE;
+    districtTile.ImprovementType = TileNone.NONE;
+}
 
-    dist.ImprovementType = TileNone.NONE;
+/**
+ * Should be called AFTER purgeTileForDistrict as it needs the type of the district that was placed.
+ * @param districtTile 
+ * @param mapCache 
+ */
+export function changeAppealToAdjFromDistrict(districtTile: TileType, mapCache: Map<string, TileType>)
+{
+    const theDistrict = districtTile.District;
 
-    return dist;
+    if (theDistrict !== TileNone.NONE && 
+       (isHolySite(districtTile) || isTheaterSquare(districtTile) || isEntertainmentComplex(districtTile) || isIndustrialZone(districtTile) || isAerodrome(districtTile) || isSpaceport(districtTile) || isEncampment(districtTile)))
+    {
+        const offsets = getOffsets(districtTile.Y);
+        for (let i = 0; i < offsets.length; i++)
+        {
+            const dx = offsets[i][0];
+            const dy = offsets[i][1];
+
+            const oddrStr = getMapOddrString(districtTile.X + dx, districtTile.Y + dy);
+            const adjTile = mapCache.get(oddrStr);
+
+            if (adjTile && !adjTile.IsMountain && !isMountainWonder(adjTile) && !hasNaturalWonder(adjTile.FeatureType))
+            {
+                if (isHolySite(districtTile) || isTheaterSquare(districtTile) || isEntertainmentComplex(districtTile))
+                    adjTile.Appeal = adjTile.Appeal + 1;
+                else if (isIndustrialZone(districtTile) || isAerodrome(districtTile) || isSpaceport(districtTile) || isEncampment(districtTile))
+                    adjTile.Appeal = adjTile.Appeal - 1;
+            }
+        }
+    }
 }
 
 type YieldKey = 'Food' | 'Production' | 'Gold' | 'Science' | 'Culture' | 'Faith';
@@ -645,12 +673,14 @@ export function allocateCitizensAuto(allTiles: TileType[], cityTile: TileType, o
 
     type TileTypeWithSpecialist = TileType & {IsSpecialist: boolean};
 
-    if (!cityTile) return [];
+    if (!cityTile) 
+        return [];
 
-    const allTilesModified: TileTypeWithSpecialist[] = allTiles.map(tile => ({...tile, IsSpecialist: false}))
+    const allTilesSpecialist: TileTypeWithSpecialist[] = allTiles.map(tile => ({...tile, IsSpecialist: false}))
 
     const slots = Math.max(0, opts.population);
-    if (slots === 0) return [];
+    if (slots === 0) 
+        return [];
 
     // Setup yield weights
     const favoredSet = new Set(cityTile.FavoredYields);
@@ -673,8 +703,7 @@ export function allocateCitizensAuto(allTiles: TileType[], cityTile: TileType, o
             weights[y] = weights[y] * disfavoredMultiplier;
     }
 
-    const normalTiles = allTilesModified.filter
-    (t =>
+    const normalTiles = allTilesSpecialist.filter(t =>
         !t.IsCity &&
         t.District === TileNone.NONE &&
         (t.Food > 0 || t.Production > 0 || t.Gold > 0 || t.Science > 0 || t.Culture > 0 || t.Faith > 0) &&
@@ -687,8 +716,7 @@ export function allocateCitizensAuto(allTiles: TileType[], cityTile: TileType, o
     {
         const virtualTiles: TileTypeWithSpecialist[] = [];
         
-        for (const districtTile of allTilesModified.filter
-        (t =>
+        for (const districtTile of allTilesSpecialist.filter(t =>
             !t.IsCity &&
             t.District !== TileNone.NONE &&
             distanceToTile(cityTile, t) <= maxDistance &&

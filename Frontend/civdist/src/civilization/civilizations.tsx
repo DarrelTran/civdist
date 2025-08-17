@@ -1,8 +1,8 @@
-import { TileType, LeaderName, TileNone, TileFeatures, TileTerrain, TileDistricts, TileNaturalWonders, TileBonusResources, TileLuxuryResources, TileImprovements, TileStrategicResources, TilePantheons, TileYields, TileWonders, PossibleErrors, VictoryType, TileArtifactResources } from "../types/types";
+import { TileType, LeaderName, TileNone, TileFeatures, TileTerrain, TileDistricts, TileNaturalWonders, TileBonusResources, TileLuxuryResources, TileImprovements, TileStrategicResources, TilePantheons, TileYields, TileWonders, PossibleErrors, VictoryType, TileArtifactResources, TileUniqueDistricts } from "../types/types";
 import { hasSeaResource, hasNaturalWonder, hasCampus, getCityPantheon, isLand, isWater, hasBonusResource, hasLuxuryResource, hasStrategicResource, isPlains, isGrassland, isDesert, isOcean, isCoast, isTundra, isSnow, hasTheater, hasHolySite, hasCommercial, hasHarbor, hasIndustrial, hasEntertainment, hasAqueduct, hasSpaceport, ruinsAdjacentTileAppeal, hasEncampment, isMountainWonder, hasAerodrome, isValidAqueductTile, distanceToTile, getCityTile, isAdjacentToCityCenter } from "../utils/functions/civ/civFunctions";
 import { canPlaceAlhambra, canPlaceBigBen, canPlaceBolshoiTheatre, canPlaceBroadway, canPlaceChichenItza, canPlaceColosseum, canPlaceColossus, canPlaceCristoRedentor, canPlaceEiffelTower, canPlaceEstadioDoMaracana, canPlaceForbiddenCity, canPlaceGreatLibrary, canPlaceGreatLighthouse, canPlaceGreatZimbabwe, canPlaceHagiaSophia, canPlaceHangingGardens, canPlaceHermitage, canPlaceHueyTeocalli, canPlaceMahabodhiTemple, canPlaceMontStMichel, canPlaceOracle, canPlaceOxfordUniversity, canPlacePetra, canPlacePotalaPalace, canPlacePyramids, canPlaceRuhrValley, canPlaceStonehenge, canPlaceSydneyOperaHouse, canPlaceTerracottaArmy, canPlaceVenetianArsenal } from "./wonderPlacement"
 import { getMapOddrString } from "../utils/functions/misc/misc";
-import { getDistanceBetweenTwoOddrHex, getOffsets, isFacingTargetHex } from "../utils/functions/hex/genericHex";
+import { getOffsets, isFacingTargetHex } from "../utils/functions/hex/genericHex";
 
 /*
 Rules:
@@ -70,11 +70,12 @@ function getScoreFromImprovements(tile: TileType, mapCache: Map<string, TileType
 {
     const goodForFarm = (tile: TileType): boolean => 
     {
-        if (tile.TerrainType === TileTerrain.GRASSLAND || 
+        if ((tile.TerrainType === TileTerrain.GRASSLAND || 
             tile.TerrainType === TileTerrain.GRASSLAND_HILLS || 
             tile.TerrainType === TileTerrain.PLAINS || 
             tile.TerrainType === TileTerrain.PLAINS_HILLS || 
-            (tile.TerrainType === TileTerrain.DESERT && tile.FeatureType === TileFeatures.FLOODPLAINS)
+            (tile.TerrainType === TileTerrain.DESERT && tile.FeatureType === TileFeatures.FLOODPLAINS) &&
+            tile.District === TileNone.NONE)
            )
             return true;
 
@@ -416,24 +417,13 @@ function getScoreIfNearTargetCity(checkTile: TileType, targetTile: TileType, min
         return BAD_SCORE;
 }
 
-function getScoreIfFacingTargetCity(checkTile: TileType, baseTile: TileType, targetTile: TileType, angleThreshold: number, hexDistance: number)
-{
-    if (checkTile.X === baseTile.X && checkTile.Y === baseTile.Y)
-        return 0;
-
-    if (isFacingTargetHex(baseTile, targetTile, checkTile, angleThreshold, hexDistance))
-        return GOOD_SCORE;
-    else
-        return BAD_SCORE;
-}
-
 /**
- * Scores based on impassable tiles, terrain that hinders ranged sight, and sea tiles. Scores based on number of mountains or strong terrain.
+ * 
  * @param tile 
  * @param mapCache 
  * @param impassableTolerance How many surrounding impassable tiles must exist for the tile to be good.
  * @param strongTerrainTolerance How many surrounding 'strong' terrain (hills, forest, etc) tiles must exist for the tile to be good.
- * @returns 
+ * @returns Score based on impassable tiles, terrain that hinders ranged sight, and sea tiles. Returns a score based on number of mountains or strong terrain where mountains get a higher score.
  */
 function getScoreFromChokepoint(tile: TileType, mapCache: Map<string, TileType>, impassableTolerance: number, strongTerrainTolerance: number)
 {
@@ -458,12 +448,16 @@ function getScoreFromChokepoint(tile: TileType, mapCache: Map<string, TileType>,
         }
     })
 
-    if (impassableTiles >= impassableTolerance && hindersMovementOrAttack >= strongTerrainTolerance)
-        return GOOD_SCORE;
-    else if (impassableTiles >= impassableTolerance)
-        return MEDIUM_SCORE;
+    const mountainScore = impassableTiles * 2;
+    const otherScore = hindersMovementOrAttack;
+    const maxMountains = 4; // encampment wont be able to shoot much if too many mountains blocking it
+
+    if (impassableTiles >= impassableTolerance && hindersMovementOrAttack >= strongTerrainTolerance && impassableTiles <= maxMountains)
+        return mountainScore + otherScore;
+    else if (impassableTiles >= impassableTolerance && impassableTiles <= maxMountains)
+        return mountainScore;
     else if (hindersMovementOrAttack >= strongTerrainTolerance)
-        return LOW_SCORE;
+        return otherScore;
     else
         return BAD_SCORE;
 }
@@ -585,7 +579,8 @@ export abstract class Civilization
                 getScoreFromImprovements(tile, mapCache) + 
                 getScoreFromWonderPlacement(tile, mapCache, ownedTiles, wondersIncluded, preferredVictory) +
                 getScoreFromAppeal(tile.Appeal) +
-                getScoreIfNearTargetCity(tile, targetCity, minDist);
+                getScoreIfNearTargetCity(tile, targetCity, minDist) +
+                getScoreFromRemoveAppeal(tile, mapCache);
     }
 
     protected getEntertainmentZoneScore(tile: TileType, yieldPreferences: readonly TileYields[], mapCache: Map<string, TileType>, ownedTiles: readonly TileType[], wondersIncluded: Set<TileWonders> | null, preferredVictory: string): number
@@ -604,22 +599,21 @@ export abstract class Civilization
         return  this.getScoreFromReplacability(tile, yieldPreferences, ownedTiles) + 
                 getScoreFromImprovements(tile, mapCache) + 
                 getScoreFromWonderPlacement(tile, mapCache, ownedTiles, wondersIncluded, preferredVictory) +
-                getScoreFromAppeal(tile.Appeal);
+                getScoreFromAppeal(tile.Appeal) +
+                getScoreFromRemoveAppeal(tile, mapCache);
     }  
     
     protected getEncampmentScore(tile: TileType, yieldPreferences: readonly TileYields[], mapCache: Map<string, TileType>, ownedTiles: readonly TileType[], wondersIncluded: Set<TileWonders> | null, targetCity: TileType, preferredVictory: string): number
     {
-        const facingCityAngleThreshold = 75;
-        const distanceThreshold = 2;
-        const impassableThreshold = 2;
-        const hindersThreshold = 2;
+        const impassableThreshold = 1;
+        const hindersThreshold = 1;
 
         return  this.getScoreFromReplacability(tile, yieldPreferences, ownedTiles) + 
                 getScoreFromImprovements(tile, mapCache) + 
                 getScoreFromWonderPlacement(tile, mapCache, ownedTiles, wondersIncluded, preferredVictory) +
                 getScoreFromAppeal(tile.Appeal) + 
-                getScoreIfFacingTargetCity(tile, getCityTile(ownedTiles), targetCity, facingCityAngleThreshold, distanceThreshold) +
-                getScoreFromChokepoint(tile, mapCache, impassableThreshold, hindersThreshold);
+                getScoreFromChokepoint(tile, mapCache, impassableThreshold, hindersThreshold) +
+                getScoreFromRemoveAppeal(tile, mapCache);
     }  
 
     /**
@@ -1291,11 +1285,14 @@ export abstract class Civilization
         let maxScore = 0;
         let returnedTile = undefined as TileType | undefined;
 
+        const facingCityAngleThreshold = 75;
+        const distanceThreshold = 2;
+
         if (!hasEncampment(ownedTiles))
         {
             ownedTiles.forEach((tile) => 
             {
-                if (this.isFreeTile(tile, getCityTile(ownedTiles)) && isLand(tile) && !isAdjacentToCityCenter(tile, mapCache))
+                if (this.isFreeTile(tile, getCityTile(ownedTiles)) && isLand(tile) && !isAdjacentToCityCenter(tile, mapCache) && isFacingTargetHex(getCityTile(ownedTiles), targetCity, tile, facingCityAngleThreshold, distanceThreshold))
                 {
                     let score = maxScore + this.getEncampmentScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity, preferredVictory) + 
                                 this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity, preferredVictory);
@@ -1324,9 +1321,11 @@ export abstract class Civilization
     }
 }
 
+/* right now, these specific civs are pretty empty, but kept for easy modification later on if needed */
+
 export class CityState extends Civilization
 {
-    
+    // for consistency and easy identification
 }
 
 export class America extends Civilization
@@ -1337,11 +1336,143 @@ export class America extends Civilization
 export class Arabia extends Civilization
 {
     
-}
+}   
 
 export class Brazil extends Civilization
 {
-    
+    override getCampusAdj(tile: TileType, mapCache: Map<string, TileType>): number
+    {
+        let bonus = 0;
+
+        const offset = getOffsets(tile.Y);
+        offset.forEach(([dx, dy]) => 
+        {
+            const adjOddrX = tile.X + dx;
+            const adjOddrY = tile.Y + dy;
+
+            const adjOddr = getMapOddrString(adjOddrX, adjOddrY);
+            const adjCacheTile = mapCache.get(adjOddr);
+
+            if (adjCacheTile)
+            {
+                if (adjCacheTile.FeatureType === TileNaturalWonders.GREAT_BARRIER_REEF)
+                    bonus = bonus + 2;
+                if ((adjCacheTile.IsMountain || isMountainWonder(adjCacheTile)) || adjCacheTile.FeatureType === TileFeatures.RAINFOREST)
+                    bonus = bonus + 1;
+                if (adjCacheTile.District !== TileNone.NONE && adjCacheTile.Wonder === TileNone.NONE)
+                    bonus = bonus + 0.5;
+            }
+        })
+
+        return bonus;
+    }
+
+    override getTheaterAdj(tile: TileType, mapCache: Map<string, TileType>): number
+    {
+        let bonus = 0;
+
+        const offset = getOffsets(tile.Y);
+        offset.forEach(([dx, dy]) => 
+        {
+            const adjOddrX = tile.X + dx;
+            const adjOddrY = tile.Y + dy;
+
+            const adjOddr = getMapOddrString(adjOddrX, adjOddrY);
+            const adjCacheTile = mapCache.get(adjOddr);
+
+            if (adjCacheTile)
+            {   
+                if (adjCacheTile.Wonder !== TileNone.NONE || adjCacheTile.FeatureType === TileFeatures.RAINFOREST)
+                    bonus = bonus + 1;
+                if (adjCacheTile.District !== TileNone.NONE && adjCacheTile.Wonder === TileNone.NONE)
+                    bonus = bonus + 0.5;
+            }
+        })
+
+        return bonus;
+    }
+
+    override getCommercialHubAdj(tile: TileType, mapCache: Map<string, TileType>): number
+    {
+        let bonus = 0;
+
+        const offset = getOffsets(tile.Y);
+        offset.forEach(([dx, dy]) => 
+        {
+            const adjOddrX = tile.X + dx;
+            const adjOddrY = tile.Y + dy;
+
+            const adjOddr = getMapOddrString(adjOddrX, adjOddrY);
+            const adjCacheTile = mapCache.get(adjOddr);
+
+            if (adjCacheTile)
+            {
+                if (adjCacheTile.District === TileDistricts.HARBOR_DISTRICT)
+                    bonus = bonus + 2;
+                if (adjCacheTile.FeatureType === TileFeatures.RAINFOREST)
+                    bonus = bonus + 1;
+                if (adjCacheTile.District !== TileNone.NONE && adjCacheTile.Wonder === TileNone.NONE)
+                    bonus = bonus + 0.5;
+            }
+        })
+
+        if (tile.IsRiver) // rivers are visually between tiles but represented as tiles between the visual river
+            bonus = bonus + 2;
+
+        return bonus;
+    }
+
+    override getHolySiteAdj(tile: TileType, ownedTiles: readonly TileType[], mapCache: Map<string, TileType>): number
+    {
+        let cityPanth = getCityPantheon(ownedTiles);
+        let bonus = 0;
+
+        const offset = getOffsets(tile.Y);
+        offset.forEach(([dx, dy]) => 
+        {
+            const adjOddrX = tile.X + dx;
+            const adjOddrY = tile.Y + dy;
+
+            const adjOddr = getMapOddrString(adjOddrX, adjOddrY);
+            const adjCacheTile = mapCache.get(adjOddr);
+
+            if (adjCacheTile)
+            {
+                if (hasNaturalWonder(adjCacheTile.FeatureType))
+                    bonus = bonus + 2;
+                if (
+                    (adjCacheTile.IsMountain || isMountainWonder(adjCacheTile)) || 
+                    adjCacheTile.FeatureType === TileFeatures.RAINFOREST ||
+                    (cityPanth === TilePantheons.DANCE_OF_THE_AURORA && (adjCacheTile.TerrainType === TileTerrain.TUNDRA || adjCacheTile.TerrainType === TileTerrain.TUNDRA_HILLS || adjCacheTile.TerrainType === TileTerrain.TUNDRA_MOUNTAIN)) ||
+                    (cityPanth === TilePantheons.DESERT_FOLKLORE && (adjCacheTile.TerrainType === TileTerrain.DESERT || adjCacheTile.TerrainType === TileTerrain.DESERT_HILLS || adjCacheTile.TerrainType === TileTerrain.DESERT_MOUNTAIN))
+                    )
+                    bonus = bonus + 1;
+                if ((adjCacheTile.District !== "NONE" && adjCacheTile.Wonder === "NONE") || adjCacheTile.FeatureType === TileFeatures.WOODS)
+                    bonus = bonus + 0.5;
+            }
+        })
+
+        return bonus;
+    }
+
+    override getEntertainmentZoneTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null, targetCity: TileType, preferredVictory: string): TileType | undefined
+    {
+        try
+        {
+            const theTile = super.getEntertainmentZoneTile(ownedTiles, yieldPreferences, mapCache, wondersIncluded, targetCity, preferredVictory);
+            
+            if (theTile)
+            {
+                theTile.District = TileUniqueDistricts.STREET_CARNIVAL_DISTRICT;
+                return theTile;
+            }
+        }
+        catch (err)
+        {
+            if (err instanceof Error)
+                throw err;
+        }
+    }
 }
 
 export class China extends Civilization

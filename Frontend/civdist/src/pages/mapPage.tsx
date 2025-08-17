@@ -16,23 +16,14 @@ import { getScaledGridAndTileSizes, getScaledGridSizesFromTile, getScaleFromType
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCircleQuestion } from '@fortawesome/free-regular-svg-icons';
 import Tooltip from '../components/tooltip';
-import { allocateCitizensAuto, purgeTileForDistrict } from '../utils/functions/civ/civFunctions';
+import { allocateCitizensAuto, changeAppealToAdjFromDistrict, purgeTileForDistrict } from '../utils/functions/civ/civFunctions';
 
 // assuming all resources are revealed
 
 /*
 /////////////////////////////////////////////////////////////////
 
-TODO: Fix gap in city border lines!
-
-TODO: Optimize hexmap drawing.
-
-TODO: yieldTesting.json wrong encampment????
-
-TODO: Get new worked tile if district is placed over worked one!! RULES: Yields affected by favored or disfavored yields. Prioritzes food? Districts are least priority? Disfavored = remove tiles that have more of the disfavored yield. Favored = keep tiles that have more of this.
-TODO: Test calculated worked tile by manually adding favored/disfavored yields and checking yieldTesting.json.
-
-TODO: Add toggable hover with tile data and resize if too long with max width
+TODO: Check if brazil rainforest appeal thing is already calculated in the json.
 
 TODO: Update hexmapCache and cityOwnedTiles when adding new district - WHEN ADDING DISTRICT ACCOUNT FOR EFFECTS OF DISTRICT LIKE THEATER ADDING APPEAL TO ADJ OR REMOVING STUFF LIKE IMPROVEMENTS
 
@@ -58,6 +49,8 @@ TODO: Use <br> instead of grid style
 
 TODO: Optimize wonder placements by removing check for district if corresponding building exists.
 
+TODO: Make page nice for mobile
+
 /////////////////////////////////////////////////////////////////
 */
 
@@ -69,7 +62,9 @@ const MapPage = () =>
     const hexmapCache = useRef<Map<string, TileType>>(new Map()); // oddr coords, tile
     const [mapCacheVersion, setMapCacheVersion] = useState<number>(0);
     const [mapJSON, setMapJSON] = useState<TileType[]>([]);
-    const [yieldAttributeCache, setYieldAttributeCache] = useState<Map<string, {imgElement: HTMLImageElement | undefined, scaleType: HexType}[]>>(new Map()); // oddr str, attr
+
+    const yieldAttributeCache = useRef<Map<string, {imgElement: HTMLImageElement | undefined, scaleType: HexType}[]>>(new Map()); // oddr str, attr
+    const [yieldAttributeCacheVersion, setYieldAttributeCacheVersion] = useState<number>(0);
 
     const [civCompletedWonders, setCivCompletedWonders] = useState<Set<TileWonders>>(new Set());
 
@@ -504,7 +499,7 @@ const MapPage = () =>
             if (theImage)
                 drawHexImage(context, tile, theOpacity, theImage);
 
-            const yieldAttr = yieldAttributeCache.get(getMapOddrString(tile.X, tile.Y));
+            const yieldAttr = yieldAttributeCache.current.get(getMapOddrString(tile.X, tile.Y));
             if (optionalVisual.yields && yieldAttr)
                 drawYieldsOnTile(context, tile, yieldAttr);
             else if (optionalVisual.resources)
@@ -531,7 +526,7 @@ const MapPage = () =>
         {
             drawMapWithHoveredTile(context, oddrCoord, 0.3);
         }
-    }, [tileSize, gridSize, cityBoundaryTiles, dropdownCity, optionalVisual, riverTiles]); // to ensure latest values are used
+    }, [tileSize, gridSize, cityBoundaryTiles, dropdownCity, optionalVisual, riverTiles, yieldAttributeCacheVersion]); // to ensure latest values are used
 
     function getMousePos(e: MouseEvent): {x: number, y: number} | undefined
     {
@@ -718,7 +713,7 @@ const MapPage = () =>
             if (theImage)
                 drawHexImage(context, tile, theOpacity, theImage);
 
-            const yieldAttr = yieldAttributeCache.get(getMapOddrString(tile.X, tile.Y));
+            const yieldAttr = yieldAttributeCache.current.get(getMapOddrString(tile.X, tile.Y));
             if (optionalVisual.yields && yieldAttr)
                 drawYieldsOnTile(context, tile, yieldAttr);
             else if (optionalVisual.resources)
@@ -732,7 +727,7 @@ const MapPage = () =>
 
         if (riverTiles.length <= 0)
             setRiverTiles(riverArray);
-    }, [tileSize, gridSize, cityBoundaryTiles, dropdownCity, areImagesLoaded, mapJSON, mapCacheVersion, optionalVisual, riverTiles]);
+    }, [tileSize, gridSize, cityBoundaryTiles, dropdownCity, areImagesLoaded, mapJSON, mapCacheVersion, optionalVisual, riverTiles, yieldAttributeCacheVersion]);
 
     const initHexmapCache = useCallback(() => 
     {
@@ -818,7 +813,9 @@ const MapPage = () =>
 
         setCityOwnedTiles(cityTiles);
         setCivCompletedWonders(civCompletedWondersTemp);
-        setYieldAttributeCache(yieldMap);
+
+        yieldAttributeCache.current = yieldMap;
+        setYieldAttributeCacheVersion(yieldAttributeCacheVersion + 1);
     }, [drawMapFromCache, mapJSON]);
 
     useEffect(() => 
@@ -966,6 +963,7 @@ const MapPage = () =>
                 workerReassigned = true;
 
             purgeTileForDistrict(foundTile);
+            changeAppealToAdjFromDistrict(foundTile, hexmapCache.current);
 
             if (workerReassigned)
             {
@@ -981,8 +979,11 @@ const MapPage = () =>
             if (tileList)
                 cityMap.set(dropdownCity, newCityTiles);
 
+            yieldAttributeCache.current.set(oddr, []);
+
             setCityOwnedTiles(cityMap);
             setMapCacheVersion(mapCacheVersion + 1);
+            setYieldAttributeCacheVersion(yieldAttributeCacheVersion + 1);
         }
     }
 
@@ -1563,11 +1564,8 @@ const MapPage = () =>
 
     function testStuff()
     {
-        yieldAttributeCache.forEach((a, b) => 
-        {
-            console.log(a + ', ' + b)
-        })
-    }
+        
+    }   
 };
 
 export default MapPage;

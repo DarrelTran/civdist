@@ -23,15 +23,19 @@ import { allocateCitizensAuto, changeAppealToAdjFromDistrict, purgeTileForDistri
 /*
 /////////////////////////////////////////////////////////////////
 
+TODO: Update JSON with capital city and current continent.
+
+TODO: Update tiles in city holy site built for norway production bonus??
+
 TODO: Check if brazil rainforest appeal thing is already calculated in the json.
 
 TODO: Update hexmapCache and cityOwnedTiles when adding new district - WHEN ADDING DISTRICT ACCOUNT FOR EFFECTS OF DISTRICT LIKE THEATER ADDING APPEAL TO ADJ OR REMOVING STUFF LIKE IMPROVEMENTS
 
 TODO: Check bonuses in buildings/unique buildings too
 
-TODO: Add tooltip question mark to explain the dropdowns and stuff.
-
 TODO: Add loading warning/prompt when map is being drawn
+
+TODO: Improve performance of zoom past 300.
 
 TODO: Save map JSON to backend/database.
 
@@ -41,13 +45,7 @@ TODO: Refactor code to make it nicer/more organized and remove redundancies. Rem
 
 TODO: Add documentation to functions. Read random comments to see if any extra issues need fixing.
 
-TODO: Can civ6 cities have same name??
-
-TODO: Change all selects to the Select from react-hexgrid so can add little icons next to text.
-
 TODO: Use <br> instead of grid style
-
-TODO: Optimize wonder placements by removing check for district if corresponding building exists.
 
 TODO: Make page nice for mobile
 

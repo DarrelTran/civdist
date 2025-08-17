@@ -1,5 +1,5 @@
 import { TileType, LeaderName, TileNone, TileFeatures, TileTerrain, TileDistricts, TileNaturalWonders, TileBonusResources, TileLuxuryResources, TileImprovements, TileStrategicResources, TilePantheons, TileYields, TileWonders, PossibleErrors, VictoryType, TileArtifactResources, TileUniqueDistricts } from "../types/types";
-import { hasSeaResource, hasNaturalWonder, hasCampus, getCityPantheon, isLand, isWater, hasBonusResource, hasLuxuryResource, hasStrategicResource, isPlains, isGrassland, isDesert, isOcean, isCoast, isTundra, isSnow, hasTheater, hasHolySite, hasCommercial, hasHarbor, hasIndustrial, hasEntertainment, hasAqueduct, hasSpaceport, ruinsAdjacentTileAppeal, hasEncampment, isMountainWonder, hasAerodrome, isValidAqueductTile, distanceToTile, getCityTile, isAdjacentToCityCenter, isCommercialHub } from "../utils/functions/civ/civFunctions";
+import { hasSeaResource, hasNaturalWonder, hasCampus, getCityPantheon, isLand, isWater, hasBonusResource, hasLuxuryResource, hasStrategicResource, isPlains, isGrassland, isDesert, isOcean, isCoast, isTundra, isSnow, hasTheater, hasHolySite, hasCommercial, hasHarbor, hasIndustrial, hasEntertainment, hasAqueduct, hasSpaceport, ruinsAdjacentTileAppeal, hasEncampment, isMountainWonder, hasAerodrome, isValidAqueductTile, distanceToTile, getCityTile, isAdjacentToCityCenter, isCommercialHub, isAdjacentToLand, isOnForeignContinent, isHolySite } from "../utils/functions/civ/civFunctions";
 import { canPlaceAlhambra, canPlaceBigBen, canPlaceBolshoiTheatre, canPlaceBroadway, canPlaceChichenItza, canPlaceColosseum, canPlaceColossus, canPlaceCristoRedentor, canPlaceEiffelTower, canPlaceEstadioDoMaracana, canPlaceForbiddenCity, canPlaceGreatLibrary, canPlaceGreatLighthouse, canPlaceGreatZimbabwe, canPlaceHagiaSophia, canPlaceHangingGardens, canPlaceHermitage, canPlaceHueyTeocalli, canPlaceMahabodhiTemple, canPlaceMontStMichel, canPlaceOracle, canPlaceOxfordUniversity, canPlacePetra, canPlacePotalaPalace, canPlacePyramids, canPlaceRuhrValley, canPlaceStonehenge, canPlaceSydneyOperaHouse, canPlaceTerracottaArmy, canPlaceVenetianArsenal } from "./wonderPlacement"
 import { getMapOddrString } from "../utils/functions/misc/misc";
 import { getOffsets, isFacingTargetHex } from "../utils/functions/hex/genericHex";
@@ -603,7 +603,7 @@ export abstract class Civilization
                 getScoreFromRemoveAppeal(tile, mapCache);
     }  
     
-    protected getEncampmentScore(tile: TileType, yieldPreferences: readonly TileYields[], mapCache: Map<string, TileType>, ownedTiles: readonly TileType[], wondersIncluded: Set<TileWonders> | null, targetCity: TileType, preferredVictory: string): number
+    protected getEncampmentScore(tile: TileType, yieldPreferences: readonly TileYields[], mapCache: Map<string, TileType>, ownedTiles: readonly TileType[], wondersIncluded: Set<TileWonders> | null, preferredVictory: string): number
     {
         const impassableThreshold = 1;
         const hindersThreshold = 1;
@@ -655,7 +655,7 @@ export abstract class Civilization
             const aerodromeScore =          aerodromeExists ? -1 : this.getAerodromeScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity, preferredVictory);
             const entertainmentZoneScore =  entertainmentExists ? -1 : this.getEntertainmentZoneScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory);
             const spaceportScore =          spaceportExists ? -1 : this.getSpaceportScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory);
-            const encampmentScore =         encampmentExists ? -1 : this.getEncampmentScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity, preferredVictory);
+            const encampmentScore =         encampmentExists ? -1 : this.getEncampmentScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory);
 
             if (campusScore >= LOW_SCORE || 
                 theaterScore >= LOW_SCORE || 
@@ -1048,7 +1048,7 @@ export abstract class Civilization
         {
             ownedTiles.forEach((tile) => 
             {
-                if (this.isFreeTile(tile, getCityTile(ownedTiles)) && isWater(tile))
+                if (this.isFreeTile(tile, getCityTile(ownedTiles)) && (isCoast(tile) || tile.IsLake) && isAdjacentToLand(tile, mapCache))
                 {
                     let score = maxScore + this.getHarborScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory) + 
                                 this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity, preferredVictory);
@@ -1307,7 +1307,7 @@ export abstract class Civilization
             {
                 if (this.isFreeTile(tile, getCityTile(ownedTiles)) && isLand(tile) && !isAdjacentToCityCenter(tile, mapCache) && isFacingTargetHex(getCityTile(ownedTiles), targetCity, tile, facingCityAngleThreshold, distanceThreshold))
                 {
-                    let score = maxScore + this.getEncampmentScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity, preferredVictory) + 
+                    let score = maxScore + this.getEncampmentScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory) + 
                                 this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity, preferredVictory);
                     if (score > maxScore)
                     {
@@ -1648,7 +1648,7 @@ export class Egypt extends Civilization
                 this.getScoreFromRiverProductionBonus(tile);
     }  
     
-    override getEncampmentScore(tile: TileType, yieldPreferences: readonly TileYields[], mapCache: Map<string, TileType>, ownedTiles: readonly TileType[], wondersIncluded: Set<TileWonders> | null, targetCity: TileType, preferredVictory: string): number
+    override getEncampmentScore(tile: TileType, yieldPreferences: readonly TileYields[], mapCache: Map<string, TileType>, ownedTiles: readonly TileType[], wondersIncluded: Set<TileWonders> | null, preferredVictory: string): number
     {
         const impassableThreshold = 1;
         const hindersThreshold = 1;
@@ -1665,7 +1665,35 @@ export class Egypt extends Civilization
 
 export class England extends Civilization
 {
-    // add unique harbor bonus for being on foreign continent
+    override getHarborAdj(tile: TileType, mapCache: Map<string, TileType>): number
+    {
+        let bonus = 0;
+
+        const offset = getOffsets(tile.Y);
+        offset.forEach(([dx, dy]) => 
+        {
+            const adjOddrX = tile.X + dx;
+            const adjOddrY = tile.Y + dy;
+
+            const adjOddr = getMapOddrString(adjOddrX, adjOddrY);
+            const adjCacheTile = mapCache.get(adjOddr);
+
+            if (adjCacheTile)
+            {
+                if (adjCacheTile.IsCity)
+                    bonus = bonus + 2;
+                if (hasSeaResource(adjCacheTile))
+                    bonus = bonus + 1;
+                if (adjCacheTile.District !== TileNone.NONE && adjCacheTile.Wonder === TileNone.NONE)
+                    bonus = bonus + 1;
+            }
+        })
+
+        if (isOnForeignContinent(tile, mapCache))
+            bonus = bonus + 2;
+
+        return bonus;
+    }
 
     override getHarborTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null, targetCity: TileType, preferredVictory: string): TileType | undefined
     {
@@ -1982,12 +2010,57 @@ export class Japan extends Civilization
 
 export class Kongo extends Civilization
 {
-    
+    override getNeighborhoodTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null, targetCity: TileType, preferredVictory: string): TileType | undefined
+    {
+        let maxScore = 0;
+        let returnedTile = undefined as TileType | undefined;
+
+        ownedTiles.forEach((tile) => 
+        {
+            if (this.isFreeTile(tile, getCityTile(ownedTiles)) && isLand(tile) && (tile.FeatureType === TileFeatures.WOODS || tile.FeatureType === TileFeatures.RAINFOREST))
+            {
+                let score = maxScore + this.getNeighborhoodScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory) + 
+                                this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity, preferredVictory);
+                if (score > maxScore)
+                {
+                    maxScore = score;
+                    returnedTile = tile;
+                }
+            }
+        })
+
+        if (returnedTile)
+        {
+            returnedTile.District = TileUniqueDistricts.MBANZA_DISTRICT;
+            return returnedTile;
+        }
+        else
+        {
+            throw new Error(PossibleErrors.FAILED_TO_FIND_TILE);
+        }
+    }
 }
 
 export class Russia extends Civilization
 {
-    
+    override getHolySiteTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null, targetCity: TileType, preferredVictory: string): TileType | undefined
+    {
+        try
+        {
+            const theTile = super.getHolySiteTile(ownedTiles, yieldPreferences, mapCache, wondersIncluded, targetCity, preferredVictory);
+            
+            if (theTile)
+            {
+                theTile.District = TileUniqueDistricts.LAVRA_DISTRICT;
+                return theTile;
+            }
+        }
+        catch (err)
+        {
+            if (err instanceof Error)
+                throw err;
+        }
+    }
 }
 
 export class Scythia extends Civilization
@@ -2007,6 +2080,34 @@ export class Spain extends Civilization
 
 export class Norway extends Civilization
 {
+    /**
+     * Assumes that all Holy Site buildings are or will be built.
+     * @param addedDistrictTile 
+     * @param ownedTiles 
+     * @param mapCache 
+     */
+    updateCityTilesWithProduction(addedDistrictTile: TileType, ownedTiles: TileType[], mapCache: Map<string, TileType>)
+    {
+        if (!isHolySite(addedDistrictTile))
+            return;
+
+        ownedTiles.forEach((tile) => 
+        {
+            const validForStaveProduction = isWater(tile) && (hasBonusResource(tile) || hasLuxuryResource(tile) || tile.ResourceType === TileArtifactResources.SHIPWRECK);
+
+            if (validForStaveProduction)
+                tile.Production = tile.Production + 1;
+
+            const oddr = getMapOddrString(tile.X, tile.Y);
+            const mapTile = mapCache.get(oddr);
+            if (mapTile)
+            {
+                mapTile.Production = mapTile.Production + 1;
+                mapCache.set(oddr, mapTile);
+            }
+        })
+    }
+
     override getHolySiteAdj(tile: TileType, ownedTiles: readonly TileType[], mapCache: Map<string, TileType>): number
     {
         let cityPanth = getCityPantheon(ownedTiles);

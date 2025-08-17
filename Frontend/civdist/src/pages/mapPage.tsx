@@ -7,7 +7,7 @@ import { TileNone, TileWonders, TileDistricts, TileNaturalWonders, TerrainFeatur
 import { loadDistrictImages, loadNaturalWonderImages, loadResourceImages, loadTerrainImages, loadWonderImages, loadYieldDropdownImages, loadYieldImages } from '../images/imageLoaders';
 import { getTerrain, getDistrict, getNaturalWonder, getWonder, getResource, getYields } from '../images/imageAttributeFinders';
 import { baseTileSize, getAllPossibleDistricts, getAllPossibleYields, getAllPossibleVictoryTypes, minZoom, maxZoom } from '../utils/constants';
-import { Civilization, getCivilizationObject } from '../civilization/civilizations';
+import { Civilization, getCivilizationObject, Norway } from '../civilization/civilizations';
 import { yieldSelectStyle, nearbyCityFontSize, nearbyCityStyles, genericSingleSelectStyle } from './mapPageSelectStyles';
 import { OptionsWithImage, OptionsWithSpecialText, OptionsGenericString } from '../types/selectionTypes';
 import { getMapOddrString, getMinMaxXY, getTextWidth } from '../utils/functions/misc/misc';
@@ -23,15 +23,11 @@ import { allocateCitizensAuto, changeAppealToAdjFromDistrict, purgeTileForDistri
 /*
 /////////////////////////////////////////////////////////////////
 
-TODO: Update JSON with capital city and current continent.
-
 TODO: Update tiles in city holy site built for norway production bonus??
 
 TODO: Check if brazil rainforest appeal thing is already calculated in the json.
 
 TODO: Update hexmapCache and cityOwnedTiles when adding new district - WHEN ADDING DISTRICT ACCOUNT FOR EFFECTS OF DISTRICT LIKE THEATER ADDING APPEAL TO ADJ OR REMOVING STUFF LIKE IMPROVEMENTS
-
-TODO: Check bonuses in buildings/unique buildings too
 
 TODO: Add loading warning/prompt when map is being drawn
 
@@ -939,7 +935,7 @@ const MapPage = () =>
         }
     }   
 
-    function updateTilesWithDistrict(foundTile: TileType, cityTiles: TileType[])
+    function updateTilesWithDistrict(foundTile: TileType, cityTiles: TileType[], civObject: Civilization)
     {
         if (dropdownCity)
         {
@@ -970,7 +966,20 @@ const MapPage = () =>
             }
 
             const oddr = getMapOddrString(foundTile.X, foundTile.Y);
-            hexmapCache.current.set(oddr, foundTile);
+            const foundTileCache = hexmapCache.current.get(oddr);
+            if (foundTileCache)
+                hexmapCache.current.set(oddr, foundTile);
+
+            newCityTiles.forEach((tile) => 
+            {
+                const newOddr = getMapOddrString(tile.X, tile.Y);
+                const foundTileNew = hexmapCache.current.get(newOddr);
+                if (foundTileNew)
+                    foundTileNew.IsWorked = true;
+            })
+
+            if (civObject instanceof Norway)
+                civObject.updateCityTilesWithProduction(foundTile, cityTiles, hexmapCache.current);
 
             const cityMap = new Map(cityOwnedTiles);
             const tileList = cityMap.get(dropdownCity);
@@ -1096,7 +1105,7 @@ const MapPage = () =>
                     foundTile = getTileFromDistrictType(theCiv, dropdownCityOwnedTiles);
 
                     if (foundTile)
-                        updateTilesWithDistrict(foundTile, dropdownCityOwnedTiles);
+                        updateTilesWithDistrict(foundTile, dropdownCityOwnedTiles, theCiv);
                 }
             }
         }

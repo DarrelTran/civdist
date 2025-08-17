@@ -411,10 +411,17 @@ export type TileType =
   IsLake: boolean,
   IsFlatlands: boolean,
   IsCity: boolean,
+  /** ONLY EXISTS ON THE CITY TILE */
+  IsCapital: boolean,
+  /** ONLY EXISTS ON THE CITY TILE */
+  OriginalOwner: string,
+  /** ONLY EXISTS ON THE CITY TILE */
   Population: number,
   IsWorked: boolean,
   TileCity: string,
+  /** ONLY EXISTS ON THE CITY TILE */
   CityPantheon: TilePantheons | TileNone.NONE,
+  /** ONLY EXISTS ON THE CITY TILE */
   FoundedReligion: string,
   IsRiver: boolean,
   IsNEOfRiver: boolean,

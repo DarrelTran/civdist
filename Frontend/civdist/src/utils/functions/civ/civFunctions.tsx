@@ -36,6 +36,65 @@ export function isAdjacentToCityCenter(tile: TileType, mapCache: Map<string, Til
     return false;
 }
 
+export function isAdjacentToLand(tile: TileType, mapCache: Map<string, TileType>)
+{
+    const offsets = getOffsets(tile.Y);
+    for (let i = 0; i < offsets.length; i++)
+    {
+        const dx = offsets[i][0];
+        const dy = offsets[i][1];
+
+        const oddrStr = getMapOddrString(tile.X + dx, tile.Y + dy);
+        const adjTile = mapCache.get(oddrStr);
+
+        if (adjTile)
+        {
+            if (isLand(adjTile)) 
+                return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * 
+ * @param currentTile Will return currentTile if it is a capital.
+ * @param mapCache 
+ * @returns 
+ */
+export function findCapital(currentTile: TileType, mapCache: Map<string, TileType>): TileType | TileNone.NONE
+{
+    if (currentTile.IsCapital)
+        return currentTile;
+
+    let theTile: TileType | TileNone.NONE = TileNone.NONE;
+
+    for (const [tileStr, tile] of mapCache)
+    {
+        if (tile.IsCapital && tile.Civilization === currentTile.Civilization && tile.TileCity !== currentTile.TileCity)
+        {
+            theTile = tile;
+            break;
+        }
+    }
+
+    return theTile;
+}
+
+export function isOnForeignContinent(tile: TileType, mapCache: Map<string, TileType>)
+{
+    let capitalTile = findCapital(tile, mapCache);
+
+    if (capitalTile === TileNone.NONE) 
+        return false;
+
+    if (capitalTile.Continent !== tile.Continent)
+        return false;
+
+    return false;
+}
+
 export function hasBonusResource(tile: TileType): boolean
 {
     for (const bonus of Object.values(TileBonusResources)) 

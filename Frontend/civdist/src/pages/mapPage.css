@@ -20,3 +20,17 @@
 {
   color: teal;
 }
+
+.outerDiv
+{
+  margin: 0px 10px;
+  padding: 0px 10px;
+  border: 2px solid purple;
+}
+
+.save
+
+.gridSplit
+{
+  /*grid-template-rows: 1fr 1fr 1fr; */
+}

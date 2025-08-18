@@ -66,7 +66,7 @@ export function getResource(tile: TileType, resourceMap: Map<TileBonusResources 
     return {imgElement: undefined, scaleType: HexType.UNKNOWN};
 }
 
-export function getYields(tile: TileType, yieldMap: Map<YieldImagesKey, HTMLImageElement>): {imgElement: HTMLImageElement | undefined, scaleType: HexType}[]
+export function getYields(tile: TileType, yieldImageMap: Map<YieldImagesKey, HTMLImageElement>): {imgElement: HTMLImageElement | undefined, scaleType: HexType}[]
 {
     const possibleYields = Object.values(TileYields);
     const yieldImages: {imgElement: HTMLImageElement | undefined, scaleType: number}[] = [];
@@ -81,13 +81,13 @@ export function getYields(tile: TileType, yieldMap: Map<YieldImagesKey, HTMLImag
 
                 if (yieldValue > 12)
                 {
-                    const bigYield = yieldMap.get(`${theYield}_12`);
+                    const bigYield = yieldImageMap.get(`${theYield}_12`);
                     if (bigYield)
                         yieldImages.push({imgElement: bigYield, scaleType: HexType.YIELD});
                 }
                 else
                 {
-                    const normalYield = yieldMap.get(`${theYield}_${yieldValue}`);
+                    const normalYield = yieldImageMap.get(`${theYield}_${yieldValue}`);
                     if (normalYield)
                     {
                         yieldImages.push({imgElement: normalYield, scaleType: HexType.YIELD});

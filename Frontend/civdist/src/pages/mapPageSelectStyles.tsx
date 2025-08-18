@@ -227,3 +227,63 @@ export const nearbyCityStyles = (theWidth: number): StylesConfig<OptionsWithSpec
         })
     }
 }
+
+export const optionalVisualFontSize = 16;
+
+export const optionalVisualStyle = (theWidth: number): StylesConfig<OptionsGenericString, false> => 
+{
+    return {
+        singleValue: (baseStyles: CSSObjectWithLabel) => 
+        ({
+            ...baseStyles,
+            color: 'black'
+        }),
+        control: (baseStyles: CSSObjectWithLabel, state) => 
+        ({
+            ...baseStyles,
+            backgroundColor: state.isFocused ? '#d0d0d7' : '#e8e8ec',
+            ':hover': 
+            {
+                backgroundColor: '#d0d0d7'
+            },
+            width: `${theWidth}px`,
+            fontSize: `${optionalVisualFontSize}px`
+        }),
+        menu: (baseStyles: CSSObjectWithLabel) => 
+        ({
+            ...baseStyles,
+            marginTop: 0,
+            backgroundColor: '#edf1f2'
+        }),
+        dropdownIndicator: (baseStyles: CSSObjectWithLabel) => 
+        ({
+            ...baseStyles,
+            color: '#020202',
+            ':hover': 
+            {
+                color: '#020202'
+            }
+        }),
+        clearIndicator: (baseStyles: CSSObjectWithLabel) => 
+        ({
+            ...baseStyles,
+            color: 'firebrick',
+            ':hover': 
+            {
+                color: 'red'
+            }
+        }),
+        option: (baseStyles: CSSObjectWithLabel, state) => 
+        ({
+            ...baseStyles,
+            backgroundColor: state.isSelected ? '#edf1f2': '#edf1f2',
+            ':hover': 
+            {
+                backgroundColor: '#cfd4d6'
+            },
+            color: 'black',
+            fontSize: `${optionalVisualFontSize}px`,
+            width: `${theWidth}px`
+        })
+    }
+}

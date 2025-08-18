@@ -28,7 +28,16 @@
   border: 2px solid purple;
 }
 
-.save
+.saveDropdownEntry
+{
+  display: flex;
+  margin-top: 5px;
+}
+
+.saveDropdownInput:focus::placeholder
+{
+  color: transparent;
+}
 
 .gridSplit
 {

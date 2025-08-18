@@ -16,6 +16,10 @@ const MEDIUM_SCORE = 3;
 const LOW_SCORE = 1;
 const BAD_SCORE = -2;
 
+// for encampment
+const facingCityAngleThreshold = 75;
+const distanceThreshold = 2;
+
 function getScoreFromAdj(adj: number): number
 {
     if (adj >= 5) // 5 or more
@@ -644,18 +648,40 @@ export abstract class Civilization
             const adjTile = mapCache.get(oddrStr);
             if (!adjTile || (adjTile && !this.isFreeTile(adjTile, getCityTile(ownedTiles)))) return;
 
-            const campusScore =             campusExists ? -1 : this.getCampusScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory);
-            const theaterScore =            theaterExists ? -1 : this.getTheaterScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory);
-            const holySiteScore =           holyExists ? -1 : this.getHolySiteScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory);
-            const industrialZoneScore =     industrialExists ? -1 : this.getIndustrialZoneScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory);
-            const commercialHubScore =      commercialExists ? -1 : this.getCommercialHubScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory);
-            const harborScore =             harborExists ? -1 : this.getHarborScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory);
+            const campusScore =             campusExists || !this.canPlaceCampus(tile, ownedTiles) ? 
+                                            0 : this.getCampusScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory);
+
+            const theaterScore =            theaterExists || !this.canPlaceTheater(tile, ownedTiles)? 
+                                            0 : this.getTheaterScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory);
+
+            const holySiteScore =           holyExists || !this.canPlaceHolySite(tile, ownedTiles) ? 
+                                            0 : this.getHolySiteScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory);
+
+            const industrialZoneScore =     industrialExists || !this.canPlaceIndustrialZone(tile, ownedTiles) ? 
+                                            0 : this.getIndustrialZoneScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory);
+
+            const commercialHubScore =      commercialExists || !this.canPlaceCommercialHub(tile, ownedTiles) ? 
+                                            0 : this.getCommercialHubScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory);
+
+            const harborScore =             harborExists || !this.canPlaceHarbor(tile, ownedTiles, mapCache) ? 
+                                            0 : this.getHarborScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory);
+
             const neighborhoodScore =       this.getNeighborhoodScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory);
-            const aqueductScore =           aqueductExists ? -1 : this.getAqueductScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory);
-            const aerodromeScore =          aerodromeExists ? -1 : this.getAerodromeScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity, preferredVictory);
-            const entertainmentZoneScore =  entertainmentExists ? -1 : this.getEntertainmentZoneScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory);
-            const spaceportScore =          spaceportExists ? -1 : this.getSpaceportScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory);
-            const encampmentScore =         encampmentExists ? -1 : this.getEncampmentScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory);
+
+            const aqueductScore =           aqueductExists || !this.canPlaceAqueduct(tile, ownedTiles, mapCache) ? 
+                                            0 : this.getAqueductScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory);
+
+            const aerodromeScore =          aerodromeExists || !this.canPlaceAerodrome(tile, ownedTiles) ? 
+                                            0 : this.getAerodromeScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity, preferredVictory);
+
+            const entertainmentZoneScore =  entertainmentExists || !this.canPlaceEntertainmentZone(tile, ownedTiles) ? 
+                                            0 : this.getEntertainmentZoneScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory);
+
+            const spaceportScore =          spaceportExists || !this.canPlaceSpaceport(tile, ownedTiles) ? 
+                                            0 : this.getSpaceportScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory);
+
+            const encampmentScore =         encampmentExists || !this.canPlaceEncampment(tile, ownedTiles, mapCache, targetCity) ? 
+                                            0 : this.getEncampmentScore(adjTile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory);
 
             if (campusScore >= LOW_SCORE || 
                 theaterScore >= LOW_SCORE || 
@@ -889,6 +915,69 @@ export abstract class Civilization
         return bonus;
     }
 
+    /* TILE PLACEMENT RESTRICTIONS */
+
+    protected canPlaceCampus(tile: TileType, ownedTiles: readonly TileType[])
+    {
+        return this.isFreeTile(tile, getCityTile(ownedTiles)) && isLand(tile);
+    }
+
+    protected canPlaceTheater(tile: TileType, ownedTiles: readonly TileType[])
+    {
+        return this.isFreeTile(tile, getCityTile(ownedTiles)) && isLand(tile);
+    }
+
+    protected canPlaceCommercialHub(tile: TileType, ownedTiles: readonly TileType[])
+    {
+        return this.isFreeTile(tile, getCityTile(ownedTiles)) && isLand(tile);
+    }
+
+    protected canPlaceHarbor(tile: TileType, ownedTiles: readonly TileType[], mapCache: Map<string, TileType>)
+    {
+        return this.isFreeTile(tile, getCityTile(ownedTiles)) && (isCoast(tile) || tile.IsLake) && isAdjacentToLand(tile, mapCache);
+    }
+
+    protected canPlaceIndustrialZone(tile: TileType, ownedTiles: readonly TileType[])
+    {
+        return this.isFreeTile(tile, getCityTile(ownedTiles)) && isLand(tile);
+    }
+
+    protected canPlaceNeighborhood(tile: TileType, ownedTiles: readonly TileType[])
+    {
+        return this.isFreeTile(tile, getCityTile(ownedTiles)) && isLand(tile);
+    }
+
+    protected canPlaceAqueduct(tile: TileType, ownedTiles: readonly TileType[], mapCache: Map<string, TileType>)
+    {
+        return this.isFreeTile(tile, getCityTile(ownedTiles)) && isLand(tile) && isValidAqueductTile(tile, mapCache);
+    }
+
+    protected canPlaceHolySite(tile: TileType, ownedTiles: readonly TileType[])
+    {
+        return this.isFreeTile(tile, getCityTile(ownedTiles)) && isLand(tile);
+    }
+
+    protected canPlaceAerodrome(tile: TileType, ownedTiles: readonly TileType[])
+    {
+        return this.isFreeTile(tile, getCityTile(ownedTiles)) && isLand(tile);
+    }
+
+    protected canPlaceEntertainmentZone(tile: TileType, ownedTiles: readonly TileType[])
+    {
+        return this.isFreeTile(tile, getCityTile(ownedTiles)) && isLand(tile);
+    }
+
+    protected canPlaceSpaceport(tile: TileType, ownedTiles: readonly TileType[])
+    {
+        return this.isFreeTile(tile, getCityTile(ownedTiles)) && isLand(tile);
+    }
+
+    protected canPlaceEncampment(tile: TileType, ownedTiles: readonly TileType[], mapCache: Map<string, TileType>, targetCity: TileType)
+    {
+        return this.isFreeTile(tile, getCityTile(ownedTiles)) && isLand(tile) && !isAdjacentToCityCenter(tile, mapCache) && isFacingTargetHex(getCityTile(ownedTiles), targetCity, tile, facingCityAngleThreshold, distanceThreshold);
+    }
+
+
     /* OPTIMAL TILE PLACEMENT */
 
     getCampusTile(ownedTiles: readonly TileType[], yieldPreferences: readonly TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null, targetCity: TileType, preferredVictory: string): TileType | undefined
@@ -900,7 +989,7 @@ export abstract class Civilization
         {
             ownedTiles.forEach((tile) => 
             {
-                if (this.isFreeTile(tile, getCityTile(ownedTiles)) && isLand(tile))
+                if (this.canPlaceCampus(tile, ownedTiles))
                 {
                     let score = maxScore + this.getCampusScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory) + 
                                 this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity, preferredVictory);
@@ -937,7 +1026,7 @@ export abstract class Civilization
         {
             ownedTiles.forEach((tile) => 
             {
-                if (this.isFreeTile(tile, getCityTile(ownedTiles)) && isLand(tile))
+                if (this.canPlaceTheater(tile, ownedTiles))
                 {
                     let score = maxScore + this.getTheaterScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory) + 
                                 this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity, preferredVictory);
@@ -974,7 +1063,7 @@ export abstract class Civilization
         {
             ownedTiles.forEach((tile) => 
             {
-                if (this.isFreeTile(tile, getCityTile(ownedTiles)) && isLand(tile))
+                if (this.canPlaceHolySite(tile, ownedTiles))
                 {
                     let score = maxScore + this.getHolySiteScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory) + 
                                 this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity, preferredVictory);
@@ -1011,7 +1100,7 @@ export abstract class Civilization
         {
             ownedTiles.forEach((tile) => 
             {
-                if (this.isFreeTile(tile, getCityTile(ownedTiles)) && isLand(tile))
+                if (this.canPlaceCommercialHub(tile, ownedTiles))
                 {
                     let score = maxScore + this.getCommercialHubScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory) + 
                                 this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity, preferredVictory);
@@ -1048,7 +1137,7 @@ export abstract class Civilization
         {
             ownedTiles.forEach((tile) => 
             {
-                if (this.isFreeTile(tile, getCityTile(ownedTiles)) && (isCoast(tile) || tile.IsLake) && isAdjacentToLand(tile, mapCache))
+                if (this.canPlaceHarbor(tile, ownedTiles, mapCache))
                 {
                     let score = maxScore + this.getHarborScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory) + 
                                 this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity, preferredVictory);
@@ -1085,7 +1174,7 @@ export abstract class Civilization
         {
             ownedTiles.forEach((tile) => 
             {
-                if (this.isFreeTile(tile, getCityTile(ownedTiles)) && isLand(tile))
+                if (this.canPlaceIndustrialZone(tile, ownedTiles))
                 {
                     let score = maxScore + this.getIndustrialZoneScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory) + 
                                 this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity, preferredVictory);
@@ -1120,7 +1209,7 @@ export abstract class Civilization
 
         ownedTiles.forEach((tile) => 
         {
-            if (this.isFreeTile(tile, getCityTile(ownedTiles)) && isLand(tile))
+            if (this.canPlaceNeighborhood(tile, ownedTiles))
             {
                 let score = maxScore + this.getNeighborhoodScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory) + 
                                 this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity, preferredVictory);
@@ -1154,7 +1243,7 @@ export abstract class Civilization
         {
             ownedTiles.forEach((tile) => 
             {
-                if (this.isFreeTile(tile, getCityTile(ownedTiles)) && isLand(tile) && isValidAqueductTile(tile, mapCache))
+                if (this.canPlaceAqueduct(tile, ownedTiles, mapCache))
                 {
                     let score = maxScore + this.getAqueductScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory) + 
                                 this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity, preferredVictory);
@@ -1191,7 +1280,7 @@ export abstract class Civilization
         {
             ownedTiles.forEach((tile) => 
             {
-                if (this.isFreeTile(tile, getCityTile(ownedTiles)) && isLand(tile))
+                if (this.canPlaceAerodrome(tile, ownedTiles))
                 {
                     let score = maxScore + this.getAerodromeScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity, preferredVictory) + 
                                 this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity, preferredVictory);
@@ -1228,7 +1317,7 @@ export abstract class Civilization
         {
             ownedTiles.forEach((tile) => 
             {
-                if (this.isFreeTile(tile, getCityTile(ownedTiles)) && isLand(tile))
+                if (this.canPlaceEntertainmentZone(tile, ownedTiles))
                 {
                     let score = maxScore + this.getEntertainmentZoneScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory) + 
                                 this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity, preferredVictory);
@@ -1265,7 +1354,7 @@ export abstract class Civilization
         {
             ownedTiles.forEach((tile) => 
             {
-                if (this.isFreeTile(tile, getCityTile(ownedTiles)) && isLand(tile))
+                if (this.canPlaceSpaceport(tile, ownedTiles))
                 {
                     let score = maxScore + this.getSpaceportScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory) + 
                                 this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity, preferredVictory);
@@ -1298,14 +1387,11 @@ export abstract class Civilization
         let maxScore = 0;
         let returnedTile = undefined as TileType | undefined;
 
-        const facingCityAngleThreshold = 75;
-        const distanceThreshold = 2;
-
         if (!hasEncampment(ownedTiles))
         {
             ownedTiles.forEach((tile) => 
             {
-                if (this.isFreeTile(tile, getCityTile(ownedTiles)) && isLand(tile) && !isAdjacentToCityCenter(tile, mapCache) && isFacingTargetHex(getCityTile(ownedTiles), targetCity, tile, facingCityAngleThreshold, distanceThreshold))
+                if (this.canPlaceEncampment(tile, ownedTiles, mapCache, targetCity))
                 {
                     let score = maxScore + this.getEncampmentScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory) + 
                                 this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity, preferredVictory);
@@ -1794,6 +1880,11 @@ export class Greece extends Civilization
         return bonus;
     }
 
+    protected override canPlaceTheater(tile: TileType, ownedTiles: readonly TileType[]): boolean 
+    {
+        return this.isFreeTile(tile, getCityTile(ownedTiles)) && isLand(tile) && tile.IsHills;
+    }
+
     override getTheaterTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null, targetCity: TileType, preferredVictory: string): TileType | undefined
     {
         let maxScore = 0;
@@ -1803,7 +1894,7 @@ export class Greece extends Civilization
         {
             ownedTiles.forEach((tile) => 
             {
-                if (this.isFreeTile(tile, getCityTile(ownedTiles)) && isLand(tile) && tile.IsHills)
+                if (this.canPlaceTheater(tile, ownedTiles))
                 {
                     let score = maxScore + this.getTheaterScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory) + 
                                 this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity, preferredVictory);
@@ -2010,6 +2101,11 @@ export class Japan extends Civilization
 
 export class Kongo extends Civilization
 {
+    protected override canPlaceNeighborhood(tile: TileType, ownedTiles: readonly TileType[]): boolean 
+    {
+        return this.isFreeTile(tile, getCityTile(ownedTiles)) && isLand(tile) && (tile.FeatureType === TileFeatures.WOODS || tile.FeatureType === TileFeatures.RAINFOREST);
+    }
+
     override getNeighborhoodTile(ownedTiles: readonly TileType[], yieldPreferences: TileYields[], mapCache: Map<string, TileType>, wondersIncluded: Set<TileWonders> | null, targetCity: TileType, preferredVictory: string): TileType | undefined
     {
         let maxScore = 0;
@@ -2017,7 +2113,7 @@ export class Kongo extends Civilization
 
         ownedTiles.forEach((tile) => 
         {
-            if (this.isFreeTile(tile, getCityTile(ownedTiles)) && isLand(tile) && (tile.FeatureType === TileFeatures.WOODS || tile.FeatureType === TileFeatures.RAINFOREST))
+            if (this.canPlaceNeighborhood(tile, ownedTiles))
             {
                 let score = maxScore + this.getNeighborhoodScore(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, preferredVictory) + 
                                 this.getScoreFromPossibleAdjacentDistricts(tile, yieldPreferences, mapCache, ownedTiles, wondersIncluded, targetCity, preferredVictory);
@@ -2081,7 +2177,23 @@ export class Spain extends Civilization
 export class Norway extends Civilization
 {
     /**
-     * Assumes that all Holy Site buildings are or will be built.
+     * Removes production from worked tiles such that updateCityTilesWithProduction can be easily used after. Should be called before allocateCitizensAuto (if also called). Will check if a holy site exists.
+     * @param ownedTiles 
+     */
+    removeProductionFromWorkedTiles(ownedTiles: TileType[])
+    {
+        if (!hasHolySite(ownedTiles))
+            return;
+
+        ownedTiles.forEach((tile) =>
+        {
+            if (tile.IsWorked)
+                tile.Production = tile.Production - 1;
+        })
+    }
+
+    /**
+     * Assumes that all Holy Site buildings are or will be built. Should be called after allocateCitizensAuto (if also called).
      * @param addedDistrictTile 
      * @param ownedTiles 
      * @param mapCache 

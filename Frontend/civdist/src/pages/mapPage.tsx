@@ -8,11 +8,11 @@ import { loadDistrictImages, loadNaturalWonderImages, loadResourceImages, loadTe
 import { getTerrain, getDistrict, getNaturalWonder, getWonder, getResource, getYields } from '../images/imageAttributeFinders';
 import { baseTileSize, getAllPossibleDistricts, getAllPossibleYields, getAllPossibleVictoryTypes, minZoom, maxZoom } from '../utils/constants';
 import { Civilization, getCivilizationObject, Norway } from '../civilization/civilizations';
-import { yieldSelectStyle, nearbyCityFontSize, nearbyCityStyles, genericSingleSelectStyle } from './mapPageSelectStyles';
+import { yieldSelectStyle, nearbyCityFontSize, nearbyCityStyles, genericSingleSelectStyle, optionalVisualFontSize, optionalVisualStyle } from './mapPageSelectStyles';
 import { OptionsWithImage, OptionsWithSpecialText, OptionsGenericString } from '../types/selectionTypes';
-import { getMapOddrString, getMinMaxXY, getTextWidth } from '../utils/functions/misc/misc';
+import { getMapOddrString, getMinMaxXY, getOddrFromOddrString, getSaveID, getTextWidth } from '../utils/functions/misc/misc';
 import { getHexPoint, getOffsets, oddrToPixel, pixelToOddr } from '../utils/functions/hex/genericHex';
-import { getScaledGridAndTileSizes, getScaledGridSizesFromTile, getScaleFromType, getTileScaleOddr } from '../utils/functions/imgScaling/scaling';
+import { getScaledGridAndTileSizes, getScaledGridSizesFromTile, getScaleFromType } from '../utils/functions/imgScaling/scaling';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCircleQuestion } from '@fortawesome/free-regular-svg-icons';
 import Tooltip from '../components/tooltip';
@@ -25,9 +25,9 @@ import duel from '../json/duel.json'
 /*
 /////////////////////////////////////////////////////////////////
 
-TODO: Update tiles in city holy site built for norway production bonus??
+TODO: Add images to dropdown.
 
-TODO: Check if brazil rainforest appeal thing is already calculated in the json.
+TODO: Make save dropdown a component.
 
 TODO: Update hexmapCache and cityOwnedTiles when adding new district - WHEN ADDING DISTRICT ACCOUNT FOR EFFECTS OF DISTRICT LIKE THEATER ADDING APPEAL TO ADJ OR REMOVING STUFF LIKE IMPROVEMENTS
 
@@ -37,13 +37,11 @@ TODO: Improve performance of zoom past 300.
 
 TODO: Save map JSON to backend/database.
 
-TODO: Retrieve all saved JSON maps from player profile. Max 5?
+TODO: Retrieve all saved JSON maps from player profile. Max 5
 
-TODO: Refactor code to make it nicer/more organized and remove redundancies. Remove unnecessary useCallbacks. Remove unnecessary dependencies or refactor them.
+TODO: Refactor code to make it nicer/more organized and remove redundancies. Remove unnecessary useCallbacks. Remove unnecessary dependencies or refactor them. Turn stuff into components.
 
 TODO: Add documentation to functions. Read random comments to see if any extra issues need fixing.
-
-TODO: Use <br> instead of grid style
 
 TODO: Make page nice for mobile
 
@@ -52,7 +50,8 @@ TODO: Make page nice for mobile
 
 const MapPage = () => 
 {
-    const [errorText, setErrorText] = useState<string>("");
+    const [districtErrorText, setDistrictErrorText] = useState<string>("");
+    const [saveErrorText, setSaveErrorText] = useState<string>("");
 
     // use ref since this will probably be updated a lot
     const hexmapCache = useRef<Map<string, TileType>>(new Map()); // oddr coords, tile
@@ -105,6 +104,8 @@ const MapPage = () =>
     const [dropdownNearbyCity, setDropdownNearbyCity] = useState<TileType | null>(null);
 
     const [optionalVisual, setOptionalVisual] = useState<{yields: boolean, resources: boolean}>({yields: false, resources: false});
+
+    const [saveList, setSaveList] = useState<{name: string, json: string}[]>([{name: 'test-remove-me', json: ''}]);
 
     /**
      * - Shifting hex img's by the subtraction seen in drawMap() keeps correct oddr coordinate detection but visuals will break
@@ -321,7 +322,14 @@ const MapPage = () =>
     {
         cityBoundaryTiles.forEach((neighbors, tileKey) => 
         {
-            const [col, row] = tileKey.split(',').map(Number);
+            const parsedStr = getOddrFromOddrString(tileKey);
+
+            if (parsedStr.col === -1 || parsedStr.row === -1)
+                return;
+
+            const col = parsedStr.col;
+            const row = parsedStr.row;
+
             const center = oddrToPixel(col, row, tileSize.x, tileSize.y, hexMapOffset);
             
             // check against all hex edges
@@ -469,7 +477,13 @@ const MapPage = () =>
 
         hexmapCache.current.forEach((tile, oddr) => 
         {
-            const [col, row] = oddr.split(',').map(Number);
+            const parsedStr = getOddrFromOddrString(oddr);
+
+            if (parsedStr.col === -1 || parsedStr.row === -1)
+                return;
+
+            const col = parsedStr.col;
+            const row = parsedStr.row;
             const px = oddrToPixel(col, row, tileSize.x, tileSize.y, hexMapOffset);
 
             if (oddrCoord.col === col && oddrCoord.row === row)
@@ -957,16 +971,23 @@ const MapPage = () =>
             let newCityTiles = cityTiles;
             let workerReassigned = false;
 
-            if (foundTile.IsWorked) // means will not be worked anymore after district placement
+            // means will not be worked anymore after district placement
+            if (foundTile.IsWorked) 
                 workerReassigned = true;
 
             purgeTileForDistrict(foundTile);
             changeAppealToAdjFromDistrict(foundTile, hexmapCache.current);
 
+            // if holy site exists, means extra production was already added
+            // removed production will be re added with updateCityTilesWithProduction
+            if (civObject instanceof Norway)
+                civObject.removeProductionFromWorkedTiles(newCityTiles);
+
+            // only need to recalculate worked tiles if a worker was reassigned
             if (workerReassigned)
             {
-                const theCity = cityTiles[cityTiles.length - 1];
-                newCityTiles = allocateCitizensAuto(cityTiles, theCity, {population: theCity.Population});
+                const theCity = newCityTiles[newCityTiles.length - 1];
+                newCityTiles = allocateCitizensAuto(newCityTiles, theCity, {population: theCity.Population});
             }
 
             const oddr = getMapOddrString(foundTile.X, foundTile.Y);
@@ -974,6 +995,7 @@ const MapPage = () =>
             if (foundTileCache)
                 hexmapCache.current.set(oddr, foundTile);
 
+            // update hexmap cache
             newCityTiles.forEach((tile) => 
             {
                 const newOddr = getMapOddrString(tile.X, tile.Y);
@@ -983,14 +1005,26 @@ const MapPage = () =>
             })
 
             if (civObject instanceof Norway)
-                civObject.updateCityTilesWithProduction(foundTile, cityTiles, hexmapCache.current);
+                civObject.updateCityTilesWithProduction(foundTile, newCityTiles, hexmapCache.current);
 
+            // update city owned tiles
             const cityMap = new Map(cityOwnedTiles);
             const tileList = cityMap.get(dropdownCity);
             if (tileList)
                 cityMap.set(dropdownCity, newCityTiles);
 
+            // district placement removes all yields
             yieldAttributeCache.current.set(oddr, []);
+
+            // update yield cache with new production from stave church
+            if (civObject instanceof Norway)
+            {
+                newCityTiles.forEach((tile) => 
+                {
+                    const newOddr = getMapOddrString(tile.X, tile.Y);
+                    yieldAttributeCache.current.set(newOddr, getYields(tile, yieldImagesCache.current));
+                })
+            }
 
             setCityOwnedTiles(cityMap);
             setMapCacheVersion(mapCacheVersion + 1);
@@ -1086,10 +1120,10 @@ const MapPage = () =>
     
         if (theError.length > 0)
         {
-            setErrorText(theError);
+            setDistrictErrorText(theError);
             setTimeout(() => 
             {
-                setErrorText("");
+                setDistrictErrorText("");
             }, 4000)
 
             return;
@@ -1124,10 +1158,10 @@ const MapPage = () =>
 
                 if (theError.length > 0)
                 {
-                    setErrorText(theError);
+                    setDistrictErrorText(theError);
                     setTimeout(() => 
                     {
-                        setErrorText("");
+                        setDistrictErrorText("");
                     }, 4000)
                 }
             }
@@ -1256,8 +1290,36 @@ const MapPage = () =>
         }
         else
         {
-            const theString = 'Select a nearby city.';
+            const theString = 'Select a nearby city';
             const width = getTextWidth(theString, `${nearbyCityFontSize}px arial`, theCanvas.current);
+            if (width)
+                max = Math.max(width);
+        }
+
+        return max;
+    }
+
+    function getOptionalVisualMaxWidth()
+    {
+        let max = 0;
+        const opts = getOptionalVisualOptions();
+        
+        if (opts.length > 0)
+        {
+            opts.forEach((vals) => 
+            {
+                if (vals.value)
+                {
+                    const width = getTextWidth(vals.value, `${optionalVisualFontSize}px arial`, theCanvas.current);
+                    if (width)
+                        max = Math.max(width);
+                }
+            })
+        }
+        else
+        {
+            const theString = 'Select an optional visual';
+            const width = getTextWidth(theString, `${optionalVisualFontSize}px arial`, theCanvas.current);
             if (width)
                 max = Math.max(width);
         }
@@ -1281,6 +1343,9 @@ const MapPage = () =>
         <div style={{display: 'flex'}}>
 
             <div className='outerDiv'>
+
+                <span style={{color: 'red', fontWeight: 'bold', fontSize: '1.25em'}}>{saveErrorText}</span>
+
                 <div>
                     <div style={{display: 'grid', border: '2px solid red'}}>
                         <div style={{display: 'flex', alignItems: 'center'}}>
@@ -1299,6 +1364,10 @@ const MapPage = () =>
                                 CLICK ME
                             </button>
 
+                            <Tooltip text={'When saving, press enter to confirm your action after typing the save name.'} style={{width: '150px'}}>
+                                <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
+                            </Tooltip>
+
                             <div className='outerDiv' style={{display: savesDisplay, paddingBottom: '5px'}}>
                                 {/* Create menu that fetches saves with save/load button next to it */}
 
@@ -1307,15 +1376,30 @@ const MapPage = () =>
                                     {
                                         const savedMaps: JSX.Element[] = [];
 
-                                        for (let i = 0; i < 5; i++)
-                                        {
-                                            
+                                        const maxSaves = 5;
+                                        const numberOfSaves = saveList.length;
+                                        const remainingSaves = maxSaves - numberOfSaves;
 
+                                        saveList.forEach((theSave, index) => 
+                                        {
                                             savedMaps.push
                                             (
-                                                <div style={{display: 'flex', marginTop: '5px'}}>
-                                                    <div>{i}</div>
-                                                    <button>HELLO</button>
+                                                <div className='saveDropdownEntry'>
+                                                    <div>{theSave.name}</div>
+                                                    <button style={{marginLeft: 'auto', marginRight: '5px'}} id={getSaveID('SAVE', index)}>SAVE</button>
+                                                    <button id={getSaveID('LOAD', index)}>LOAD</button>
+                                                    <br></br>
+                                                </div>
+                                            );
+                                        })
+
+                                        for (let i = 0; i < remainingSaves; i++)
+                                        {
+                                            savedMaps.push
+                                            (
+                                                <div className='saveDropdownEntry'>
+                                                    <input type='text' style={{marginRight: '5px'}} placeholder='Enter a name for this save.' className='saveDropdownInput'/>
+                                                    <button style={{marginLeft: 'auto'}} id={getSaveID('SAVE', i)}>SAVE</button>
                                                     <br></br>
                                                 </div>
                                             );
@@ -1333,7 +1417,7 @@ const MapPage = () =>
                     <div style={{display: 'flex'}}>
                         <Select 
                             options={getOptionalVisualOptions()} 
-                            styles={genericSingleSelectStyle} 
+                            styles={optionalVisualStyle(getOptionalVisualMaxWidth() * 1.75)} 
                             onChange=
                             {
                                 val =>
@@ -1395,7 +1479,7 @@ const MapPage = () =>
             </div>
 
             <div className='outerDiv'>
-                <span style={{color: 'red', fontWeight: 'bold', fontSize: '1.25em'}}>{errorText}</span>
+                <span style={{color: 'red', fontWeight: 'bold', fontSize: '1.25em'}}>{districtErrorText}</span>
 
                 <div style={{display: 'flex'}}>
                     <span>Include City States</span>
@@ -1480,7 +1564,7 @@ const MapPage = () =>
                         onChange={val => {if (val && val.value) setDropdownDistrict(val.value); else setDropdownDistrict(null);}}
                     />
 
-                    <Tooltip text='Select a district.'>
+                    <Tooltip text='Select a district. Assumes all buildings will be built.'>
                         <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
                     </Tooltip>
                 </div>

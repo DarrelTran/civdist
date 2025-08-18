@@ -1,4 +1,5 @@
-import { TileType, TileTerrain, TileNaturalWonders, TileBonusResources, TileLuxuryResources, TileDistricts, TileUniqueDistricts, TileNone, TileBuildings, TileStrategicResources, TileFeatures, TileWonders, TileYields, TileBuildingsCitizenSlots } from "../../../types/types";
+import { DistrictIdentifierRecord, TileBuildingsCitizenSlots } from "../../../types/typeMaps";
+import { TileType, TileTerrain, TileNaturalWonders, TileBonusResources, TileLuxuryResources, TileDistricts, TileUniqueDistricts, TileNone, TileBuildings, TileStrategicResources, TileFeatures, TileYields } from "../../../types/types";
 import { getOffsets } from "../hex/genericHex";
 import { getMapOddrString } from "../misc/misc";
 
@@ -319,57 +320,112 @@ export function isAqueduct(tile: TileType)
 
 export function isCampus(tile: TileType)
 {
-    return (tile.District === TileDistricts.SCIENCE_DISTRICT);
+    if (tile.District === TileNone.NONE)
+        return false;
+
+    const districts = DistrictIdentifierRecord[TileDistricts.SCIENCE_DISTRICT];
+
+    return districts.includes(tile.District);
 }
 
 export function isCityCenter(tile: TileType)
 {
-    return (tile.District === TileDistricts.CENTER_DISTRICT);
+    if (tile.District === TileNone.NONE)
+        return false;
+
+    const districts = DistrictIdentifierRecord[TileDistricts.CENTER_DISTRICT];
+
+    return districts.includes(tile.District);
 }
 
 export function isCommercialHub(tile: TileType)
 {
-    return (tile.District === TileDistricts.COMMERCIAL_DISTRICT);
+    if (tile.District === TileNone.NONE)
+        return false;
+
+    const districts = DistrictIdentifierRecord[TileDistricts.COMMERCIAL_DISTRICT];
+
+    return districts.includes(tile.District);
 }
 
 export function isEncampment(tile: TileType)
 {
-    return (tile.District === TileDistricts.ENCAMPMENT_DISTRICT);
+    if (tile.District === TileNone.NONE)
+        return false;
+
+    const districts = DistrictIdentifierRecord[TileDistricts.ENCAMPMENT_DISTRICT];
+
+    return districts.includes(tile.District);
 }
 
 export function isEntertainmentComplex(tile: TileType)
 {
-    return (tile.District === TileDistricts.ENTERTAINMENT_DISTRICT || tile.District === TileUniqueDistricts.STREET_CARNIVAL_DISTRICT);
+    if (tile.District === TileNone.NONE)
+        return false;
+
+    const districts = DistrictIdentifierRecord[TileDistricts.ENTERTAINMENT_DISTRICT];
+
+    return districts.includes(tile.District);
 }
 
 export function isHolySite(tile: TileType)
 {
-    return (tile.District === TileDistricts.FAITH_DISTRICT || tile.District === TileUniqueDistricts.LAVRA_DISTRICT);
+    if (tile.District === TileNone.NONE)
+        return false;
+
+    const districts = DistrictIdentifierRecord[TileDistricts.FAITH_DISTRICT];
+
+    return districts.includes(tile.District);
 }
 
 export function isIndustrialZone(tile: TileType)
 {
-    return (tile.District === TileDistricts.INDUSTRIAL_DISTRICT || tile.District === TileUniqueDistricts.HANSA_DISTRICT);
+    if (tile.District === TileNone.NONE)
+        return false;
+
+    const districts = DistrictIdentifierRecord[TileDistricts.INDUSTRIAL_DISTRICT];
+
+    return districts.includes(tile.District);
 }
 
 export function isNeighborhood(tile: TileType)
 {
-    return (tile.District === TileDistricts.NEIGHBORHOOD_DISTRICT || tile.District === TileUniqueDistricts.MBANZA_DISTRICT);
+    if (tile.District === TileNone.NONE)
+        return false;
+
+    const districts = DistrictIdentifierRecord[TileDistricts.NEIGHBORHOOD_DISTRICT];
+
+    return districts.includes(tile.District);
 }
 
 export function isSpaceport(tile: TileType)
 {
-    return (tile.District === TileDistricts.ROCKET_DISTRICT);
+    if (tile.District === TileNone.NONE)
+        return false;
+
+    const districts = DistrictIdentifierRecord[TileDistricts.ROCKET_DISTRICT];
+
+    return districts.includes(tile.District);
 }
 
 export function isTheaterSquare(tile: TileType)
 {
-    return (tile.District === TileDistricts.THEATER_DISTRICT || tile.District === TileUniqueDistricts.ACROPOLIS_DISTRICT);
+    if (tile.District === TileNone.NONE)
+        return false;
+
+    const districts = DistrictIdentifierRecord[TileDistricts.THEATER_DISTRICT];
+
+    return districts.includes(tile.District);
 }
 
 export function isHarbor(tile: TileType)
 {
-    return (tile.District === TileDistricts.HARBOR_DISTRICT || tile.District === TileUniqueDistricts.ROYAL_NAVY_DOCKYARD_DISTRICT);
+    if (tile.District === TileNone.NONE)
+        return false;
+
+    const districts = DistrictIdentifierRecord[TileDistricts.HARBOR_DISTRICT];
+
+    return districts.includes(tile.District);
 }
 
 // https://ondras.github.io/rot.js/manual/#hex/indexing

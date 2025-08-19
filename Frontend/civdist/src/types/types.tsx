@@ -426,3 +426,15 @@ export type TerrainFeatureKey = `${TileTerrain}_${TileFeatures | TileNone}`;
 
 /** Format is: "TileYields_theYieldValue" */
 export type YieldImagesKey = `${TileYields}_${number}`;
+
+/*********************** FOR SAVES ***********************/
+
+export type SaveType =
+{
+  name: string | null, 
+  json: string, 
+  id: number,
+  textInputDisplay: string,
+  textNameDisplay: string,
+  inputText: string
+}

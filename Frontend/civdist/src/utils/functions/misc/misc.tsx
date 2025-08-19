@@ -45,34 +45,6 @@ export function getOddrFromOddrString(oddrStr: string): {col: number, row: numbe
     return {col: col, row: row};
 }
 
-export function getSaveID(saveType: string, idNumber: number)
-{
-    return `${saveType},${idNumber}`;
-}
-
-/**
- * 
- * @param idStr Save str from getSaveID
- * @returns The save type & id if no errors occured. If any errors occured returns null for the string and -1 for the id.
- */
-export function getIDFromSaveID(idStr: string): {type: string | null, id: number}
-{
-    const badRes = {type: null, id: -1};
-    const parts = idStr.split(',');
-
-    if (parts.length !== 2)
-        return badRes;
-
-    const [type, id] = parts;
-    const idNum = Number(id);
-
-    // the type should never be empty
-    if (type.length <= 0 || Number.isNaN(idNum))
-        return badRes;
-
-    return {type: type, id: idNum};
-}
-
 export function getTextWidth(text: string, font: string, canvas: HTMLCanvasElement | null): number | undefined
 {
     const context = canvas?.getContext('2d');

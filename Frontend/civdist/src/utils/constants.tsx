@@ -4,6 +4,8 @@ export const baseTileSize : number = 10;
 export const minZoom = 50;
 export const maxZoom = 300;
 
+
+
 export const getAllPossibleDistricts = () =>
 {
     const allDistricts: TileDistricts[] = [];

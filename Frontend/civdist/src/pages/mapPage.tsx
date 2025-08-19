@@ -3,14 +3,14 @@ import Select, { GroupBase, SelectInstance } from 'react-select'
 import { Link } from 'react-router-dom';
 import './mapPage.css'
 import './allPages.css';
-import { TileNone, TileWonders, TileDistricts, TileNaturalWonders, TerrainFeatureKey, RiverDirections, TileType, LeaderName, TileYields, PossibleErrors, VictoryType, TileBonusResources, TileLuxuryResources, TileStrategicResources, TileArtifactResources, TileUniqueDistricts, HexType, YieldImagesKey, OptionalVisualOptions} from '../types/types'
+import { TileNone, TileWonders, TileDistricts, TileNaturalWonders, TerrainFeatureKey, RiverDirections, TileType, LeaderName, TileYields, PossibleErrors, VictoryType, TileBonusResources, TileLuxuryResources, TileStrategicResources, TileArtifactResources, TileUniqueDistricts, HexType, YieldImagesKey, OptionalVisualOptions, SaveType} from '../types/types'
 import { loadDistrictImages, loadNaturalWonderImages, loadResourceImages, loadTerrainImages, loadWonderImages, loadYieldDropdownImages, loadYieldImages } from '../images/imageLoaders';
 import { getTerrain, getDistrict, getNaturalWonder, getWonder, getResource, getYields } from '../images/imageAttributeFinders';
 import { baseTileSize, getAllPossibleDistricts, getAllPossibleYields, getAllPossibleVictoryTypes, minZoom, maxZoom } from '../utils/constants';
 import { Civilization, getCivilizationObject, Norway } from '../civilization/civilizations';
 import { yieldSelectStyle, nearbyCityFontSize, nearbyCityStyles, genericSingleSelectStyle, optionalVisualFontSize, optionalVisualStyle } from './mapPageSelectStyles';
 import { OptionsWithImage, OptionsWithSpecialText, OptionsGenericString } from '../types/selectionTypes';
-import { getMapOddrString, getMinMaxXY, getOddrFromOddrString, getSaveID, getTextWidth } from '../utils/functions/misc/misc';
+import { getMapOddrString, getMinMaxXY, getOddrFromOddrString, getTextWidth } from '../utils/functions/misc/misc';
 import { getHexPoint, getOffsets, oddrToPixel, pixelToOddr } from '../utils/functions/hex/genericHex';
 import { getScaledGridAndTileSizes, getScaledGridSizesFromTile, getScaleFromType } from '../utils/functions/imgScaling/scaling';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -105,7 +105,14 @@ const MapPage = () =>
 
     const [optionalVisual, setOptionalVisual] = useState<{yields: boolean, resources: boolean}>({yields: false, resources: false});
 
-    const [saveList, setSaveList] = useState<{name: string, json: string}[]>([{name: 'test-remove-me', json: ''}]);
+    const [saveList, setSaveList] = useState<SaveType[]>
+    ([
+        {name: 'test-remove-me', json: '', id: 0, textInputDisplay: 'none', textNameDisplay: 'block', inputText: ''},
+        {name: null, json: '', id: 1, textInputDisplay: 'block', textNameDisplay: 'none', inputText: ''},
+        {name: null, json: '', id: 2, textInputDisplay: 'block', textNameDisplay: 'none', inputText: ''},
+        {name: null, json: '', id: 3, textInputDisplay: 'block', textNameDisplay: 'none', inputText: ''},
+        {name: null, json: '', id: 4, textInputDisplay: 'block', textNameDisplay: 'none', inputText: ''},
+    ]);
 
     /**
      * - Shifting hex img's by the subtraction seen in drawMap() keeps correct oddr coordinate detection but visuals will break
@@ -1121,10 +1128,7 @@ const MapPage = () =>
         if (theError.length > 0)
         {
             setDistrictErrorText(theError);
-            setTimeout(() => 
-            {
-                setDistrictErrorText("");
-            }, 4000)
+            setTimeout(() => { setDistrictErrorText(""); }, 4000)
 
             return;
         }
@@ -1159,10 +1163,7 @@ const MapPage = () =>
                 if (theError.length > 0)
                 {
                     setDistrictErrorText(theError);
-                    setTimeout(() => 
-                    {
-                        setDistrictErrorText("");
-                    }, 4000)
+                    setTimeout(() => { setDistrictErrorText(""); }, 4000)
                 }
             }
         }
@@ -1338,7 +1339,40 @@ const MapPage = () =>
 
         return tempArr;
     }
+    
+    function handleSaveClick(currID: number) 
+    {
+        setSaveList(saveList.map((save) => 
+        {
+            if (save.id === currID) 
+            {
+                // check input error before toggling visibility
+                if (save.inputText.trim().length === 0 && save.textInputDisplay === 'block') 
+                {
+                    setSaveErrorText('Please enter a valid save name!');
+                    setTimeout(() => setSaveErrorText(""), 4000);
 
+                    return save; // don't toggle yet, or will change textInputDisplay to none
+                }
+
+                // toggle or update save entry
+                return !save.name
+                    ? { ...save, name: save.inputText, textInputDisplay: 'none', textNameDisplay: 'block' }
+                    : { ...save, textInputDisplay: 'block', textNameDisplay: 'none', name: null };
+            }
+
+            return save;
+        }));
+    }
+
+    function handleSaveInput(inputVal: string, currID: number)
+    {
+        setSaveList(saveList.map((save) => 
+        {
+            return save.id === currID ? {...save, inputText: inputVal} : save;
+        }));
+    }
+    
     return (
         <div style={{display: 'flex'}}>
 
@@ -1360,13 +1394,7 @@ const MapPage = () =>
 
                         </div>
                         <div>
-                            <button onClick={() => {setSavesDisplay(savesDisplay === 'none' ? 'block' : 'none')}} >
-                                CLICK ME
-                            </button>
-
-                            <Tooltip text={'When saving, press enter to confirm your action after typing the save name.'} style={{width: '150px'}}>
-                                <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
-                            </Tooltip>
+                            <button onClick={() => {setSavesDisplay(savesDisplay === 'none' ? 'block' : 'none')}}>SAVES</button>
 
                             <div className='outerDiv' style={{display: savesDisplay, paddingBottom: '5px'}}>
                                 {/* Create menu that fetches saves with save/load button next to it */}
@@ -1376,34 +1404,49 @@ const MapPage = () =>
                                     {
                                         const savedMaps: JSX.Element[] = [];
 
-                                        const maxSaves = 5;
-                                        const numberOfSaves = saveList.length;
-                                        const remainingSaves = maxSaves - numberOfSaves;
-
                                         saveList.forEach((theSave, index) => 
                                         {
-                                            savedMaps.push
-                                            (
-                                                <div className='saveDropdownEntry'>
-                                                    <div>{theSave.name}</div>
-                                                    <button style={{marginLeft: 'auto', marginRight: '5px'}} id={getSaveID('SAVE', index)}>SAVE</button>
-                                                    <button id={getSaveID('LOAD', index)}>LOAD</button>
-                                                    <br></br>
-                                                </div>
-                                            );
+                                            if (theSave.name && theSave.name.length > 0)
+                                            {
+                                                savedMaps.push
+                                                (
+                                                    <div className='saveDropdownEntry' key={theSave.id}>
+                                                        <span style={{display: theSave.textNameDisplay, marginRight: '5px'}}>{theSave.name}</span>
+                                                        
+                                                        <input 
+                                                            type='text' 
+                                                            style={{marginRight: '5px', display: theSave.textInputDisplay}} 
+                                                            placeholder='Enter a name for this save.' 
+                                                            className='saveDropdownInput' 
+                                                            onChange={e => handleSaveInput(e.target.value, theSave.id)}
+                                                            onFocus={e => handleSaveInput(e.target.value, theSave.id)}
+                                                        />
+                                                        
+                                                        <button style={{marginLeft: 'auto', marginRight: '5px'}} onClick={e => handleSaveClick(theSave.id)}>SAVE</button>
+                                                        <button>LOAD</button>
+                                                        <br></br>
+                                                    </div>
+                                                );
+                                            }
+                                            else
+                                            {
+                                                savedMaps.push
+                                                (
+                                                    <div className='saveDropdownEntry' key={theSave.id}>
+                                                        <input 
+                                                            type='text' 
+                                                            style={{marginRight: '5px'}} 
+                                                            placeholder='Enter a name for this save.' 
+                                                            className='saveDropdownInput' 
+                                                            onChange={e => handleSaveInput(e.target.value, theSave.id)}
+                                                            onFocus={e => handleSaveInput(e.target.value, theSave.id)}
+                                                        />
+                                                        <button style={{marginLeft: 'auto'}} onClick={e => handleSaveClick(theSave.id)}>SAVE</button>
+                                                        <br></br>
+                                                    </div>
+                                                );
+                                            }
                                         })
-
-                                        for (let i = 0; i < remainingSaves; i++)
-                                        {
-                                            savedMaps.push
-                                            (
-                                                <div className='saveDropdownEntry'>
-                                                    <input type='text' style={{marginRight: '5px'}} placeholder='Enter a name for this save.' className='saveDropdownInput'/>
-                                                    <button style={{marginLeft: 'auto'}} id={getSaveID('SAVE', i)}>SAVE</button>
-                                                    <br></br>
-                                                </div>
-                                            );
-                                        }
 
                                         return savedMaps;
                                     }

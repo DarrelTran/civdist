@@ -249,7 +249,7 @@ function getScoreFromWonderPlacement(tile: TileType, mapCache: Map<string, TileT
                 }
             }
 
-            if (!wondersIncluded.has(wonder) && !sameVictoryType)
+            if (!wondersIncluded.has(wonder) && (sameVictoryType || preferredVictory === VictoryType.NONE))
             {
                 const canPlace = callWonderFunction(fn, tile, mapCache, ownedTiles);
                 if (canPlace) 

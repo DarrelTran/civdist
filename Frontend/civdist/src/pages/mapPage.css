@@ -92,6 +92,13 @@
   cursor: pointer;
 }
 
+.smallButton
+{
+  text-align: center;
+  border: 2px solid black;
+  cursor: pointer;
+}
+
 .gridSplit
 {
   /*grid-template-rows: 1fr 1fr 1fr; */

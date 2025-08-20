@@ -54,8 +54,11 @@ const MapPage = () =>
 {
     const [districtErrorText, setDistrictErrorText] = useState<string>("");
     const [districtSuccessText, setDistrictSuccessText] = useState<string>("");
-
     const [saveErrorText, setSaveErrorText] = useState<string>("");
+
+    const dropdownErrorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const savesErrorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // use ref since this will probably be updated a lot
     const hexmapCache = useRef<Map<string, TileType>>(new Map()); // oddr coords, tile
@@ -1132,7 +1135,15 @@ const MapPage = () =>
         if (theError.length > 0)
         {
             setDistrictErrorText(theError);
-            setTimeout(() => { setDistrictErrorText(""); }, 4000)
+
+            if (dropdownErrorTimeoutRef.current)
+                clearTimeout(dropdownErrorTimeoutRef.current);
+
+            dropdownErrorTimeoutRef.current = setTimeout(() => 
+            { 
+                setDistrictErrorText(""); 
+                dropdownErrorTimeoutRef.current = null;
+            }, 4000)
 
             return;
         }
@@ -1151,12 +1162,22 @@ const MapPage = () =>
                     foundTile = getTileFromDistrictType(theCiv, dropdownCityOwnedTiles);
 
                     if (foundTile)
+                    {
                         updateTilesWithDistrict(foundTile, dropdownCityOwnedTiles, theCiv);
+
+                        setDistrictSuccessText("Success!");
+                        
+                        if (successTimeoutRef.current)
+                            clearTimeout(successTimeoutRef.current);
+
+                        successTimeoutRef.current = setTimeout(() => 
+                        { 
+                            setDistrictSuccessText(""); 
+                            successTimeoutRef.current = null;
+                        }, 4000)
+                    }
                 }
             }
-
-            setDistrictSuccessText("Success!");
-            setTimeout(() => { setDistrictSuccessText(""); }, 4000)
         }
         catch(err)
         {
@@ -1170,7 +1191,15 @@ const MapPage = () =>
                 if (theError.length > 0)
                 {
                     setDistrictErrorText(theError);
-                    setTimeout(() => { setDistrictErrorText(""); }, 4000)
+                    
+                    if (dropdownErrorTimeoutRef.current)
+                        clearTimeout(dropdownErrorTimeoutRef.current);
+
+                    dropdownErrorTimeoutRef.current = setTimeout(() => 
+                    { 
+                        setDistrictErrorText(""); 
+                        dropdownErrorTimeoutRef.current = null;
+                    }, 4000)
                 }
             }
         }
@@ -1357,7 +1386,15 @@ const MapPage = () =>
                 if (save.inputText.trim().length === 0 && save.textInputDisplay === 'block') 
                 {
                     setSaveErrorText('Please enter a valid save name!');
-                    setTimeout(() => setSaveErrorText(""), 4000);
+                    
+                    if (savesErrorTimeoutRef.current)
+                        clearTimeout(savesErrorTimeoutRef.current);
+
+                    savesErrorTimeoutRef.current = setTimeout(() => 
+                    { 
+                        setSaveErrorText(""); 
+                        savesErrorTimeoutRef.current = null;
+                    }, 4000)
 
                     return save; // don't toggle yet, or will change textInputDisplay to none
                 }
@@ -1380,19 +1417,40 @@ const MapPage = () =>
         }));
     }
 
+    function handleExportButton()
+    {
+        if (mapJSON.length > 0)
+        {
+            downloadMapJSON(mapJSON, 'exportedMapJSON.json')
+        }
+        else
+        {
+            setSaveErrorText("Must load/import a json first!");
+                    
+            if (savesErrorTimeoutRef.current)
+                clearTimeout(savesErrorTimeoutRef.current);
+
+            savesErrorTimeoutRef.current = setTimeout(() => 
+            { 
+                setSaveErrorText(""); 
+                savesErrorTimeoutRef.current = null;
+            }, 4000)
+        }
+    }
+
     return (
         <div style={{display: 'flex'}}>
 
             <div className='outerDiv'>
                 <div className='loadingSection'>
                     <div style={{display: 'flex'}}>
-                        <button onClick={e => downloadMapJSON(mapJSON, 'exportedMapJSON.json')}>EXPORT</button>
+                        <button onClick={e => handleExportButton()} className='smallButton'>EXPORT</button>
 
                         <Tooltip text={'Download to file.'}>
                             <FontAwesomeIcon icon={faCircleQuestion} className='questionMark' style={{marginRight: '5px'}}/>
                         </Tooltip>
 
-                        <button onClick={handleInputButtonClick}>IMPORT</button>
+                        <button onClick={handleInputButtonClick} className='smallButton'>IMPORT</button>
                         <input style={{display: 'none'}} type='file' ref={fileInputRef} onChange={e => handleInputChange(e)} accept='.json'/>
 
                     </div>
@@ -1434,12 +1492,12 @@ const MapPage = () =>
                 
                 <div className='checkboxes'>
                     <div style={{display: 'flex'}}>
-                        <span>Include City States</span>
+                        <span style={{fontWeight: '600'}}>Include City States</span>
                         <input type='checkbox' onChange={(e) => {setIncludeCityStates(e.target.checked)}}/>
                     </div>
 
                     <div style={{display: 'flex'}}>
-                        <span>Account For Wonders</span>
+                        <span style={{fontWeight: '600'}}>Account For Wonders</span>
                         <input type='checkbox' onChange={(e) => {setIncludeWonders(e.target.checked)}}/>
                         <Tooltip text='Consider wonders that may be built in the future.'>
                             <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
@@ -1634,7 +1692,7 @@ const MapPage = () =>
                     </div>
 
                     <div style={{display: 'flex'}}>
-                        <span style={{paddingRight: '5px'}}>Zoom Level:</span>
+                        <span style={{paddingRight: '5px', fontWeight: '600'}}>Zoom Level:</span>
                         <input 
                             onKeyDown={e => handleZoomKeyDown(e)} 
                             onClick={e => handleZoomClick(e)} 
@@ -1692,7 +1750,7 @@ const MapPage = () =>
 
     function testStuff()
     {
-        
+        console.log(dropdownCity)
     }   
 };
 

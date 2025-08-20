@@ -10,7 +10,8 @@ export const genericMultiSelectStyle: StylesConfig<OptionsGenericString, true> =
         ':hover': 
         {
             backgroundColor: '#d0d0d7'
-        }
+        },
+        border: '2px solid black'
     }),
     menu: (baseStyles: CSSObjectWithLabel) => 
     ({
@@ -72,7 +73,8 @@ export const genericSingleSelectStyle: StylesConfig<OptionsGenericString, false>
         ':hover': 
         {
             backgroundColor: '#d0d0d7'
-        }
+        },
+        border: '2px solid black'
     }),
     menu: (baseStyles: CSSObjectWithLabel) => 
     ({
@@ -119,7 +121,8 @@ export const yieldSelectStyle: StylesConfig<OptionsWithImage, true> =
         ':hover': 
         {
             backgroundColor: '#d0d0d7'
-        }
+        },
+        border: '2px solid black'
     }),
     menu: (baseStyles: CSSObjectWithLabel) => 
     ({
@@ -187,7 +190,8 @@ export const nearbyCityStyles = (theWidth: number): StylesConfig<OptionsWithSpec
                 backgroundColor: '#d0d0d7'
             },
             width: `${theWidth}px`,
-            fontSize: `${nearbyCityFontSize}px`
+            fontSize: `${nearbyCityFontSize}px`,
+            border: '2px solid black'
         }),
         menu: (baseStyles: CSSObjectWithLabel) => 
         ({
@@ -247,7 +251,8 @@ export const optionalVisualStyle = (theWidth: number): StylesConfig<OptionsGener
                 backgroundColor: '#d0d0d7'
             },
             width: `${theWidth}px`,
-            fontSize: `${optionalVisualFontSize}px`
+            fontSize: `${optionalVisualFontSize}px`,
+            border: '2px solid black'
         }),
         menu: (baseStyles: CSSObjectWithLabel) => 
         ({

@@ -1,8 +1,8 @@
 import { TileDistricts, TileYields, VictoryType } from "../types/types";
 
-export const baseTileSize : number = 10;
-export const minZoom = 50;
-export const maxZoom = 300;
+export const BASE_TILE_SIZE : number = 10;
+export const MIN_ZOOM = 50;
+export const MAX_ZOOM = 300;
 
 
 

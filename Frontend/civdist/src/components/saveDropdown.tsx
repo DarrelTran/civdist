@@ -1,0 +1,182 @@
+import React, { JSX, useState, useRef } from 'react';
+import { SaveType } from '../types/types';
+import './saveDropdown.css';
+import { getTextWidth } from '../utils/functions/misc/misc';
+import Tooltip from './tooltip';
+
+interface SaveDropdownType 
+{
+    saveList: SaveType[];
+
+    /** block, flex, etc */
+    containerDisplayType: string;
+
+    /** In pixels */
+    maxSaveTextWidth: number;
+
+    children?: React.ReactNode;
+
+    dropdownButtonStyle?: React.CSSProperties;
+    dropdownButtonClassName?: string;
+
+    handleSaveInput: (inputText: string, currID: number) => void;
+    handleSaveClick: (currID: number) => void;
+
+    containerClassName?: string;
+
+    saveEntryClassName?: string;
+    saveEntryStyle?: React.CSSProperties;
+
+    saveTextClassName?: string;
+
+    inputClassName?: string;
+
+    saveButtonClassName?: string;
+
+    loadButtonClassName?: string;
+
+    topmostDivClassName?: string,
+    topmostDivStyle?: React.CSSProperties
+}
+
+const SaveDropdown: React.FC<SaveDropdownType> = 
+({
+    saveList, 
+    dropdownButtonClassName, 
+    children, 
+    dropdownButtonStyle,
+    handleSaveInput,
+    handleSaveClick,
+    containerClassName,
+    containerDisplayType,
+    saveEntryClassName,
+    saveEntryStyle,
+    saveTextClassName,
+    inputClassName,
+    saveButtonClassName,
+    loadButtonClassName,
+    topmostDivClassName,
+    topmostDivStyle,
+    maxSaveTextWidth
+}): JSX.Element =>
+{
+    const [savesDisplay, setSavesDisplay] = useState<string>('none');
+    const saveTextRef = useRef<HTMLSpanElement>(null);
+    const tooltipRef = useRef<HTMLSpanElement>(null);
+
+    function getSaveText(theSave: SaveType, maxWidth: number): string
+    {
+        if (theSave.name && saveTextRef.current)
+        {
+            const fontSize = saveTextRef.current.style.fontSize;
+            const font = `${fontSize}px arial`;
+
+            const textWidth = getTextWidth(theSave.name, font);
+
+            let tempStr = theSave.name;
+
+            if (textWidth && textWidth > maxWidth)
+            {
+                let tempStrWidth = getTextWidth(tempStr, font);
+
+                while (tempStrWidth && tempStrWidth > maxWidth)
+                {
+                    tempStr = tempStr.slice(0, -1);
+                    tempStrWidth = getTextWidth(tempStr, font);
+                }
+
+                // remove 3 for the ellipses
+                tempStr = tempStr.slice(0, -3);
+                tempStr = tempStr + '...';
+            }
+
+            return tempStr;
+        }
+
+        return '';
+    }
+
+    /**
+     * 
+     * @returns '{fontSize}px'
+     */
+    function getToolTipFontSize()
+    {
+        if (tooltipRef.current)
+        {
+            const fontSize = window.getComputedStyle(tooltipRef.current).fontSize;
+
+            if (fontSize)
+            {
+                const fontSizeNumber = Number(fontSize.split('px')[0]) + 2; // for extra padding
+
+                return `${fontSizeNumber}px`;
+            }
+        }
+
+        return '0px';
+    }
+
+    return (
+        <div className={`${topmostDivClassName ?? ''}`} style={topmostDivStyle}>
+            <button onClick={() => {setSavesDisplay(savesDisplay === 'none' ? containerDisplayType : 'none')}} className={`${dropdownButtonClassName ?? ''}`} style={dropdownButtonStyle}>SAVES</button>
+            
+            <div className={`${containerClassName ?? ''} dropdown`} style={{display: savesDisplay}}>
+                {/* Parenthesis wrapped around function make it an expression to remove ambiguity and run the whole function?*/}
+                {(() => 
+                    {
+                        const savedMaps: JSX.Element[] = [];
+
+                        saveList.forEach((theSave) => 
+                        {
+                            if (theSave.name && theSave.name.length > 0)
+                            {
+                                savedMaps.push
+                                (
+                                    <div className={`${saveEntryClassName ?? ''}`} key={theSave.id} style={saveEntryStyle}>
+                                        <Tooltip ref={tooltipRef} text={theSave.name} style={{width: getTextWidth(theSave.name, `${getToolTipFontSize()} arial`)}}>
+                                            <span ref={saveTextRef} style={{display: theSave.textNameDisplay, marginRight: '5px', fontSize: '16px'}} className={`${saveTextClassName ?? ''}`}>{getSaveText(theSave, maxSaveTextWidth)}</span>
+                                        </Tooltip>
+                                        <input 
+                                            type='text' 
+                                            style={{marginRight: '5px', display: theSave.textInputDisplay}} 
+                                            placeholder='Enter a name for this save.' 
+                                            className={`${inputClassName ?? ''}`} 
+                                            onChange={e => handleSaveInput(e.target.value, theSave.id)}
+                                        />
+                                        
+                                        <button style={{marginLeft: 'auto', marginRight: '5px'}} onClick={e => handleSaveClick(theSave.id)} className={`${saveButtonClassName ?? ''}`}>SAVE</button>
+                                        <button className={`${loadButtonClassName ?? ''}`}>LOAD</button>
+                                        <br/>
+                                    </div>
+                                );
+                            }
+                            else
+                            {
+                                savedMaps.push
+                                (
+                                    <div className='saveDropdownEntry' key={theSave.id}>
+                                        <input 
+                                            type='text' 
+                                            style={{marginRight: '5px'}} 
+                                            placeholder='Enter a name for this save.' 
+                                            className='saveDropdownInput' 
+                                            onChange={e => handleSaveInput(e.target.value, theSave.id)}
+                                        />
+                                        <button style={{marginLeft: 'auto'}} onClick={e => handleSaveClick(theSave.id)} className={`${saveButtonClassName ?? ''}`}>SAVE</button>
+                                        <br/>
+                                    </div>
+                                );
+                            }
+                        })
+
+                        return savedMaps;
+                    }
+                )()}
+            </div>
+            {children}
+        </div>
+    )
+}
+
+export default SaveDropdown

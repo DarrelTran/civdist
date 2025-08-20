@@ -6,11 +6,11 @@ import './allPages.css';
 import { TileNone, TileWonders, TileDistricts, TileNaturalWonders, TerrainFeatureKey, RiverDirections, TileType, LeaderName, TileYields, PossibleErrors, VictoryType, TileBonusResources, TileLuxuryResources, TileStrategicResources, TileArtifactResources, TileUniqueDistricts, HexType, YieldImagesKey, OptionalVisualOptions, SaveType} from '../types/types'
 import { loadDistrictImages, loadNaturalWonderImages, loadResourceImages, loadTerrainImages, loadWonderImages, loadYieldDropdownImages, loadYieldImages } from '../images/imageLoaders';
 import { getTerrain, getDistrict, getNaturalWonder, getWonder, getResource, getYields } from '../images/imageAttributeFinders';
-import { baseTileSize, getAllPossibleDistricts, getAllPossibleYields, getAllPossibleVictoryTypes, minZoom, maxZoom } from '../utils/constants';
+import { BASE_TILE_SIZE, getAllPossibleDistricts, getAllPossibleYields, getAllPossibleVictoryTypes, MIN_ZOOM, MAX_ZOOM } from '../utils/constants';
 import { Civilization, getCivilizationObject, Norway } from '../civilization/civilizations';
 import { yieldSelectStyle, nearbyCityFontSize, nearbyCityStyles, genericSingleSelectStyle, optionalVisualFontSize, optionalVisualStyle } from './mapPageSelectStyles';
 import { OptionsWithImage, OptionsWithSpecialText, OptionsGenericString } from '../types/selectionTypes';
-import { getMapOddrString, getMinMaxXY, getOddrFromOddrString, getTextWidth } from '../utils/functions/misc/misc';
+import { downloadMapJSON, getMapOddrString, getMinMaxXY, getOddrFromOddrString, getTextWidth } from '../utils/functions/misc/misc';
 import { getHexPoint, getOffsets, oddrToPixel, pixelToOddr } from '../utils/functions/hex/genericHex';
 import { getScaledGridAndTileSizes, getScaledGridSizesFromTile, getScaleFromType } from '../utils/functions/imgScaling/scaling';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -19,6 +19,8 @@ import Tooltip from '../components/tooltip';
 import { allocateCitizensAuto, changeAppealToAdjFromDistrict, purgeTileForDistrict } from '../utils/functions/civ/civFunctions';
 
 import duel from '../json/duel.json'
+import HoldDownButton from '../components/holdDownButton';
+import SaveDropdown from '../components/saveDropdown';
 
 // assuming all resources are revealed
 
@@ -71,11 +73,11 @@ const MapPage = () =>
 
     const [visualZoomInput, setVisualZoomInput] = useState<number>(100);
 
-    const [originalGridSize, setOriginalGridSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(baseTileSize, minAndMaxCoords, winSize).tileX, y: getScaledGridAndTileSizes(baseTileSize, minAndMaxCoords, winSize).tileY}); 
-    const [gridSize, setGridSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(baseTileSize, minAndMaxCoords, winSize).gridX, y: getScaledGridAndTileSizes(baseTileSize, minAndMaxCoords, winSize).gridY});
+    const [originalGridSize, setOriginalGridSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(BASE_TILE_SIZE, minAndMaxCoords, winSize).tileX, y: getScaledGridAndTileSizes(BASE_TILE_SIZE, minAndMaxCoords, winSize).tileY}); 
+    const [gridSize, setGridSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(BASE_TILE_SIZE, minAndMaxCoords, winSize).gridX, y: getScaledGridAndTileSizes(BASE_TILE_SIZE, minAndMaxCoords, winSize).gridY});
     
-    const [originalTileSize, setOriginalTileSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(baseTileSize, minAndMaxCoords, winSize).tileX, y: getScaledGridAndTileSizes(baseTileSize, minAndMaxCoords, winSize).tileY});
-    const [tileSize, setTileSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(baseTileSize, minAndMaxCoords, winSize).tileX, y: getScaledGridAndTileSizes(baseTileSize, minAndMaxCoords, winSize).tileY});
+    const [originalTileSize, setOriginalTileSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(BASE_TILE_SIZE, minAndMaxCoords, winSize).tileX, y: getScaledGridAndTileSizes(BASE_TILE_SIZE, minAndMaxCoords, winSize).tileY});
+    const [tileSize, setTileSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(BASE_TILE_SIZE, minAndMaxCoords, winSize).tileX, y: getScaledGridAndTileSizes(BASE_TILE_SIZE, minAndMaxCoords, winSize).tileY});
 
     const [currentTile, setCurrentTile] = useState<TileType>();
     const [currentCity, setCurrentCity] = useState<TileType>();
@@ -176,7 +178,7 @@ const MapPage = () =>
         //const fontSize = minGrid / minTile;
         const font = `${fontSize}px arial`;
 
-        const textWidth = getTextWidth(text, font, theCanvas.current);
+        const textWidth = getTextWidth(text, font);
 
         if (textWidth)
         {
@@ -397,8 +399,8 @@ const MapPage = () =>
         const imgAttributes = yieldAttr;
 
         // only using the tile scale instead of the img scale as the tile scale changes on zoom change
-        const tileScaleY = tileSize.y / baseTileSize;
-        const tileScaleX = tileSize.x / baseTileSize;
+        const tileScaleY = tileSize.y / BASE_TILE_SIZE;
+        const tileScaleX = tileSize.x / BASE_TILE_SIZE;
         
         const leftTop = getHexPoint(3, px, tileSize);
         const leftBottom = getHexPoint(4, px, tileSize);
@@ -708,7 +710,7 @@ const MapPage = () =>
 
     useEffect(() => 
     {
-        const sizes = getScaledGridAndTileSizes(baseTileSize, minAndMaxCoords, winSize); 
+        const sizes = getScaledGridAndTileSizes(BASE_TILE_SIZE, minAndMaxCoords, winSize); 
         setOriginalTileSize({ x: sizes.tileX, y: sizes.tileY });
         setOriginalGridSize({ x: sizes.gridX, y: sizes.gridY });
 
@@ -859,15 +861,15 @@ const MapPage = () =>
     const handleZoomChange = useCallback((zoomLevel: number) =>
     {
         let theZoom = zoomLevel;
-        if (theZoom < minZoom)
+        if (theZoom < MIN_ZOOM)
         {
-            theZoom = minZoom;
-            setVisualZoomInput(minZoom);
+            theZoom = MIN_ZOOM;
+            setVisualZoomInput(MIN_ZOOM);
         }
-        else if (theZoom > maxZoom)
+        else if (theZoom > MAX_ZOOM)
         {
-            theZoom = maxZoom;
-            setVisualZoomInput(maxZoom);
+            theZoom = MAX_ZOOM;
+            setVisualZoomInput(MAX_ZOOM);
         }
 
         const multiplier = Math.abs(theZoom) / 100.0;
@@ -1289,7 +1291,7 @@ const MapPage = () =>
         {
             opts.forEach((vals) => 
             {
-                const width = getTextWidth(vals.text, `${nearbyCityFontSize}px arial`, theCanvas.current);
+                const width = getTextWidth(vals.text, `${nearbyCityFontSize}px arial`);
                 if (width)
                     max = Math.max(width);
             })
@@ -1297,7 +1299,7 @@ const MapPage = () =>
         else
         {
             const theString = 'Select a nearby city';
-            const width = getTextWidth(theString, `${nearbyCityFontSize}px arial`, theCanvas.current);
+            const width = getTextWidth(theString, `${nearbyCityFontSize}px arial`);
             if (width)
                 max = Math.max(width);
         }
@@ -1316,7 +1318,7 @@ const MapPage = () =>
             {
                 if (vals.value)
                 {
-                    const width = getTextWidth(vals.value, `${optionalVisualFontSize}px arial`, theCanvas.current);
+                    const width = getTextWidth(vals.value, `${optionalVisualFontSize}px arial`);
                     if (width)
                         max = Math.max(width);
                 }
@@ -1325,7 +1327,7 @@ const MapPage = () =>
         else
         {
             const theString = 'Select an optional visual';
-            const width = getTextWidth(theString, `${optionalVisualFontSize}px arial`, theCanvas.current);
+            const width = getTextWidth(theString, `${optionalVisualFontSize}px arial`);
             if (width)
                 max = Math.max(width);
         }
@@ -1377,17 +1379,14 @@ const MapPage = () =>
             return save.id === currID ? {...save, inputText: inputVal} : save;
         }));
     }
-    
+
     return (
         <div style={{display: 'flex'}}>
 
             <div className='outerDiv'>
-
-                <span style={{color: 'red', fontWeight: 'bold', fontSize: '1.25em'}}>{saveErrorText}</span>
-
                 <div className='loadingSection'>
                     <div style={{display: 'flex'}}>
-                        <button>EXPORT</button>
+                        <button onClick={e => downloadMapJSON(mapJSON, 'exportedMapJSON.json')}>EXPORT</button>
 
                         <Tooltip text={'Download to file.'}>
                             <FontAwesomeIcon icon={faCircleQuestion} className='questionMark' style={{marginRight: '5px'}}/>
@@ -1397,63 +1396,22 @@ const MapPage = () =>
                         <input style={{display: 'none'}} type='file' ref={fileInputRef} onChange={e => handleInputChange(e)} accept='.json'/>
 
                     </div>
-                    <div>
-                        <button onClick={() => {setSavesDisplay(savesDisplay === 'none' ? 'block' : 'none')}} className='wideButton'>SAVES</button>
-
-                        <div style={{display: savesDisplay, paddingBottom: '5px'}}>
-                            {/* Parenthesis wrapped around function make it an expression to remove ambiguity and run the whole function?*/}
-                            {(() => 
-                                {
-                                    const savedMaps: JSX.Element[] = [];
-
-                                    saveList.forEach((theSave) => 
-                                    {
-                                        if (theSave.name && theSave.name.length > 0)
-                                        {
-                                            savedMaps.push
-                                            (
-                                                <div className='saveDropdownEntry' key={theSave.id}>
-                                                    <span style={{display: theSave.textNameDisplay, marginRight: '5px'}}>{theSave.name}</span>
-                                                    
-                                                    <input 
-                                                        type='text' 
-                                                        style={{marginRight: '5px', display: theSave.textInputDisplay}} 
-                                                        placeholder='Enter a name for this save.' 
-                                                        className='saveDropdownInput' 
-                                                        onChange={e => handleSaveInput(e.target.value, theSave.id)}
-                                                    />
-                                                    
-                                                    <button style={{marginLeft: 'auto', marginRight: '5px'}} onClick={e => handleSaveClick(theSave.id)}>SAVE</button>
-                                                    <button>LOAD</button>
-                                                    <br></br>
-                                                </div>
-                                            );
-                                        }
-                                        else
-                                        {
-                                            savedMaps.push
-                                            (
-                                                <div className='saveDropdownEntry' key={theSave.id}>
-                                                    <input 
-                                                        type='text' 
-                                                        style={{marginRight: '5px'}} 
-                                                        placeholder='Enter a name for this save.' 
-                                                        className='saveDropdownInput' 
-                                                        onChange={e => handleSaveInput(e.target.value, theSave.id)}
-                                                    />
-                                                    <button style={{marginLeft: 'auto'}} onClick={e => handleSaveClick(theSave.id)}>SAVE</button>
-                                                    <br></br>
-                                                </div>
-                                            );
-                                        }
-                                    })
-
-                                    return savedMaps;
-                                }
-                            )()}
-                        </div>
-                    </div>
+                    <SaveDropdown 
+                        saveList={saveList} 
+                        containerDisplayType='block' 
+                        handleSaveClick={handleSaveClick} 
+                        handleSaveInput={handleSaveInput}
+                        maxSaveTextWidth={100}
+                        dropdownButtonClassName='wideButton'
+                        inputClassName='saveDropdownInput'
+                        saveEntryClassName='saveDropdownEntry'
+                        saveButtonClassName='savesSaveButton'
+                        loadButtonClassName='savesLoadButton'
+                        saveTextClassName='saveText'
+                    />
                 </div>
+
+                <span style={{color: 'red', fontWeight: 'bold', fontSize: '1.25em'}}>{saveErrorText}</span>
             </div>
 
             <div
@@ -1473,9 +1431,7 @@ const MapPage = () =>
             </div>
 
             <div className='outerDiv'>
-                <span style={{color: 'red', fontWeight: 'bold', fontSize: '1.25em'}}>{districtErrorText}</span>
-                <span style={{color: 'green', fontWeight: 'bold', fontSize: '1.25em'}}>{districtSuccessText}</span>
-
+                
                 <div className='checkboxes'>
                     <div style={{display: 'flex'}}>
                         <span>Include City States</span>
@@ -1646,7 +1602,7 @@ const MapPage = () =>
                         </Tooltip>
                     </div>
 
-                    <button onClick={handleAddButton} className='wideButton holdButton'><span>ADD</span></button>
+                    <HoldDownButton text='ADD' finishHoldDown={handleAddButton} className='wideButton'></HoldDownButton>
                 </div>
 
                 <div className='miscOptions'>
@@ -1684,8 +1640,8 @@ const MapPage = () =>
                             onClick={e => handleZoomClick(e)} 
                             ref={zoomInputRef} 
                             type='number' 
-                            min={minZoom} 
-                            max={maxZoom} 
+                            min={MIN_ZOOM} 
+                            max={MAX_ZOOM} 
                             value={visualZoomInput} 
                             onChange={e => setVisualZoomInput(Number(e.target.value))} 
                             onBlur={e => handleZoomChange(Number(e.target.value))}
@@ -1695,6 +1651,9 @@ const MapPage = () =>
                             <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
                         </Tooltip>
                     </div>
+
+                    <span style={{color: 'red', fontWeight: 'bold', fontSize: '1.25em', display: 'inline-block', maxWidth: '100%'}}>{districtErrorText}</span>
+                    <span style={{color: 'green', fontWeight: 'bold', fontSize: '1.25em', display: 'inline-block', maxWidth: '100%'}}>{districtSuccessText}</span>
                 </div>
             </div>
 

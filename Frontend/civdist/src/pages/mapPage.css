@@ -39,48 +39,6 @@
   color: transparent;
 }
 
-.wideButton
-{
-  width: 100%;
-  text-align: center;
-  border: 2px solid black;
-  cursor: pointer;
-}
-
-.holdButton 
-{
-  position: relative;
-  overflow: hidden;              
-  background-color: #fff;
-  color: #111;
-  border: 2px solid #111;
-}
-
-.holdButton::before 
-{
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-color: black;
-  transform: translateX(-100%);  
-  transition: transform 0.8s linear, opacity 0.8s linear;
-  opacity: 1;
-  z-index: 0;                   
-  pointer-events: none;          
-}
-
-.holdButton > span 
-{
-  position: relative;
-  mix-blend-mode: difference;
-  color: white;
-}
-
-.holdButton:active::before 
-{ 
-  transform: translateX(0); 
-}
-
 .miscOptions
 {
   margin-top: 10px;
@@ -111,45 +69,30 @@
   margin-top: 5px;
 }
 
+.savesSaveButton
+{
+  margin-left: auto;
+}
+
+.savesLoadButton
+{
+
+}
+
+.saveText
+{
+  
+}
+
+.wideButton
+{
+  width: 100%;
+  text-align: center;
+  border: 2px solid black;
+  cursor: pointer;
+}
+
 .gridSplit
 {
   /*grid-template-rows: 1fr 1fr 1fr; */
 }
-
-/*
-btn 
-btn-double-swipe 
-btn-double-swipe--green
-*/
-
-/*
-.btn {  font-family: Arial, Helvetica, sans-serif;  text-transform: uppercase;}  
-.btn:hover .btn-slide-show-text1 {  margin-left: 65px;}  
-.btn-double-swipe {  display: block;  overflow: hidden;  text-align: center;  padding: 10px 20px;  margin: auto;  text-transform: uppercase;  text-decoration: none;  transition: 0.5s ease-in-out;  max-width: 150px;}  
-.btn-double-swipe::before 
-{  
-content: "";  
-position: absolute;  
-height: 490%;  
-top: 0px;  
-width: 120%;  
-transition: 0.5s ease-in-out;  
-transform: translateX(-98%) translateY(-25%) rotate(45deg);  
-right: -50px;  border-right: 50px solid transparent;  
-transform: translateX(-100%);
-  }  
-
-  .btn-double-swipe::after {  left: -50px;  border-left: 50px solid transparent;  transform: translateX(100%);}  
-
-  .btn-double-swipe span {  position: relative;  transition: 0.5s ease-in-out;  z-index: 4;}  
-
-  .btn-double-swipe:hover span {  opacity: 0.9;  color: rgb(255, 255, 255);}  
-
-  .btn-double-swipe:hover::before {  transform: translateX(-40%);}  
-
-  .btn-double-swipe:hover::after {  transform: translateX(40%);}  
-
-  .btn-double-swipe--green {  border: 2px solid rgb(128, 237, 153);  color: rgb(128, 237, 153);}  
-
-  .btn-double-swipe--green::before {  background: rgb(128, 237, 153);}  
-*/

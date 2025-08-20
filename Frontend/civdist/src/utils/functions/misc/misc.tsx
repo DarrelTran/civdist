@@ -45,16 +45,39 @@ export function getOddrFromOddrString(oddrStr: string): {col: number, row: numbe
     return {col: col, row: row};
 }
 
-export function getTextWidth(text: string, font: string, canvas: HTMLCanvasElement | null): number | undefined
+export function getTextWidth(text: string, font: string): number | undefined
 {
+    let canvas = document.createElement('canvas');
+
     const context = canvas?.getContext('2d');
     if (canvas && context)
     {
         context.font = font;
         const size = context.measureText(text);
 
+        canvas.remove();
+
         return size.width;
     }
 
+    canvas.remove();
+
     return undefined;
+}
+
+export function downloadMapJSON(theJSON: TileType[], fileName: string)
+{
+    const parsedJSON = JSON.stringify(theJSON)
+
+    let element = document.createElement('a');
+
+    element.setAttribute('href',
+        'data:text/plain;charset=utf-8,'
+        + encodeURIComponent(parsedJSON));
+
+    element.setAttribute('download', fileName);
+    document.body.appendChild(element);
+    element.click();
+
+    element.remove();
 }

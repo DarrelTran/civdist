@@ -1,3 +1,10 @@
+.topSectionDiv
+{
+  display: grid;
+  grid-template-columns: max-content;
+  grid-template-rows: auto auto auto;
+}
+
 .mandatory
 {
   color: red;

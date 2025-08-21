@@ -39,6 +39,8 @@ interface SaveDropdownType
     topmostDivStyle?: React.CSSProperties
 }
 
+const SAVE_TEXT_FONT_SIZE: number = 16;
+
 const SaveDropdown: React.FC<SaveDropdownType> = 
 ({
     saveList, 
@@ -61,15 +63,12 @@ const SaveDropdown: React.FC<SaveDropdownType> =
 }): JSX.Element =>
 {
     const [savesDisplay, setSavesDisplay] = useState<string>('none');
-    const saveTextRef = useRef<HTMLSpanElement>(null);
-    const tooltipRef = useRef<HTMLSpanElement>(null);
 
     function getSaveText(theSave: SaveType, maxWidth: number): string
     {
-        if (theSave.name && saveTextRef.current)
+        if (theSave.name)
         {
-            const fontSize = saveTextRef.current.style.fontSize;
-            const font = `${fontSize}px arial`;
+            const font = `${SAVE_TEXT_FONT_SIZE}px arial`;
 
             const textWidth = getTextWidth(theSave.name, font);
 
@@ -93,28 +92,12 @@ const SaveDropdown: React.FC<SaveDropdownType> =
             return tempStr;
         }
 
-        return '';
-    }
-
-    /**
-     * 
-     * @returns '{fontSize}px'
-     */
-    function getToolTipFontSize()
-    {
-        if (tooltipRef.current)
+        if (theSave.name)
         {
-            const fontSize = window.getComputedStyle(tooltipRef.current).fontSize;
-
-            if (fontSize)
-            {
-                const fontSizeNumber = Number(fontSize.split('px')[0]) + 2; // for extra padding
-
-                return `${fontSizeNumber}px`;
-            }
+            return theSave.name;
         }
 
-        return '0px';
+        return '';
     }
 
     return (
@@ -134,8 +117,8 @@ const SaveDropdown: React.FC<SaveDropdownType> =
                                 savedMaps.push
                                 (
                                     <div className={`${saveEntryClassName ?? ''}`} key={theSave.id} style={saveEntryStyle}>
-                                        <Tooltip ref={tooltipRef} text={theSave.name} style={{width: getTextWidth(theSave.name, `${getToolTipFontSize()} arial`)}}>
-                                            <span ref={saveTextRef} style={{display: theSave.textNameDisplay, marginRight: '5px', fontSize: '16px'}} className={`${saveTextClassName ?? ''}`}>{getSaveText(theSave, maxSaveTextWidth)}</span>
+                                        <Tooltip text={theSave.name} style={{width: getTextWidth(theSave.name, `${SAVE_TEXT_FONT_SIZE}px arial`)}}>
+                                            <span style={{display: theSave.textNameDisplay, marginRight: '5px', fontSize: `${SAVE_TEXT_FONT_SIZE}px`}} className={`${saveTextClassName ?? ''}`}>{getSaveText(theSave, maxSaveTextWidth)}</span>
                                         </Tooltip>
                                         <input 
                                             type='text' 

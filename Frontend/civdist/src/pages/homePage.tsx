@@ -4,15 +4,16 @@ import axios from 'axios'
 import './allPages.css'
 import './homePage.css' 
 
-const charAnimTimeMs = 500;
-const charAnimDelayMs = 100;
+const CHAR_ANIM_TIME_MS = 500;
+const CHAR_ANIM_DELAY_MS = 100;
+
+const TITLE_TEXT = "Civdist";
 
 const HomePage = () => 
 {
     const nav = useNavigate();
-    let text = "Civdist";
 
-    const [characters, setCharacters] = useState<string[]>(text.split(''));
+    const [characters, setCharacters] = useState<string[]>(TITLE_TEXT.split(''));
     const [colorIndices, setColorIndices] = useState<number[]>([]);
     const [randColor, setRandColor] = useState<number[]>([]);
     
@@ -20,7 +21,7 @@ const HomePage = () =>
     {
         createTextAnim();
 
-        const totalTime = characters.length * charAnimDelayMs + charAnimTimeMs; // restart anim after last char done - totalTime represents last character
+        const totalTime = characters.length * CHAR_ANIM_DELAY_MS + CHAR_ANIM_TIME_MS; // restart anim after last char done - totalTime represents last character
         setInterval(() => 
         {
             createTextAnim();
@@ -34,7 +35,7 @@ const HomePage = () =>
                     (
                         <span
                             key={index}
-                            style={{ transition: `color ${charAnimTimeMs / 1000}s`, color: colorIndices.includes(index) ? `rgb(${randColor[0]}, ${randColor[1]}, ${randColor[2]})` : 'black' }}
+                            style={{ transition: `color ${CHAR_ANIM_TIME_MS / 1000}s`, color: colorIndices.includes(index) ? `rgb(${randColor[0]}, ${randColor[1]}, ${randColor[2]})` : 'black' }}
                         >
                             {char}
                         </span>
@@ -69,8 +70,8 @@ const HomePage = () =>
                 setTimeout(() => 
                 {
                     setColorIndices(prev => prev.filter(i => (i !== index))); // if index is not being added, it must have already finished so remove it
-                }, charAnimTimeMs) // ms
-            }, charAnimDelayMs * index) // ms
+                }, CHAR_ANIM_TIME_MS) // ms
+            }, CHAR_ANIM_DELAY_MS * index) // ms
         })
     }
 

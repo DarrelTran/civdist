@@ -9,7 +9,8 @@ export const genericMultiSelectStyle: StylesConfig<OptionsGenericString, true> =
         backgroundColor: state.isFocused ? '#d0d0d7' : '#e8e8ec',
         ':hover': 
         {
-            backgroundColor: '#d0d0d7'
+            backgroundColor: '#d0d0d7',
+            border: '2px solid black'
         },
         border: '2px solid black'
     }),
@@ -72,7 +73,8 @@ export const genericSingleSelectStyle: StylesConfig<OptionsGenericString, false>
         backgroundColor: state.isFocused ? '#d0d0d7' : '#e8e8ec',
         ':hover': 
         {
-            backgroundColor: '#d0d0d7'
+            backgroundColor: '#d0d0d7',
+            border: '2px solid black'
         },
         border: '2px solid black'
     }),
@@ -120,7 +122,8 @@ export const yieldSelectStyle: StylesConfig<OptionsWithImage, true> =
         backgroundColor: state.isFocused ? '#d0d0d7' : '#e8e8ec',
         ':hover': 
         {
-            backgroundColor: '#d0d0d7'
+            backgroundColor: '#d0d0d7',
+            border: '2px solid black'
         },
         border: '2px solid black'
     }),
@@ -187,7 +190,8 @@ export const nearbyCityStyles = (theWidth: number): StylesConfig<OptionsWithSpec
             backgroundColor: state.isFocused ? '#d0d0d7' : '#e8e8ec',
             ':hover': 
             {
-                backgroundColor: '#d0d0d7'
+                backgroundColor: '#d0d0d7',
+            border: '2px solid black'
             },
             width: `${theWidth}px`,
             fontSize: `${nearbyCityFontSize}px`,
@@ -248,7 +252,8 @@ export const optionalVisualStyle = (theWidth: number): StylesConfig<OptionsGener
             backgroundColor: state.isFocused ? '#d0d0d7' : '#e8e8ec',
             ':hover': 
             {
-                backgroundColor: '#d0d0d7'
+                backgroundColor: '#d0d0d7',
+            border: '2px solid black'
             },
             width: `${theWidth}px`,
             fontSize: `${optionalVisualFontSize}px`,

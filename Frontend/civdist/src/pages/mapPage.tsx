@@ -1,6 +1,6 @@
 import React, {useEffect, useState, useRef, useCallback, JSX} from 'react';
 import Select, { GroupBase, SelectInstance } from 'react-select'
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import './mapPage.css'
 import './allPages.css';
 import { TileNone, TileWonders, TileDistricts, TileNaturalWonders, TerrainFeatureKey, RiverDirections, TileType, LeaderName, TileYields, PossibleErrors, VictoryType, TileBonusResources, TileLuxuryResources, TileStrategicResources, TileArtifactResources, TileUniqueDistricts, HexType, YieldImagesKey, OptionalVisualOptions, SaveType} from '../types/types'
@@ -29,8 +29,6 @@ import SaveDropdown from '../components/saveDropdown';
 
 TODO: Add images to dropdown.
 
-TODO: Make save dropdown a component.
-
 TODO: Update hexmapCache and cityOwnedTiles when adding new district - WHEN ADDING DISTRICT ACCOUNT FOR EFFECTS OF DISTRICT LIKE THEATER ADDING APPEAL TO ADJ OR REMOVING STUFF LIKE IMPROVEMENTS
 
 TODO: Add loading warning/prompt when map is being drawn
@@ -52,6 +50,8 @@ TODO: Make page nice for mobile
 
 const MapPage = () => 
 {
+    const nav = useNavigate();
+
     const [districtErrorText, setDistrictErrorText] = useState<string>("");
     const [districtSuccessText, setDistrictSuccessText] = useState<string>("");
     const [saveErrorText, setSaveErrorText] = useState<string>("");
@@ -1439,279 +1439,287 @@ const MapPage = () =>
     }
 
     return (
-        <div style={{display: 'flex'}}>
+        <div className='topSectionDiv'>
 
-            <div className='outerDiv'>
-                <div className='loadingSection'>
-                    <div style={{display: 'flex'}}>
-                        <button onClick={e => handleExportButton()} className='smallButton'>EXPORT</button>
+            <div style={{marginBottom: '5px', marginRight: '10px', display: 'flex', marginLeft: 'auto'}}>
+                <button className='smallButton' style={{marginRight: '5px'}}>LOGIN</button>
+                <button className='smallButton' onClick={e => {nav('/')}}>RETURN</button>
+            </div>
 
-                        <Tooltip text={'Download to file.'}>
-                            <FontAwesomeIcon icon={faCircleQuestion} className='questionMark' style={{marginRight: '5px'}}/>
-                        </Tooltip>
+            <div style={{display: 'flex'}}>
+                <div className='outerDiv'>
+                    <div className='loadingSection'>
+                        <div style={{display: 'flex'}}>
+                            <button onClick={e => handleExportButton()} className='smallButton'>EXPORT</button>
 
-                        <button onClick={handleInputButtonClick} className='smallButton'>IMPORT</button>
-                        <input style={{display: 'none'}} type='file' ref={fileInputRef} onChange={e => handleInputChange(e)} accept='.json'/>
+                            <Tooltip text={'Download to file.'}>
+                                <FontAwesomeIcon icon={faCircleQuestion} className='questionMark' style={{marginRight: '5px'}}/>
+                            </Tooltip>
 
+                            <button onClick={handleInputButtonClick} className='smallButton'>IMPORT</button>
+                            <input style={{display: 'none'}} type='file' ref={fileInputRef} onChange={e => handleInputChange(e)} accept='.json'/>
+
+                        </div>
+                        <SaveDropdown 
+                            saveList={saveList} 
+                            containerDisplayType='block' 
+                            handleSaveClick={handleSaveClick} 
+                            handleSaveInput={handleSaveInput}
+                            maxSaveTextWidth={100}
+                            dropdownButtonClassName='wideButton'
+                            inputClassName='saveDropdownInput'
+                            saveEntryClassName='saveDropdownEntry'
+                            saveButtonClassName='savesSaveButton'
+                            loadButtonClassName='savesLoadButton'
+                            saveTextClassName='saveText'
+                        />
                     </div>
-                    <SaveDropdown 
-                        saveList={saveList} 
-                        containerDisplayType='block' 
-                        handleSaveClick={handleSaveClick} 
-                        handleSaveInput={handleSaveInput}
-                        maxSaveTextWidth={100}
-                        dropdownButtonClassName='wideButton'
-                        inputClassName='saveDropdownInput'
-                        saveEntryClassName='saveDropdownEntry'
-                        saveButtonClassName='savesSaveButton'
-                        loadButtonClassName='savesLoadButton'
-                        saveTextClassName='saveText'
+
+                    <span style={{color: 'red', fontWeight: 'bold', fontSize: '1.25em'}}>{saveErrorText}</span>
+                </div>
+
+                <div
+                    ref={scrollRef}
+                    style={{
+                        overflow: 'auto',
+                        border: '1px solid black',
+                        minWidth: '50px',
+                        maxWidth: gridSize.x > 0 ? gridSize.x / 1.5 : 'auto'
+                    }}
+                >
+                    <canvas
+                        ref={theCanvas}
+                        width={gridSize.x}
+                        height={gridSize.y}
+                        style={{ display: 'block'}}
                     />
                 </div>
 
-                <span style={{color: 'red', fontWeight: 'bold', fontSize: '1.25em'}}>{saveErrorText}</span>
-            </div>
+                <div className='outerDiv'>
+                    
+                    <div className='checkboxes'>
+                        <div style={{display: 'flex'}}>
+                            <span style={{fontWeight: '600'}}>Include City States</span>
+                            <input type='checkbox' onChange={(e) => {setIncludeCityStates(e.target.checked)}}/>
+                        </div>
 
-            <div
-                ref={scrollRef}
-                style={{
-                    overflow: 'auto',
-                    border: '1px solid black',
-                    minWidth: '50px'
-                }}
-            >
-                <canvas
-                    ref={theCanvas}
-                    width={gridSize.x}
-                    height={gridSize.y}
-                    style={{ display: 'block' }}
-                />
-            </div>
-
-            <div className='outerDiv'>
-                
-                <div className='checkboxes'>
-                    <div style={{display: 'flex'}}>
-                        <span style={{fontWeight: '600'}}>Include City States</span>
-                        <input type='checkbox' onChange={(e) => {setIncludeCityStates(e.target.checked)}}/>
+                        <div style={{display: 'flex'}}>
+                            <span style={{fontWeight: '600'}}>Account For Wonders</span>
+                            <input type='checkbox' onChange={(e) => {setIncludeWonders(e.target.checked)}}/>
+                            <Tooltip text='Consider wonders that may be built in the future.'>
+                                <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
+                            </Tooltip>
+                        </div>
                     </div>
+                    
+                    <div className='districtSelectors'>
+                        {/*Select Civilization*/}
+                        <div style={{display: 'flex'}}>
+                            <span className='mandatory'>*</span>
 
-                    <div style={{display: 'flex'}}>
-                        <span style={{fontWeight: '600'}}>Account For Wonders</span>
-                        <input type='checkbox' onChange={(e) => {setIncludeWonders(e.target.checked)}}/>
-                        <Tooltip text='Consider wonders that may be built in the future.'>
-                            <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
-                        </Tooltip>
-                    </div>
-                </div>
-                
-                <div className='districtSelectors'>
-                    {/*Select Civilization*/}
-                    <div style={{display: 'flex'}}>
-                        <span className='mandatory'>*</span>
+                            <Select 
+                                value={dropdownCiv ? {label: dropdownCiv, value: dropdownCiv} : null}
+                                options={getCivilizationOptions()} 
+                                styles={genericSingleSelectStyle} 
+                                onChange=
+                                {
+                                    val => 
+                                    { 
+                                        if (val && val.value) 
+                                            setDropdownCiv(val.value); 
+                                        else 
+                                            setDropdownCiv(null);
 
-                        <Select 
-                            value={dropdownCiv ? {label: dropdownCiv, value: dropdownCiv} : null}
-                            options={getCivilizationOptions()} 
-                            styles={genericSingleSelectStyle} 
-                            onChange=
-                            {
-                                val => 
-                                { 
-                                    if (val && val.value) 
-                                        setDropdownCiv(val.value); 
-                                    else 
-                                        setDropdownCiv(null);
-
-                                    setDropdownCity(null);
-                                }
-                            } 
-                            placeholder={'Select a civilization'}
-                        />
-
-                        <Tooltip text='Select a civilization.'>
-                            <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
-                        </Tooltip>
-
-                    </div>
-                
-                    <div style={{display: 'flex'}}>
-                        {/*Select City*/}
-                        <span className='mandatory'>*</span>
-                        
-                        <Select 
-                            value={dropdownCity ? {label: dropdownCity, value: dropdownCity} : null}
-                            options={getCityOptions()} 
-                            styles={genericSingleSelectStyle} 
-                            onChange=
-                            {
-                                val => 
-                                { 
-                                    if (val && val.value) 
-                                    {
-                                        setDropdownCity(val.value); 
+                                        setDropdownCity(null);
                                     }
-                                    else 
-                                    {
-                                        setDropdownCity(null); 
-                                    }
-                                }
-                            } 
-                            placeholder={'Select a city'}
-                        />
-                        
-                        <Tooltip text={dropdownCiv ? `${dropdownCiv}'s cities.` : 'Select a civilization first!'}>
-                            <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
-                        </Tooltip>
-                    </div>
+                                } 
+                                placeholder={'Select a civilization'}
+                            />
 
-                    <div style={{display: 'flex'}}>
-                        {/* District Type Selection */}
-                        <span className='mandatory'>*</span>
-                        <Select
-                            value={dropdownDistrict ? {label: dropdownDistrict, value: dropdownDistrict} : null}
-                            options={getDistrictOptions()}
-                            placeholder='Select a district'
-                            styles={genericSingleSelectStyle}
-                            onChange={val => {if (val && val.value) setDropdownDistrict(val.value); else setDropdownDistrict(null);}}
-                        />
+                            <Tooltip text='Select a civilization.'>
+                                <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
+                            </Tooltip>
 
-                        <Tooltip text='Select a district. Assumes all buildings will be built.'>
-                            <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
-                        </Tooltip>
-                    </div>
-
-                    <div style={{display: 'flex'}}>
-                        <span className='mandatory'>*</span>
-                        {/* Nearby City Selection */}
-                        <Select 
+                        </div>
+                    
+                        <div style={{display: 'flex'}}>
+                            {/*Select City*/}
+                            <span className='mandatory'>*</span>
                             
-                            onChange=
-                            {
-                                val =>
+                            <Select 
+                                value={dropdownCity ? {label: dropdownCity, value: dropdownCity} : null}
+                                options={getCityOptions()} 
+                                styles={genericSingleSelectStyle} 
+                                onChange=
                                 {
-                                    if (val)
-                                    {
-                                        const allCities = cityOwnedTiles.get(val.value);
-                                        if (allCities)
-                                            setDropdownNearbyCity(allCities[allCities.length - 1]);
+                                    val => 
+                                    { 
+                                        if (val && val.value) 
+                                        {
+                                            setDropdownCity(val.value); 
+                                        }
+                                        else 
+                                        {
+                                            setDropdownCity(null); 
+                                        }
                                     }
-                                    else
+                                } 
+                                placeholder={'Select a city'}
+                            />
+                            
+                            <Tooltip text={dropdownCiv ? `${dropdownCiv}'s cities.` : 'Select a civilization first!'}>
+                                <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
+                            </Tooltip>
+                        </div>
+
+                        <div style={{display: 'flex'}}>
+                            {/* District Type Selection */}
+                            <span className='mandatory'>*</span>
+                            <Select
+                                value={dropdownDistrict ? {label: dropdownDistrict, value: dropdownDistrict} : null}
+                                options={getDistrictOptions()}
+                                placeholder='Select a district'
+                                styles={genericSingleSelectStyle}
+                                onChange={val => {if (val && val.value) setDropdownDistrict(val.value); else setDropdownDistrict(null);}}
+                            />
+
+                            <Tooltip text='Select a district. Assumes all buildings will be built.'>
+                                <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
+                            </Tooltip>
+                        </div>
+
+                        <div style={{display: 'flex'}}>
+                            <span className='mandatory'>*</span>
+                            {/* Nearby City Selection */}
+                            <Select 
+                                
+                                onChange=
+                                {
+                                    val =>
                                     {
-                                        setDropdownNearbyCity(null);
+                                        if (val)
+                                        {
+                                            const allCities = cityOwnedTiles.get(val.value);
+                                            if (allCities)
+                                                setDropdownNearbyCity(allCities[allCities.length - 1]);
+                                        }
+                                        else
+                                        {
+                                            setDropdownNearbyCity(null);
+                                        }
+                                    }
+
+                                }
+                                options={getNearbyCityOptions()} 
+                                styles={nearbyCityStyles(getNearbyCityTextMaxWidth() * 1.25)}
+                                placeholder='Select a nearby city'
+                                ref={nearbyCityRef}
+                            />
+
+                            <Tooltip text='A city you see as a threat.'>
+                                <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
+                            </Tooltip>
+
+                        </div>
+
+                        <div style={{display: 'flex'}}>
+                            {/* Yields Selection */}
+                            <Select 
+                                value={visualYieldDropdown}
+                                options={getSelectionYields()} 
+                                isMulti 
+                                styles={yieldSelectStyle}
+                                onChange=
+                                {
+                                    (e) => 
+                                    {
+                                        const yields: TileYields[] = [];
+                                        const opts: {value: TileYields, label: TileYields, image: HTMLImageElement}[] = [];
+
+                                        e.forEach((opt) => { yields.push(opt.value); opts.push(opt);})
+
+                                        setDropdownYields(yields);
+                                        setVisualYieldDropdown(opts);
                                     }
                                 }
+                                formatOptionLabel={formatSelectionYields}
+                                placeholder='Select your yield(s)'
+                            />
 
-                            }
-                            options={getNearbyCityOptions()} 
-                            styles={nearbyCityStyles(getNearbyCityTextMaxWidth() * 1.25)}
-                            placeholder='Select a nearby city'
-                            ref={nearbyCityRef}
-                        />
+                            <Tooltip text='Your most important yields.'>
+                                <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
+                            </Tooltip>
+                        </div>
 
-                        <Tooltip text='A city you see as a threat.'>
-                            <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
-                        </Tooltip>
+                        <div style={{display: 'flex'}}>
+                            {/* Victory Type Selection */}
+                            <Select
+                                value={dropdownVictoryType ? {label: dropdownVictoryType, value: dropdownVictoryType} : null}
+                                options={getVictoryTypeOptions()}
+                                placeholder='Select a victory type'
+                                styles={genericSingleSelectStyle}
+                                onChange={val => {if (val && val.value) setDropdownVictoryType(val.value); else setDropdownVictoryType(null)}}
+                                isClearable
+                            />
 
+                            <Tooltip text={'The victory type you\'re aiming for.'}>
+                                <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
+                            </Tooltip>
+                        </div>
+
+                        <HoldDownButton text='ADD' finishHoldDown={handleAddButton} className='wideButton'></HoldDownButton>
                     </div>
 
-                    <div style={{display: 'flex'}}>
-                        {/* Yields Selection */}
-                        <Select 
-                            value={visualYieldDropdown}
-                            options={getSelectionYields()} 
-                            isMulti 
-                            styles={yieldSelectStyle}
-                            onChange=
-                            {
-                                (e) => 
+                    <div className='miscOptions'>
+                        <div style={{display: 'flex'}}>
+                            <Select 
+                                options={getOptionalVisualOptions()} 
+                                styles={optionalVisualStyle(getOptionalVisualMaxWidth() * 1.75)} 
+                                onChange=
                                 {
-                                    const yields: TileYields[] = [];
-                                    const opts: {value: TileYields, label: TileYields, image: HTMLImageElement}[] = [];
-
-                                    e.forEach((opt) => { yields.push(opt.value); opts.push(opt);})
-
-                                    setDropdownYields(yields);
-                                    setVisualYieldDropdown(opts);
-                                }
-                            }
-                            formatOptionLabel={formatSelectionYields}
-                            placeholder='Select your yield(s)'
-                        />
-
-                        <Tooltip text='Your most important yields.'>
-                            <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
-                        </Tooltip>
-                    </div>
-
-                    <div style={{display: 'flex'}}>
-                        {/* Victory Type Selection */}
-                        <Select
-                            value={dropdownVictoryType ? {label: dropdownVictoryType, value: dropdownVictoryType} : null}
-                            options={getVictoryTypeOptions()}
-                            placeholder='Select a victory type'
-                            styles={genericSingleSelectStyle}
-                            onChange={val => {if (val && val.value) setDropdownVictoryType(val.value); else setDropdownVictoryType(null)}}
-                            isClearable
-                        />
-
-                        <Tooltip text={'The victory type you\'re aiming for.'}>
-                            <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
-                        </Tooltip>
-                    </div>
-
-                    <HoldDownButton text='ADD' finishHoldDown={handleAddButton} className='wideButton'></HoldDownButton>
-                </div>
-
-                <div className='miscOptions'>
-                    <div style={{display: 'flex'}}>
-                        <Select 
-                            options={getOptionalVisualOptions()} 
-                            styles={optionalVisualStyle(getOptionalVisualMaxWidth() * 1.75)} 
-                            onChange=
-                            {
-                                val =>
-                                {
-                                    if (val)
+                                    val =>
                                     {
-                                        if (val.value === OptionalVisualOptions.SHOW_YIELDS)
-                                            setOptionalVisual({yields: true, resources: false});
-                                        else if (val.value === OptionalVisualOptions.SHOW_RESOURCES)
-                                            setOptionalVisual({yields: false, resources: true});
-                                    }
-                                    else
-                                    {
-                                        setOptionalVisual({yields: false, resources: false});
+                                        if (val)
+                                        {
+                                            if (val.value === OptionalVisualOptions.SHOW_YIELDS)
+                                                setOptionalVisual({yields: true, resources: false});
+                                            else if (val.value === OptionalVisualOptions.SHOW_RESOURCES)
+                                                setOptionalVisual({yields: false, resources: true});
+                                        }
+                                        else
+                                        {
+                                            setOptionalVisual({yields: false, resources: false});
+                                        }
                                     }
                                 }
-                            }
-                            placeholder={'Select an optional visual'}
-                            isClearable
-                            ref={optionalVisualRef}
-                        />
+                                placeholder={'Select an optional visual'}
+                                isClearable
+                                ref={optionalVisualRef}
+                            />
+                        </div>
+
+                        <div style={{display: 'flex'}}>
+                            <span style={{paddingRight: '5px', fontWeight: '600'}}>Zoom Level:</span>
+                            <input 
+                                onKeyDown={e => handleZoomKeyDown(e)} 
+                                onClick={e => handleZoomClick(e)} 
+                                ref={zoomInputRef} 
+                                type='number' 
+                                min={MIN_ZOOM} 
+                                max={MAX_ZOOM} 
+                                value={visualZoomInput} 
+                                onChange={e => setVisualZoomInput(Number(e.target.value))} 
+                                onBlur={e => handleZoomChange(Number(e.target.value))}
+                            />
+
+                            <Tooltip text={'50 - 300%'}>
+                                <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
+                            </Tooltip>
+                        </div>
+
+                        <span style={{color: 'red', fontWeight: 'bold', fontSize: '1.25em', display: 'inline-block', maxWidth: '100%'}}>{districtErrorText}</span>
+                        <span style={{color: 'green', fontWeight: 'bold', fontSize: '1.25em', display: 'inline-block', maxWidth: '100%'}}>{districtSuccessText}</span>
                     </div>
-
-                    <div style={{display: 'flex'}}>
-                        <span style={{paddingRight: '5px', fontWeight: '600'}}>Zoom Level:</span>
-                        <input 
-                            onKeyDown={e => handleZoomKeyDown(e)} 
-                            onClick={e => handleZoomClick(e)} 
-                            ref={zoomInputRef} 
-                            type='number' 
-                            min={MIN_ZOOM} 
-                            max={MAX_ZOOM} 
-                            value={visualZoomInput} 
-                            onChange={e => setVisualZoomInput(Number(e.target.value))} 
-                            onBlur={e => handleZoomChange(Number(e.target.value))}
-                        />
-
-                        <Tooltip text={'50 - 300%'}>
-                            <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
-                        </Tooltip>
-                    </div>
-
-                    <span style={{color: 'red', fontWeight: 'bold', fontSize: '1.25em', display: 'inline-block', maxWidth: '100%'}}>{districtErrorText}</span>
-                    <span style={{color: 'green', fontWeight: 'bold', fontSize: '1.25em', display: 'inline-block', maxWidth: '100%'}}>{districtSuccessText}</span>
                 </div>
             </div>
 
@@ -1750,7 +1758,7 @@ const MapPage = () =>
 
     function testStuff()
     {
-        console.log(dropdownCity)
+        console.log(gridSize)
     }   
 };
 

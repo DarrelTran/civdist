@@ -1,4 +1,4 @@
-import React, {forwardRef, JSX} from 'react';
+import React, {JSX} from 'react';
 import './tooltip.css'
 
 interface TooltipType
@@ -8,14 +8,14 @@ interface TooltipType
     children?: React.ReactNode;
 }
 
-const Tooltip = forwardRef<HTMLSpanElement, TooltipType>(({text, style, children}, ref) => 
+const Tooltip: React.FC<TooltipType> = ({text, style, children}): JSX.Element =>
 {
     return (
         <div className='tooltip'>
             {children}
-            <span ref={ref} className="tooltiptext" style={style}>{text}</span>
+            <span className="tooltiptext" style={style}>{text}</span>
         </div>
     )
-})
+}
 
 export default Tooltip;

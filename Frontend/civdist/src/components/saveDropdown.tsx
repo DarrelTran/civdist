@@ -68,7 +68,7 @@ const SaveDropdown: React.FC<SaveDropdownType> =
     {
         if (theSave.name)
         {
-            const font = `${SAVE_TEXT_FONT_SIZE}px arial`;
+            let font = `${SAVE_TEXT_FONT_SIZE}px arial`;
 
             const textWidth = getTextWidth(theSave.name, font);
 
@@ -78,25 +78,21 @@ const SaveDropdown: React.FC<SaveDropdownType> =
             {
                 let tempStrWidth = getTextWidth(tempStr, font);
 
+                const element = document.createElement('span');
+                element.textContent = theSave.name;
+
                 while (tempStrWidth && tempStrWidth > maxWidth)
                 {
                     tempStr = tempStr.slice(0, -1);
                     tempStrWidth = getTextWidth(tempStr, font);
                 }
 
-                // remove 3 for the ellipses
-                tempStr = tempStr.slice(0, -3);
                 tempStr = tempStr + '...';
             }
 
             return tempStr;
         }
-
-        if (theSave.name)
-        {
-            return theSave.name;
-        }
-
+ 
         return '';
     }
 

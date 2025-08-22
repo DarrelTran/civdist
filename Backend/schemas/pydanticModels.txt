@@ -1,0 +1,1 @@
+Defines how data is sent/received in API requests & responses. (data validation)

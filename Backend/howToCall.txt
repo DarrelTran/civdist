@@ -1,0 +1,2 @@
+go to Civ6_District_Site
+python -m Backend.package.file

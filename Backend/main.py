@@ -1,7 +1,9 @@
+from Backend.db.session import engine
+from sqlalchemy.schema import MetaData
+from routers.userRouter import router
 from fastapi import FastAPI
 
-app = FastAPI()
+MetaData.create_all(bind=engine)
 
-@app.get("/")
-async def root():
-    return {"message": "Hello World"}
+app = FastAPI()
+app.include_router(router=router)

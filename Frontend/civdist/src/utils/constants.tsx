@@ -3,7 +3,7 @@ import { TileDistricts, TileYields, VictoryType } from "../types/types";
 export const BASE_TILE_SIZE : number = 10;
 export const MIN_ZOOM = 50;
 export const MAX_ZOOM = 300;
-
+export const BACKEND_URL = 'http://127.0.0.1:8000';
 
 
 export const getAllPossibleDistricts = () =>

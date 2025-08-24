@@ -1,27 +1,5 @@
-from typing import List
+from typing import List, Optional
 from pydantic import BaseModel, ConfigDict
-
-class UserCreateSchema(BaseModel):
-    username: str
-    password: str
-
-class UserReadSchema(BaseModel):
-    username: str
-    password: str
-
-    model_config = ConfigDict(from_attributes=True)
-
-class UserItemsCreateSchema(BaseModel):
-    # id is autoincrement
-    map: dict | List[dict]
-    username: str
-
-class UserItemsReadSchema(BaseModel):
-    id: int
-    map: dict | List[dict]
-    username: str
-
-    model_config = ConfigDict(from_attributes=True)
 
 class TileType(BaseModel):
     X: int
@@ -66,3 +44,25 @@ class TileType(BaseModel):
     Faith: int
     FavoredYields: List[str]
     DisfavoredYields: List[str]
+
+class UserCreateSchema(BaseModel):
+    username: str
+    password: str
+
+class UserReadSchema(BaseModel):
+    username: str
+
+class UserItemsCreateSchema(BaseModel):
+    # id is autoincrement
+    map: TileType | List[TileType]
+    username: str
+
+class UserItemUpdateSchemaID(BaseModel):
+    id: int
+    map: TileType | List[TileType]
+
+class UserItemsReadSchemaID(BaseModel):
+    id: int
+
+class UserItemsReadSchemaUsername(BaseModel):
+    username: str

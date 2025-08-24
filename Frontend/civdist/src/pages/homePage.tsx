@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios'
 import './allPages.css'
 import './homePage.css' 
+import { backend_createUser } from '../REST/user';
 
 const CHAR_ANIM_TIME_MS = 500;
 const CHAR_ANIM_DELAY_MS = 100;
@@ -43,6 +44,16 @@ const HomePage = () =>
                 }
             </div>
             <button onClick={() => {nav('/map')}}>NEW MAP</button>
+            <button 
+                onClick=
+                {() => 
+                    {
+                        backend_createUser('reactUser', 'reactPass')
+                    }
+                }
+            >
+                TEST API
+                </button>
         </div>
     );
 

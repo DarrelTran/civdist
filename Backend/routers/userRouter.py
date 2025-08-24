@@ -1,12 +1,13 @@
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, APIRouter, HTTPException
 from Backend.db.session import postgresqlSession
+from Backend.exceptions.user import BadPassword
 import Backend.services.userService as userServices
-from Backend.schemas.user import UserItemsCreateSchema, UserCreateSchema, UserItemsReadSchema, UserReadSchema, TileType
+from Backend.schemas.user import UserItemsCreateSchema, UserCreateSchema, UserReadSchema, UserItemUpdateSchemaID, UserItemsReadSchemaID, UserItemsReadSchemaUsername
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.encoders import jsonable_encoder
 #from fastapi.middleware.gzip import GZipMiddleware
 
-router = FastAPI()
+router = APIRouter()
 #router.add_middleware(GZipMiddleware)
 
 async def getDB():
@@ -15,80 +16,84 @@ async def getDB():
     
 ''' ********* POST ********* '''
 @router.post('/user/', status_code=201)
-async def addUser(username: str, password: str, db: AsyncSession = Depends(getDB)):
-    if len(username) == 0:
+async def addUser(user: UserCreateSchema, db: AsyncSession = Depends(getDB)):
+    if len(user.username) == 0:
         raise HTTPException(status_code=400, detail='username cannot be empty!')
-    elif len(password) == 0:
+    elif len(user.username) == 0:
         raise HTTPException(status_code=400, detail='password cannot be empty!')
     
     try:
-        await userServices.createUser(db, UserCreateSchema(username=username, password=password))
+        await userServices.createUser(db, user)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
 @router.post('/map/', status_code=201)
-async def addMap(username: str, json: TileType, db: AsyncSession = Depends(getDB)):
-    if len(username) == 0:
+async def addMap(map: UserItemsCreateSchema, db: AsyncSession = Depends(getDB)):
+    if len(map.username) == 0:
         raise HTTPException(status_code=400, detail='username cannot be empty!')
-    elif not json:
+    elif not map.map:
         raise HTTPException(status_code=400, detail='json map cannot be empty!')
     
     try:
-        await userServices.createUserItem(db, UserItemsCreateSchema(map=json, username=username))
+        await userServices.createUserItem(db, map)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
 ''' ********* PATCH ********* '''
 # should only update the password
 @router.patch('/user/', status_code=204)
-async def updateUser(username: str, password: str, db: AsyncSession = Depends(getDB)):
-    if len(username) == 0:
+async def updateUser(user: UserCreateSchema, db: AsyncSession = Depends(getDB)):
+    if len(user.username) == 0:
         raise HTTPException(status_code=400, detail='username cannot be empty!')
-    elif len(password) == 0:
+    elif len(user.password) == 0:
         raise HTTPException(status_code=400, detail='password cannot be empty!')
     
     try:
-        await userServices.updateUser(db, UserReadSchema(username=username, password=password), username)
+        await userServices.updateUser(db, user)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) 
 
 @router.patch('/map/', status_code=204)
-async def updateMap(id: int, json: TileType, db: AsyncSession = Depends(getDB)):
-    if not json:
+async def updateMap(map: UserItemUpdateSchemaID, db: AsyncSession = Depends(getDB)):
+    if not map.map:
         raise HTTPException(status_code=400, detail='json map cannot be empty!')
     
     try:
-        await userServices.updateUserItem(db, UserItemsReadSchema(map=json), id)
+        await userServices.updateUserItem(db, map)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
 ''' ********* GET ********* '''
 @router.get('/user/', status_code=200)
-async def getUser(username: str, db: AsyncSession = Depends(getDB)):
-    if len(username) == 0:
+async def getUser(user: UserCreateSchema, str, db: AsyncSession = Depends(getDB)):
+    if len(user.username) == 0:
         raise HTTPException(status_code=400, detail='username cannot be empty!')
+    elif len(user.password) == 0:
+        raise HTTPException(status_code=400, detail='password cannot be empty!')
     
     try:
-        await userServices.getUser(db, username)
+        await userServices.getUser(db, user)
+    except BadPassword as e:
+        raise HTTPException(status_code=400, detail=str(e))  
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) 
 
 @router.get('/map/', status_code=200)
-async def getMap(id: int, db: AsyncSession = Depends(getDB)):
+async def getMap(map: UserItemsReadSchemaID, db: AsyncSession = Depends(getDB)):
     try:
-        theMap = await userServices.getUserItem(db, id)
+        theMap = await userServices.getUserItem(db, map.id)
 
         return {'map': jsonable_encoder(theMap)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get('/allMaps/', status_code=200)
-async def getAllMaps(username: str, db: AsyncSession = Depends(getDB)):
-    if len(username) == 0:
+async def getAllMaps(map: UserItemsReadSchemaUsername, db: AsyncSession = Depends(getDB)):
+    if len(map.username) == 0:
         raise HTTPException(status_code=400, detail='username cannot be empty!')
 
     try:
-        theMaps = await userServices.getAllUserItems(db, username)
+        theMaps = await userServices.getAllUserItems(db, map)
 
         return {'maps': jsonable_encoder(theMaps)}
     except Exception as e:
@@ -96,25 +101,28 @@ async def getAllMaps(username: str, db: AsyncSession = Depends(getDB)):
 
 ''' ********* DELETE ********* '''
 @router.delete('/user/', status_code=204)
-async def deleteUser(username: str, db: AsyncSession = Depends(getDB)):
-    if len(username) == 0:
+async def deleteUser(user: UserReadSchema, db: AsyncSession = Depends(getDB)):
+    if len(user.username) == 0:
         raise HTTPException(status_code=400, detail='username cannot be empty!')
     
     try:
-        await userServices.deleteUser(db, username)
+        await userServices.deleteUser(db, user)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) 
 
 @router.delete('/map/', status_code=204)
-async def deleteMapID(id: int, db: AsyncSession = Depends(getDB)):
+async def deleteMapID(map: UserItemsReadSchemaID, db: AsyncSession = Depends(getDB)):
     try:
-       await userServices.deleteUserItemID(db, id)
+       await userServices.deleteUserItemID(db, map)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
 @router.delete('/allMaps/', status_code=204)
-async def deleteMapUsername(username: str, db: AsyncSession = Depends(getDB)):
+async def deleteMapUsername(map: UserItemsReadSchemaUsername, db: AsyncSession = Depends(getDB)):
+    if len(map.username) == 0:
+        raise HTTPException(status_code=400, detail='username cannot be empty!')
+
     try:
-       await userServices.deleteUserItemUsername(db, username)
+       await userServices.deleteUserItemUsername(db, map)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

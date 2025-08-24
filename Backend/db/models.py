@@ -1,4 +1,4 @@
-from sqlalchemy import JSON, Text, Integer, Column, ForeignKey
+from sqlalchemy import JSON, Text, Integer, Column, ForeignKey, BINARY
 from sqlalchemy.orm import declarative_base, relationship
 
 base = declarative_base()
@@ -7,7 +7,7 @@ class UserBaseSQL(base):
     __tablename__ = "User"
 
     username = Column(Text, primary_key=True, nullable=False)
-    password = Column(Text, nullable=False)
+    password = Column(BINARY, nullable=False)
 
     items = relationship("UserItemsBaseSQL", back_populates="users", cascade="all, delete-orphan")
 

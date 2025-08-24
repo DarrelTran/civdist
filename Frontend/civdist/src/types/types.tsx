@@ -438,3 +438,17 @@ export type SaveType =
   textNameDisplay: string,
   inputText: string
 }
+
+/*********************** FOR SAVES ***********************/
+
+export type RESTResponse =
+{
+  output: any | null,
+  status: number | null,
+  errorMessage: string | null
+}
+
+export function RESTResponseConstructor(output: any | null, status: number | null, errorMessage: string | null): RESTResponse
+{
+  return {output: output, status: status, errorMessage: errorMessage};
+}

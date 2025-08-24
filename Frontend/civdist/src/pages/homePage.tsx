@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios'
 import './allPages.css'
 import './homePage.css' 
-import { backend_createUser } from '../REST/user';
+import { backend_createUser, backend_deleteUser } from '../REST/user';
 
 const CHAR_ANIM_TIME_MS = 500;
 const CHAR_ANIM_DELAY_MS = 100;
@@ -48,7 +48,8 @@ const HomePage = () =>
                 onClick=
                 {() => 
                     {
-                        backend_createUser('reactUser', 'reactPass')
+                        const res = backend_deleteUser('reactUser2')
+                        console.log(res)
                     }
                 }
             >

@@ -27,9 +27,11 @@ import SaveDropdown from '../components/saveDropdown';
 /*
 /////////////////////////////////////////////////////////////////
 
+TODO: Add session cookies and stuff.
+
 TODO: Add images to dropdown.
 
-TODO: Update hexmapCache and cityOwnedTiles when adding new district - WHEN ADDING DISTRICT ACCOUNT FOR EFFECTS OF DISTRICT LIKE THEATER ADDING APPEAL TO ADJ OR REMOVING STUFF LIKE IMPROVEMENTS
+TODO: Separate types in different categories/files.
 
 TODO: Add loading warning/prompt when map is being drawn
 
@@ -44,6 +46,8 @@ TODO: Refactor code to make it nicer/more organized and remove redundancies. Rem
 TODO: Add documentation to functions. Read random comments to see if any extra issues need fixing.
 
 TODO: Make page nice for mobile
+
+TODO: Add helper constructor functions for types.
 
 /////////////////////////////////////////////////////////////////
 */

@@ -91,7 +91,7 @@ async def updateUserItem(db: AsyncSession, updatedItem: UserItemUpdateSchemaID):
 
 ''' ********* DELETE ********* '''
 async def deleteUser(db: AsyncSession, username: UserReadSchema):
-    userDB = await db.execute(select(UserBaseSQL).where(UserBaseSQL.username == username)) 
+    userDB = await db.execute(select(UserBaseSQL).where(UserBaseSQL.username == username.username)) 
 
     theUser = userDB.scalar_one_or_none()
 

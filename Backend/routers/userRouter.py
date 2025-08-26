@@ -1,19 +1,78 @@
-from fastapi import Depends, APIRouter, HTTPException
+from fastapi import Depends, APIRouter, HTTPException, Response
 from Backend.db.session import postgresqlSession
-from Backend.exceptions.user import BadPassword
+from Backend.db.models import UserBaseSQL
 import Backend.services.userService as userServices
 from Backend.schemas.user import UserItemsCreateSchema, UserCreateSchema, UserReadSchema, UserItemUpdateSchemaID, UserItemsReadSchemaID, UserItemsReadSchemaUsername
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.exc import IntegrityError
+from Backend.exceptions.user import BadPassword
+import Backend.routers.tokens as tokens
 #from fastapi.middleware.gzip import GZipMiddleware
 
 router = APIRouter()
 #router.add_middleware(GZipMiddleware)
 
 async def getDB():
-    async with postgresqlSession() as session:
-        return session
+    db = postgresqlSession()
+
+    try:
+        yield db
+    finally:
+        await db.close()
+
+''' ********* AUTH ********* '''
+@router.post('/login', status_code=201)
+async def loginUser(user: UserCreateSchema, response: Response, db: AsyncSession = Depends(getDB)):
+    userDB: UserBaseSQL | None = None
+
+    try:
+        userDB = await userServices.getUser(db, user)
+    except BadPassword as bp:
+        raise HTTPException(status_code=400, detail="Invalid password!")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="Invalid login credentials!")
+    
+    if not userDB:
+        raise HTTPException(status_code=400, detail="Invalid login credentials!")
+        
+    accessToken = tokens.createAccessToken({'sub': userDB.username})
+    refreshToken = tokens.createRefreshToken({'sub': userDB.username})
+
+    response.set_cookie(
+        key='refresh-token',
+        value=refreshToken,
+        httponly=True,
+        secure=True,
+        samesite='none',
+        max_age=tokens.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
+    )
+
+    return {'access_token': accessToken, 'token_type': 'bearer'}
+
+@router.post('/refresh', status_code=201)
+async def refreshToken(refreshToken: str | None = None):
+    if not refreshToken:
+        raise HTTPException(status_code=401, detail="Refresh token missing!")
+
+    payload = tokens.decodeToken(refreshToken)
+    username: str = payload.get('sub')
+    if not username:
+        raise HTTPException(status_code=401, detail="Invalid refresh token!")
+
+    newAccessToken = tokens.createAccessToken({'sub': username})
+    return {"access_token": newAccessToken, "token_type": "bearer"}
+
+@router.post('/logout', status_code=204)
+async def logoutUser(response: Response):
+    response.delete_cookie(
+        key='refresh-token',
+        httponly=True,
+        secure=True,
+        samesite='none'
+    )
+
+    return
     
 ''' ********* POST ********* '''
 @router.post('/user', status_code=201)
@@ -31,7 +90,7 @@ async def addUser(user: UserCreateSchema, db: AsyncSession = Depends(getDB)):
         raise HTTPException(status_code=500, detail=str(e))
     
 @router.post('/map', status_code=201)
-async def addMap(map: UserItemsCreateSchema, db: AsyncSession = Depends(getDB)):
+async def addMap(map: UserItemsCreateSchema, db: AsyncSession = Depends(getDB), username: str = Depends(tokens.getUserWithJWT)):
     if len(map.username) == 0:
         raise HTTPException(status_code=400, detail='username cannot be empty!')
     elif not map.map:
@@ -45,7 +104,7 @@ async def addMap(map: UserItemsCreateSchema, db: AsyncSession = Depends(getDB)):
 ''' ********* PATCH ********* '''
 # should only update the password
 @router.patch('/user', status_code=204)
-async def updateUser(user: UserCreateSchema, db: AsyncSession = Depends(getDB)):
+async def updateUser(user: UserCreateSchema, db: AsyncSession = Depends(getDB), username: str = Depends(tokens.getUserWithJWT)):
     if len(user.username) == 0:
         raise HTTPException(status_code=400, detail='username cannot be empty!')
     
@@ -55,7 +114,7 @@ async def updateUser(user: UserCreateSchema, db: AsyncSession = Depends(getDB)):
         raise HTTPException(status_code=500, detail=str(e)) 
 
 @router.patch('/map', status_code=204)
-async def updateMap(map: UserItemUpdateSchemaID, db: AsyncSession = Depends(getDB)):
+async def updateMap(map: UserItemUpdateSchemaID, db: AsyncSession = Depends(getDB), username: str = Depends(tokens.getUserWithJWT)):
     if not map.map:
         raise HTTPException(status_code=400, detail='json map cannot be empty!')
     
@@ -65,20 +124,6 @@ async def updateMap(map: UserItemUpdateSchemaID, db: AsyncSession = Depends(getD
         raise HTTPException(status_code=500, detail=str(e))
     
 ''' ********* GET ********* '''
-@router.get('/user', status_code=200) # authenticate user
-async def getUser(username: str, password: str, str, db: AsyncSession = Depends(getDB)):
-    if len(username) == 0:
-        raise HTTPException(status_code=400, detail='username cannot be empty!')
-    elif len(password) == 0:
-        raise HTTPException(status_code=400, detail='password cannot be empty!')
-    
-    try:
-        await userServices.getUser(db, UserCreateSchema(username=username, password=password))
-    except BadPassword as e:
-        raise HTTPException(status_code=400, detail=str(e))  
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) 
-
 @router.get('/map', status_code=200)
 async def getMap(id: int, db: AsyncSession = Depends(getDB)):
     try:
@@ -89,7 +134,7 @@ async def getMap(id: int, db: AsyncSession = Depends(getDB)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get('/allMaps', status_code=200)
-async def getAllMaps(username: str, db: AsyncSession = Depends(getDB)):
+async def getAllMaps(username: str = Depends(tokens.getUserWithJWT), db: AsyncSession = Depends(getDB)):
     if len(username) == 0:
         raise HTTPException(status_code=400, detail='username cannot be empty!')
 
@@ -102,7 +147,7 @@ async def getAllMaps(username: str, db: AsyncSession = Depends(getDB)):
 
 ''' ********* DELETE ********* '''
 @router.delete('/user', status_code=204)
-async def deleteUser(username: str, db: AsyncSession = Depends(getDB)):
+async def deleteUser(username: str = Depends(tokens.getUserWithJWT), db: AsyncSession = Depends(getDB)):
     if len(username) == 0:
         raise HTTPException(status_code=400, detail='username cannot be empty!')
     
@@ -119,7 +164,7 @@ async def deleteMapID(id: int, db: AsyncSession = Depends(getDB)):
         raise HTTPException(status_code=500, detail=str(e))
     
 @router.delete('/allMaps', status_code=204)
-async def deleteMapUsername(username: str, db: AsyncSession = Depends(getDB)):
+async def deleteMapUsername(username: str = Depends(tokens.getUserWithJWT), db: AsyncSession = Depends(getDB)):
     if len(username) == 0:
         raise HTTPException(status_code=400, detail='username cannot be empty!')
 

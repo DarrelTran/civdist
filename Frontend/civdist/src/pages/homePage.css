@@ -4,3 +4,35 @@
     text-align: center;
     font-size: 3em;
 }
+
+.loginText
+{
+    font-size: 1.25em;
+    display: inline-block;
+    width: 100px;
+}
+
+.loginDiv
+{
+    display: grid;
+    place-content: center;
+    margin-top: 10px;
+}
+
+.loginDiv input
+{
+    text-align: left;
+    cursor: text;
+}
+
+.loginButton
+{
+    margin-top: 10px;
+    font-size: 1.25em;
+    letter-spacing: 1px;
+}
+
+.registerDiv
+{
+    margin-top: 5px;
+}

@@ -2,7 +2,7 @@ import React, {useEffect, useState, useRef, useCallback, JSX} from 'react';
 import Select, { GroupBase, SelectInstance } from 'react-select'
 import { Link, useNavigate } from 'react-router-dom';
 import './mapPage.css'
-import './allPages.css';
+import './common.css';
 import { TileNone, TileWonders, TileDistricts, TileNaturalWonders, TerrainFeatureKey, RiverDirections, TileType, LeaderName, TileYields, PossibleErrors, VictoryType, TileBonusResources, TileLuxuryResources, TileStrategicResources, TileArtifactResources, TileUniqueDistricts, HexType, YieldImagesKey, OptionalVisualOptions, SaveType} from '../types/types'
 import { loadDistrictImages, loadNaturalWonderImages, loadResourceImages, loadTerrainImages, loadWonderImages, loadYieldDropdownImages, loadYieldImages } from '../images/imageLoaders';
 import { getTerrain, getDistrict, getNaturalWonder, getWonder, getResource, getYields } from '../images/imageAttributeFinders';
@@ -10,7 +10,7 @@ import { BASE_TILE_SIZE, getAllPossibleDistricts, getAllPossibleYields, getAllPo
 import { Civilization, getCivilizationObject, Norway } from '../civilization/civilizations';
 import { yieldSelectStyle, nearbyCityFontSize, nearbyCityStyles, genericSingleSelectStyle, optionalVisualFontSize, optionalVisualStyle } from './mapPageSelectStyles';
 import { OptionsWithImage, OptionsWithSpecialText, OptionsGenericString } from '../types/selectionTypes';
-import { downloadMapJSON, getMapOddrString, getMinMaxXY, getOddrFromOddrString, getTextWidth } from '../utils/functions/misc/misc';
+import { downloadMapJSON, getMapOddrString, getMinMaxXY, getOddrFromOddrString, getTextWidth, hexmapCacheToJSONArray } from '../utils/functions/misc/misc';
 import { getHexPoint, getOffsets, oddrToPixel, pixelToOddr } from '../utils/functions/hex/genericHex';
 import { getScaledGridAndTileSizes, getScaledGridSizesFromTile, getScaleFromType } from '../utils/functions/imgScaling/scaling';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -29,7 +29,13 @@ import SaveDropdown from '../components/saveDropdown';
 
 TODO: Add session cookies and stuff.
 
+TODO: Add more status error codes.
+
 TODO: Add images to dropdown.
+
+TODO: Add reset button.
+
+TODO: Remove tokens when page close.
 
 TODO: Separate types in different categories/files.
 
@@ -1423,9 +1429,9 @@ const MapPage = () =>
 
     function handleExportButton()
     {
-        if (mapJSON.length > 0)
+        if (hexmapCache.current.size > 0)
         {
-            downloadMapJSON(mapJSON, 'exportedMapJSON.json')
+            downloadMapJSON(hexmapCacheToJSONArray(hexmapCache.current), 'exportedMapJSON.json')
         }
         else
         {

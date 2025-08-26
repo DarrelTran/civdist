@@ -65,6 +65,18 @@ export function getTextWidth(text: string, font: string): number | undefined
     return undefined;
 }
 
+export function hexmapCacheToJSONArray(cache: Map<string, TileType>): TileType[]
+{
+    const jsonArray: TileType[] = [];
+
+    cache.forEach((tile) => 
+    {
+        jsonArray.push(tile);
+    })
+
+    return jsonArray;
+}
+
 export function downloadMapJSON(theJSON: TileType[], fileName: string)
 {
     const parsedJSON = JSON.stringify(theJSON)

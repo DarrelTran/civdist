@@ -11,6 +11,13 @@ class UserSettings(BaseSettings):
     databasePort: int = Field(alias="USER_DATABASE_PORT")
     databaseName: str = Field(alias="USER_DATABASE_NAME")
 
-    model_config = SettingsConfigDict(env_file=str(BASE_DIR / ".env"))
+    model_config = SettingsConfigDict(env_file=str(BASE_DIR / ".env"), extra='ignore')
 
 userSettings = UserSettings()
+
+class Auth(BaseSettings):
+    tokenSecret: str = Field(alias="TOKEN_SECRET_KEY")
+
+    model_config = SettingsConfigDict(env_file=str(BASE_DIR / ".env"), extra='ignore')
+
+authSettings = Auth()

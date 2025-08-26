@@ -1,7 +1,49 @@
 import axios from 'axios';
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { BACKEND_URL } from '../utils/constants';
 import { TileType, RESTResponse, RESTResponseConstructor } from '../types/types';
+
+const backend = axios.create({baseURL: BACKEND_URL, withCredentials: true})
+
+let accessToken: string | null = null;
+
+backend.interceptors.request.use((config) => 
+{
+    if (accessToken)
+        config.headers.Authorization = `Bearer ${accessToken}`;
+
+    return config;
+})
+
+backend.interceptors.response.use
+(
+    (res) => res,
+    async (error) => 
+    {
+        if (error.response?.status === 401 && !error.config._retry) 
+        {
+            error.config._retry = true;
+
+            try 
+            {
+                const res = await backend.post("/refresh");
+                accessToken = res.data.access_token;
+                error.config.headers.Authorization = `Bearer ${accessToken}`;
+                return backend(error.config); // retry original request
+            } 
+            catch (refreshErr) 
+            {
+                const nav = useNavigate();
+
+                console.error("Refresh failed", refreshErr);
+                nav('/')
+            }
+        }
+
+        return Promise.reject(error);
+    }
+);
 
 /**
  * 
@@ -25,7 +67,7 @@ export async function backend_createUser(username: string, password: string): Pr
 
     try
     {
-        const response = await axios.post(`${BACKEND_URL}/user`, body);
+        const response = await backend.post('/user', body);
 
         return RESTResponseConstructor(null, response.status, null);
     }
@@ -38,6 +80,38 @@ export async function backend_createUser(username: string, password: string): Pr
 
         return RESTResponseConstructor(null, null, "Unknown error");
     }
+}
+
+export async function backend_loginUser(username: string, password: string): Promise<RESTResponse>
+{
+    const body =
+    {
+        username: username,
+        password: password
+    };
+
+    try
+    {
+        const response = await backend.post('/login', body);
+        accessToken = response.data.access_token;
+
+        return RESTResponseConstructor(null, response.status, null);
+    }
+    catch(err)
+    {
+        if (axios.isAxiosError(err))
+        {
+            return RESTResponseConstructor(null, err.status ? err.status : null, err.message);
+        }
+
+        return RESTResponseConstructor(null, null, "Unknown error");
+    }
+}
+
+export async function logout()
+{
+    accessToken = null;
+    await backend.post('/logout');
 }
 
 /**
@@ -61,7 +135,7 @@ export async function backend_addMap(json: TileType[], username: string): Promis
 
     try
     {
-        const response = await axios.post(`${BACKEND_URL}/map`, body);
+        const response = await backend.post('/map', body);
 
         return RESTResponseConstructor(null, response.status, null);
     }
@@ -97,7 +171,7 @@ export async function backend_updateUser(username: string, password: string): Pr
 
     try
     {
-        const response = await axios.patch(`${BACKEND_URL}/user`, body);
+        const response = await backend.patch('/user', body);
 
         return RESTResponseConstructor(null, response.status, null);
     }
@@ -133,37 +207,7 @@ export async function backend_updateMap(id: number, json: TileType[]): Promise<R
 
     try
     {
-        const response = await axios.patch(`${BACKEND_URL}/map`, body);
-
-        return RESTResponseConstructor(null, response.status, null);
-    }
-    catch(err)
-    {
-        if (axios.isAxiosError(err))
-        {
-            return RESTResponseConstructor(null, err.status ? err.status : null, err.message);
-        }
-
-        return RESTResponseConstructor(null, null, "Unknown error");
-    }
-}
-
-/**
- * 
- * @param username 
- * @param password 
- * @returns 
- * An appropriate RESTResponse or null in all RESTResponse fields if the url is invalid. Status codes:
- * - 200 - Success
- * - 400 - Bad username or password
- * - 422 - Other type validation error
- * - 500 - Backend error 
- */
-export async function backend_getUser(username: string, password: string): Promise<RESTResponse>
-{
-    try
-    {
-        const response = await axios.get(`${BACKEND_URL}/user?username=${username}&password=${password}`);
+        const response = await backend.patch('/map', body);
 
         return RESTResponseConstructor(null, response.status, null);
     }
@@ -191,9 +235,9 @@ export async function backend_getMap(id: number): Promise<RESTResponse>
 {
     try
     {
-        const response = await axios.get(`${BACKEND_URL}/map?id=${id}`);
+        const response = await backend.get(`/map?id=${id}`);
 
-        return RESTResponseConstructor(null, response.status, null);
+        return RESTResponseConstructor(response.data.map, response.status, null);
     }
     catch(err)
     {
@@ -220,9 +264,9 @@ export async function backend_getAllMaps(username: string): Promise<RESTResponse
 {
     try
     {
-        const response = await axios.get(`${BACKEND_URL}/allMaps?username=${username}`);
+        const response = await backend.get(`/allMaps?usernmae=${username}`);
 
-        return RESTResponseConstructor(null, response.status, null);
+        return RESTResponseConstructor(response.data.maps, response.status, null);
     }
     catch(err)
     {
@@ -249,7 +293,7 @@ export async function backend_deleteUser(username: string): Promise<RESTResponse
 {
     try
     {
-        const response = await axios.delete(`${BACKEND_URL}/user?username=${username}`);
+        const response = await backend.delete(`/user?username=${username}`);
 
         return RESTResponseConstructor(null, response.status, null);
     }
@@ -277,7 +321,7 @@ export async function backend_deleteMap(id: number): Promise<RESTResponse>
 {
     try
     {
-        const response = await axios.delete(`${BACKEND_URL}/map?id=${id}`);
+        const response = await backend.delete(`/map?id=${id}`);
 
         return RESTResponseConstructor(null, response.status, null);
     }
@@ -306,7 +350,7 @@ export async function backend_deleteMaps(username: number): Promise<RESTResponse
 {
     try
     {
-        const response = await axios.delete(`${BACKEND_URL}/allMaps?username=${username}`)
+        const response = await backend.delete(`/allMaps?username=${username}`);
 
         return RESTResponseConstructor(null, response.status, null);
     }

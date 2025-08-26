@@ -1,9 +1,10 @@
-import React, {use, useEffect, useState} from 'react';
+import React, {use, useEffect, useState, useRef} from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios'
-import './allPages.css'
 import './homePage.css' 
-import { backend_createUser, backend_deleteUser } from '../REST/user';
+import './common.css'
+import { backend_createUser, backend_deleteUser, backend_loginUser } from '../REST/user';
+import Marquee from '../components/marquee';
 
 const CHAR_ANIM_TIME_MS = 500;
 const CHAR_ANIM_DELAY_MS = 100;
@@ -14,41 +15,44 @@ const HomePage = () =>
 {
     const nav = useNavigate();
 
-    const [characters, setCharacters] = useState<string[]>(TITLE_TEXT.split(''));
-    const [colorIndices, setColorIndices] = useState<number[]>([]);
-    const [randColor, setRandColor] = useState<number[]>([]);
-    
-    useEffect(() => 
-    {
-        createTextAnim();
+    const characters = useRef<string[]>(TITLE_TEXT.split(''));
 
-        const totalTime = characters.length * CHAR_ANIM_DELAY_MS + CHAR_ANIM_TIME_MS; // restart anim after last char done - totalTime represents last character
-        setInterval(() => 
-        {
-            createTextAnim();
-        }, totalTime)
-    }, [])
+    const [username, setUsername] = useState<string>('');
+    const [password, setPassword] = useState<string>('');
 
     return (
         <div>
-            <div className="title">
-                {characters.map((char, index) => // () instead of {} means implicit return - no need for return statement
-                    (
-                        <span
-                            key={index}
-                            style={{ transition: `color ${CHAR_ANIM_TIME_MS / 1000}s`, color: colorIndices.includes(index) ? `rgb(${randColor[0]}, ${randColor[1]}, ${randColor[2]})` : 'black' }}
-                        >
-                            {char}
-                        </span>
-                    ))
-                }
+            <Marquee 
+                text={TITLE_TEXT} 
+                animTimeMS={500} 
+                animTimeDelayMS={100} 
+                textDefaultColor='black' 
+                textMovingColor={[0, 256]}
+                topDivClassName='title'
+            />
+
+            <div className='loginDiv'>
+                <div>
+                    <span className='loginText'>Username: </span>
+                    <input value={username} onChange={e => setUsername(e.target.value)} className='smallButton' type='text'></input>
+                </div>
+                <div>
+                    <span style={{marginRight: '5px'}} className='loginText'>Password: </span>
+                    <input value={password} onChange={e => setPassword(e.target.value)} className='smallButton' type='password'></input>
+                </div>
+                <button onClick={handleLogin} className='smallButton loginButton'>LOGIN</button>
+                <div className='registerDiv'>
+                    <span>Don't have an account? </span><Link to={'/signup'} style={{fontWeight: 'bold'}}>Click here to register!</Link>
+                </div>
+                <div>
+                    <span>OR, start a new map.</span><button onClick={() => {nav('/map')}}>NEW MAP</button>
+                </div>
             </div>
-            <button onClick={() => {nav('/map')}}>NEW MAP</button>
             <button 
                 onClick=
                 {() => 
                     {
-                        const res = backend_deleteUser('reactUser2')
+                        const res = backend_createUser('test', 'test')
                         console.log(res)
                     }
                 }
@@ -58,38 +62,10 @@ const HomePage = () =>
         </div>
     );
 
-    function createTextAnim()
+    function handleLogin()
     {
-        setColorIndices([]);
-        
-        // cant modify randColor directly - have to use setRandColor as updates are asynchronous and scheduled for later renders
-        const newRandColor = 
-        [
-            randomColorValue(),
-            randomColorValue(),
-            randomColorValue()
-        ];
-        setRandColor(newRandColor);
-
-        characters.forEach((_, index) => 
-        {
-            setTimeout(() => 
-            {
-                // prev = existing indices array
-                // ...prev = previous elements
-                setColorIndices(prev => [...prev, index]);
-                
-                setTimeout(() => 
-                {
-                    setColorIndices(prev => prev.filter(i => (i !== index))); // if index is not being added, it must have already finished so remove it
-                }, CHAR_ANIM_TIME_MS) // ms
-            }, CHAR_ANIM_DELAY_MS * index) // ms
-        })
-    }
-
-    function randomColorValue()
-    {
-        return Math.floor(Math.random() * 256);
+        const response = backend_loginUser(username, password)
+        console.log(response)
     }
 };
 

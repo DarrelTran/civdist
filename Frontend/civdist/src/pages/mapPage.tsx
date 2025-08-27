@@ -1,8 +1,8 @@
 import React, {useEffect, useState, useRef, useCallback, JSX} from 'react';
 import Select, { GroupBase, SelectInstance } from 'react-select'
 import { Link, useNavigate } from 'react-router-dom';
-import './mapPage.css'
-import './common.css';
+import styles from './mapPage.module.css';
+import common from './common.module.css';
 import { TileNone, TileWonders, TileDistricts, TileNaturalWonders, TerrainFeatureKey, RiverDirections, TileType, LeaderName, TileYields, PossibleErrors, VictoryType, TileBonusResources, TileLuxuryResources, TileStrategicResources, TileArtifactResources, TileUniqueDistricts, HexType, YieldImagesKey, OptionalVisualOptions, SaveType} from '../types/types'
 import { loadDistrictImages, loadNaturalWonderImages, loadResourceImages, loadTerrainImages, loadWonderImages, loadYieldDropdownImages, loadYieldImages } from '../images/imageLoaders';
 import { getTerrain, getDistrict, getNaturalWonder, getWonder, getResource, getYields } from '../images/imageAttributeFinders';
@@ -10,15 +10,15 @@ import { BASE_TILE_SIZE, getAllPossibleDistricts, getAllPossibleYields, getAllPo
 import { Civilization, getCivilizationObject, Norway } from '../civilization/civilizations';
 import { yieldSelectStyle, nearbyCityFontSize, nearbyCityStyles, genericSingleSelectStyle, optionalVisualFontSize, optionalVisualStyle } from './mapPageSelectStyles';
 import { OptionsWithImage, OptionsWithSpecialText, OptionsGenericString } from '../types/selectionTypes';
-import { downloadMapJSON, getMapOddrString, getMinMaxXY, getOddrFromOddrString, getTextWidth, hexmapCacheToJSONArray } from '../utils/functions/misc/misc';
+import { downloadMapJSON, easySetTimeout, getMapOddrString, getMinMaxXY, getOddrFromOddrString, getTextWidth, hexmapCacheToJSONArray } from '../utils/functions/misc/misc';
 import { getHexPoint, getOffsets, oddrToPixel, pixelToOddr } from '../utils/functions/hex/genericHex';
 import { getScaledGridAndTileSizes, getScaledGridSizesFromTile, getScaleFromType } from '../utils/functions/imgScaling/scaling';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCircleQuestion } from '@fortawesome/free-regular-svg-icons';
 import Tooltip from '../components/tooltip';
 import { allocateCitizensAuto, changeAppealToAdjFromDistrict, purgeTileForDistrict } from '../utils/functions/civ/civFunctions';
-
-import duel from '../json/duel.json'
+import { TITLE_CHAR_ANIM_DELAY_MS, TITLE_CHAR_ANIM_TIME_MS, TITLE_TEXT } from '../utils/constants';
+import Marquee from '../components/marquee';
 import HoldDownButton from '../components/holdDownButton';
 import SaveDropdown from '../components/saveDropdown';
 
@@ -26,6 +26,10 @@ import SaveDropdown from '../components/saveDropdown';
 
 /*
 /////////////////////////////////////////////////////////////////
+
+TODO: Change login button to signup if not logged in and if doing anything that requires login but session expires, change back to signup.
+
+TODO: On leave page or logout, call /logout.
 
 TODO: Add session cookies and stuff.
 
@@ -1144,16 +1148,14 @@ const MapPage = () =>
     
         if (theError.length > 0)
         {
-            setDistrictErrorText(theError);
-
-            if (dropdownErrorTimeoutRef.current)
-                clearTimeout(dropdownErrorTimeoutRef.current);
-
-            dropdownErrorTimeoutRef.current = setTimeout(() => 
-            { 
-                setDistrictErrorText(""); 
-                dropdownErrorTimeoutRef.current = null;
-            }, 4000)
+            easySetTimeout<string>
+            (
+                setDistrictErrorText,
+                dropdownErrorTimeoutRef,
+                theError,
+                '',
+                4000
+            );
 
             return;
         }
@@ -1175,16 +1177,20 @@ const MapPage = () =>
                     {
                         updateTilesWithDistrict(foundTile, dropdownCityOwnedTiles, theCiv);
 
-                        setDistrictSuccessText("Success!");
-                        
-                        if (successTimeoutRef.current)
-                            clearTimeout(successTimeoutRef.current);
+                        easySetTimeout<string>
+                        (
+                            setDistrictSuccessText,
+                            successTimeoutRef,
+                            'Success!',
+                            '',
+                            4000
+                        );
 
-                        successTimeoutRef.current = setTimeout(() => 
-                        { 
-                            setDistrictSuccessText(""); 
-                            successTimeoutRef.current = null;
-                        }, 4000)
+                        if (dropdownErrorTimeoutRef.current)
+                        {
+                            clearTimeout(dropdownErrorTimeoutRef.current);
+                            setDistrictErrorText('');
+                        }
                     }
                 }
             }
@@ -1200,16 +1206,14 @@ const MapPage = () =>
 
                 if (theError.length > 0)
                 {
-                    setDistrictErrorText(theError);
-                    
-                    if (dropdownErrorTimeoutRef.current)
-                        clearTimeout(dropdownErrorTimeoutRef.current);
-
-                    dropdownErrorTimeoutRef.current = setTimeout(() => 
-                    { 
-                        setDistrictErrorText(""); 
-                        dropdownErrorTimeoutRef.current = null;
-                    }, 4000)
+                    easySetTimeout<string>
+                    (
+                        setDistrictErrorText,
+                        dropdownErrorTimeoutRef,
+                        theError,
+                        '',
+                        4000
+                    );
                 }
             }
         }
@@ -1395,16 +1399,14 @@ const MapPage = () =>
                 // check input error before toggling visibility
                 if (save.inputText.trim().length === 0 && save.textInputDisplay === 'block') 
                 {
-                    setSaveErrorText('Please enter a valid save name!');
-                    
-                    if (savesErrorTimeoutRef.current)
-                        clearTimeout(savesErrorTimeoutRef.current);
-
-                    savesErrorTimeoutRef.current = setTimeout(() => 
-                    { 
-                        setSaveErrorText(""); 
-                        savesErrorTimeoutRef.current = null;
-                    }, 4000)
+                    easySetTimeout<string>
+                    (
+                        setSaveErrorText,
+                        savesErrorTimeoutRef,
+                        'Please enter a valid save name!',
+                        '',
+                        4000
+                    );
 
                     return save; // don't toggle yet, or will change textInputDisplay to none
                 }
@@ -1435,38 +1437,45 @@ const MapPage = () =>
         }
         else
         {
-            setSaveErrorText("Must load/import a json first!");
-                    
-            if (savesErrorTimeoutRef.current)
-                clearTimeout(savesErrorTimeoutRef.current);
-
-            savesErrorTimeoutRef.current = setTimeout(() => 
-            { 
-                setSaveErrorText(""); 
-                savesErrorTimeoutRef.current = null;
-            }, 4000)
+            easySetTimeout<string>
+            (
+                setSaveErrorText,
+                savesErrorTimeoutRef,
+                'Must load/import a json first!',
+                '',
+                4000
+            );
         }
     }
 
     return (
-        <div className='topSectionDiv'>
+        <div className={styles.topSectionDiv}>
+
+            <Marquee 
+                text={TITLE_TEXT} 
+                animTimeMS={TITLE_CHAR_ANIM_TIME_MS} 
+                animTimeDelayMS={TITLE_CHAR_ANIM_DELAY_MS} 
+                textDefaultColor='black' 
+                textMovingColor={[0, 256]}
+                topDivClassName={common.title}
+            />
 
             <div style={{marginBottom: '5px', marginRight: '10px', display: 'flex', marginLeft: 'auto'}}>
-                <button className='smallButton' style={{marginRight: '5px'}}>LOGIN</button>
-                <button className='smallButton' onClick={e => {nav('/')}}>RETURN</button>
+                <button className={common.smallButton} style={{marginRight: '5px'}}>LOGIN</button>
+                <button className={common.smallButton} onClick={e => {nav('/')}}>RETURN</button>
             </div>
 
             <div style={{display: 'flex'}}>
-                <div className='outerDiv'>
-                    <div className='loadingSection'>
+                <div className={styles.outerDiv}>
+                    <div className={styles.loadingSection}>
                         <div style={{display: 'flex'}}>
-                            <button onClick={e => handleExportButton()} className='smallButton'>EXPORT</button>
+                            <button onClick={e => handleExportButton()} className={common.smallButton}>EXPORT</button>
 
                             <Tooltip text={'Download to file.'}>
-                                <FontAwesomeIcon icon={faCircleQuestion} className='questionMark' style={{marginRight: '5px'}}/>
+                                <FontAwesomeIcon icon={faCircleQuestion} className={styles.questionMark} style={{marginRight: '5px'}}/>
                             </Tooltip>
 
-                            <button onClick={handleInputButtonClick} className='smallButton'>IMPORT</button>
+                            <button onClick={handleInputButtonClick} className={common.smallButton}>IMPORT</button>
                             <input style={{display: 'none'}} type='file' ref={fileInputRef} onChange={e => handleInputChange(e)} accept='.json'/>
 
                         </div>
@@ -1476,16 +1485,16 @@ const MapPage = () =>
                             handleSaveClick={handleSaveClick} 
                             handleSaveInput={handleSaveInput}
                             maxSaveTextWidth={100}
-                            dropdownButtonClassName='wideButton'
-                            inputClassName='saveDropdownInput'
-                            saveEntryClassName='saveDropdownEntry'
-                            saveButtonClassName='savesSaveButton'
-                            loadButtonClassName='savesLoadButton'
-                            saveTextClassName='saveText'
+                            dropdownButtonClassName={common.wideButton}
+                            inputClassName={styles.saveDropdownInput}
+                            saveEntryClassName={styles.saveDropdownEntry}
+                            saveButtonClassName={styles.savesSaveButton}
+                            loadButtonClassName={styles.savesLoadButton}
+                            saveTextClassName={styles.saveText}
                         />
                     </div>
 
-                    <span style={{color: 'red', fontWeight: 'bold', fontSize: '1.25em'}}>{saveErrorText}</span>
+                    <span className={common.errorText}>{saveErrorText}</span>
                 </div>
 
                 <div
@@ -1505,9 +1514,9 @@ const MapPage = () =>
                     />
                 </div>
 
-                <div className='outerDiv'>
+                <div className={styles.outerDiv}>
                     
-                    <div className='checkboxes'>
+                    <div className={styles.checkboxes}>
                         <div style={{display: 'flex'}}>
                             <span style={{fontWeight: '600'}}>Include City States</span>
                             <input type='checkbox' onChange={(e) => {setIncludeCityStates(e.target.checked)}}/>
@@ -1517,15 +1526,15 @@ const MapPage = () =>
                             <span style={{fontWeight: '600'}}>Account For Wonders</span>
                             <input type='checkbox' onChange={(e) => {setIncludeWonders(e.target.checked)}}/>
                             <Tooltip text='Consider wonders that may be built in the future.'>
-                                <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
+                                <FontAwesomeIcon icon={faCircleQuestion} className={styles.questionMark}/>
                             </Tooltip>
                         </div>
                     </div>
                     
-                    <div className='districtSelectors'>
+                    <div className={styles.districtSelectors}>
                         {/*Select Civilization*/}
                         <div style={{display: 'flex'}}>
-                            <span className='mandatory'>*</span>
+                            <span className={styles.mandatory}>*</span>
 
                             <Select 
                                 value={dropdownCiv ? {label: dropdownCiv, value: dropdownCiv} : null}
@@ -1547,14 +1556,14 @@ const MapPage = () =>
                             />
 
                             <Tooltip text='Select a civilization.'>
-                                <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
+                                <FontAwesomeIcon icon={faCircleQuestion} className={styles.questionMark}/>
                             </Tooltip>
 
                         </div>
                     
                         <div style={{display: 'flex'}}>
                             {/*Select City*/}
-                            <span className='mandatory'>*</span>
+                            <span className={styles.mandatory}>*</span>
                             
                             <Select 
                                 value={dropdownCity ? {label: dropdownCity, value: dropdownCity} : null}
@@ -1578,13 +1587,13 @@ const MapPage = () =>
                             />
                             
                             <Tooltip text={dropdownCiv ? `${dropdownCiv}'s cities.` : 'Select a civilization first!'}>
-                                <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
+                                <FontAwesomeIcon icon={faCircleQuestion} className={styles.questionMark}/>
                             </Tooltip>
                         </div>
 
                         <div style={{display: 'flex'}}>
                             {/* District Type Selection */}
-                            <span className='mandatory'>*</span>
+                            <span className={styles.mandatory}>*</span>
                             <Select
                                 value={dropdownDistrict ? {label: dropdownDistrict, value: dropdownDistrict} : null}
                                 options={getDistrictOptions()}
@@ -1594,12 +1603,12 @@ const MapPage = () =>
                             />
 
                             <Tooltip text='Select a district. Assumes all buildings will be built.'>
-                                <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
+                                <FontAwesomeIcon icon={faCircleQuestion} className={styles.questionMark}/>
                             </Tooltip>
                         </div>
 
                         <div style={{display: 'flex'}}>
-                            <span className='mandatory'>*</span>
+                            <span className={styles.mandatory}>*</span>
                             {/* Nearby City Selection */}
                             <Select 
                                 
@@ -1627,7 +1636,7 @@ const MapPage = () =>
                             />
 
                             <Tooltip text='A city you see as a threat.'>
-                                <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
+                                <FontAwesomeIcon icon={faCircleQuestion} className={styles.questionMark}/>
                             </Tooltip>
 
                         </div>
@@ -1657,7 +1666,7 @@ const MapPage = () =>
                             />
 
                             <Tooltip text='Your most important yields.'>
-                                <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
+                                <FontAwesomeIcon icon={faCircleQuestion} className={styles.questionMark}/>
                             </Tooltip>
                         </div>
 
@@ -1673,14 +1682,14 @@ const MapPage = () =>
                             />
 
                             <Tooltip text={'The victory type you\'re aiming for.'}>
-                                <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
+                                <FontAwesomeIcon icon={faCircleQuestion} className={styles.questionMark}/>
                             </Tooltip>
                         </div>
 
-                        <HoldDownButton text='ADD' finishHoldDown={handleAddButton} className='wideButton'></HoldDownButton>
+                        <HoldDownButton text='ADD' finishHoldDown={handleAddButton} className={common.wideButton}></HoldDownButton>
                     </div>
 
-                    <div className='miscOptions'>
+                    <div className={styles.miscOptions}>
                         <div style={{display: 'flex'}}>
                             <Select 
                                 options={getOptionalVisualOptions()} 
@@ -1723,12 +1732,12 @@ const MapPage = () =>
                             />
 
                             <Tooltip text={'50 - 300%'}>
-                                <FontAwesomeIcon icon={faCircleQuestion} className='questionMark'/>
+                                <FontAwesomeIcon icon={faCircleQuestion} className={styles.questionMark}/>
                             </Tooltip>
                         </div>
 
-                        <span style={{color: 'red', fontWeight: 'bold', fontSize: '1.25em', display: 'inline-block', maxWidth: '100%'}}>{districtErrorText}</span>
-                        <span style={{color: 'green', fontWeight: 'bold', fontSize: '1.25em', display: 'inline-block', maxWidth: '100%'}}>{districtSuccessText}</span>
+                        <span className={common.errorText}>{districtErrorText}</span>
+                        <span className={common.successText}>{districtSuccessText}</span>
                     </div>
                 </div>
             </div>
@@ -1766,9 +1775,9 @@ const MapPage = () =>
         return {imgElement: undefined, scaleType: -1};
     }
 
-    function testStuff()
+    async function testStuff()
     {
-        console.log(gridSize)
+
     }   
 };
 

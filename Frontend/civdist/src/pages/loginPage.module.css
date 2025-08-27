@@ -1,21 +1,12 @@
-.title
-{
-    font-weight: bold;
-    text-align: center;
-    font-size: 3em;
-}
-
 .loginText
 {
     font-size: 1.25em;
-    display: inline-block;
-    width: 100px;
 }
 
 .loginDiv
 {
     display: grid;
-    place-content: center;
+    justify-content: center;
     margin-top: 10px;
 }
 
@@ -23,6 +14,11 @@
 {
     text-align: left;
     cursor: text;
+}
+
+.loginDiv br
+{
+    margin-top: 10px;
 }
 
 .loginButton

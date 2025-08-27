@@ -1,5 +1,4 @@
 import React, {JSX, useEffect, useRef, useState} from 'react';
-import './marquee.css'
 
 /** A CSS color */
 type StaticColor = string & { __brand: "StaticColor" }; // quick way to make hover not collapse to just string
@@ -102,7 +101,9 @@ const Marquee: React.FC<MarqueeType> = ({text, animTimeMS, animTimeDelayMS, text
                         style=
                         {
                             { 
-                                transition: `color ${animTimeMS / 1000}s`, color: colorIndices.includes(index) ? 
+                                transition: `color ${animTimeMS / 1000}s`, 
+
+                                color: colorIndices.includes(index) ? 
                                 textColor : 
                                 textDefaultColor 
                             }

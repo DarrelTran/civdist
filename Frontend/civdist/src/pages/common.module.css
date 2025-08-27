@@ -1,0 +1,46 @@
+body
+{
+    background-color: rgb(176,216,227);
+    min-height: 100vh;
+    padding: 2rem;
+}
+
+.wideButton
+{
+  width: 100%;
+  text-align: center;
+  border: 2px solid black;
+  cursor: pointer;
+}
+
+.smallButton
+{
+  text-align: center;
+  border: 2px solid black;
+  cursor: pointer;
+}
+
+.title
+{
+  font-weight: bold;
+  text-align: center;
+  font-size: 3em;
+}
+
+.errorText
+{
+  color: #cc0000;
+  font-weight: bold;
+  font-size: 1.5em;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.successText
+{
+  color: green;
+  font-weight: bold;
+  font-size: 1.5em;
+  display: inline-block;
+  max-width: 100%;
+}

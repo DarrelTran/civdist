@@ -1,3 +1,4 @@
+import { Dispatch, RefObject, SetStateAction } from "react";
 import { TileType } from "../../../types/types";
 
 export function getMinMaxXY(theJSON: TileType[]) 
@@ -92,4 +93,18 @@ export function downloadMapJSON(theJSON: TileType[], fileName: string)
     element.click();
 
     element.remove();
+}
+
+export function easySetTimeout<T>(setter: Dispatch<SetStateAction<T>>, timeoutRef: RefObject<NodeJS.Timeout | null>, setterValue: T, setterDefaultValue: T, timeoutMS: number)
+{
+    setter(setterValue);
+                    
+    if (timeoutRef.current)
+        clearTimeout(timeoutRef.current);
+
+    timeoutRef.current = setTimeout(() => 
+    { 
+        setter(setterDefaultValue);
+        timeoutRef.current = null;
+    }, timeoutMS)
 }

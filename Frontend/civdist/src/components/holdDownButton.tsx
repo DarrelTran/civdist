@@ -1,5 +1,5 @@
 import React, { JSX, useRef } from 'react';
-import './holdDownButton.css';
+import styles from './holdDownButton.module.css';
 
 interface HoldDownType 
 {
@@ -27,8 +27,8 @@ const HoldDownButton: React.FC<HoldDownType> =
         const btn = buttonRef.current;
         if (!btn) return;
 
-        btn.classList.remove("noTransition");
-        btn.classList.add("holding"); // starts animation to move bar to the right side, activates .holdButton.holding
+        btn.classList.remove(styles.noTransition);
+        btn.classList.add(styles.holding); // starts animation to move bar to the right side, activates .holdButton.holding
 
         cancelledRef.current = false;
 
@@ -36,8 +36,8 @@ const HoldDownButton: React.FC<HoldDownType> =
         {
             if (e.propertyName === 'transform' && !cancelledRef.current) 
             {
-                btn.classList.add("noTransition"); // stops animation
-                btn.classList.remove("holding"); // stops bar, which moves back to the left
+                btn.classList.add(styles.noTransition); // stops animation
+                btn.classList.remove(styles.holding); // stops bar, which moves back to the left
                 finishHoldDown();
             }
 
@@ -54,14 +54,14 @@ const HoldDownButton: React.FC<HoldDownType> =
         if (!btn) return;
 
         cancelledRef.current = true;
-        btn.classList.remove("holding");
+        btn.classList.remove(styles.holding);
     };
 
     return (
         <div>
             <button
                 ref={buttonRef}
-                className={`${className ?? ''} holdButton`}
+                className={`${className ?? ''} ${styles.holdButton}`}
                 style={style}
                 onMouseDown={startHold}
                 onMouseUp={cancelHold}

@@ -1,0 +1,34 @@
+.signUpText
+{
+    font-size: 1.25em;
+}
+
+.signUpDiv
+{
+    display: grid;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+.signUpDiv input
+{
+    text-align: left;
+    cursor: text;
+}
+
+.signUpDiv br
+{
+    margin-top: 10px;
+}
+
+.signUpButton
+{
+    margin-top: 10px;
+    font-size: 1.25em;
+    letter-spacing: 1px;
+}
+
+.signUpDiv
+{
+    margin-top: 5px;
+}

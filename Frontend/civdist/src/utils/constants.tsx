@@ -5,6 +5,10 @@ export const MIN_ZOOM = 50;
 export const MAX_ZOOM = 300;
 export const BACKEND_URL = 'https://localhost:8000';
 
+export const TITLE_TEXT = "Civdist";
+export const TITLE_CHAR_ANIM_TIME_MS = 500;
+export const TITLE_CHAR_ANIM_DELAY_MS = 100;
+
 
 export const getAllPossibleDistricts = () =>
 {

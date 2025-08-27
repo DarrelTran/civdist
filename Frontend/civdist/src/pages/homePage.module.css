@@ -1,0 +1,14 @@
+.titleOptions
+{
+    display: grid;
+    place-content: center;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.titleOptions button
+{
+    font-size: larger;
+    width: 500px;
+    padding: 10px 0px;
+}

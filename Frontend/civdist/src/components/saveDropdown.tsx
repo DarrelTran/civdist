@@ -1,6 +1,6 @@
 import React, { JSX, useState, useRef } from 'react';
 import { SaveType } from '../types/types';
-import './saveDropdown.css';
+import styles from './saveDropdown.module.css';
 import { getTextWidth } from '../utils/functions/misc/misc';
 import Tooltip from './tooltip';
 
@@ -100,7 +100,7 @@ const SaveDropdown: React.FC<SaveDropdownType> =
         <div className={`${topmostDivClassName ?? ''}`} style={topmostDivStyle}>
             <button onClick={() => {setSavesDisplay(savesDisplay === 'none' ? containerDisplayType : 'none')}} className={`${dropdownButtonClassName ?? ''}`} style={dropdownButtonStyle}>SAVES</button>
             
-            <div className={`${containerClassName ?? ''} dropdown`} style={{display: savesDisplay}}>
+            <div className={`${containerClassName ?? ''} ${styles.dropdown}`} style={{display: savesDisplay}}>
                 {/* Parenthesis wrapped around function make it an expression to remove ambiguity and run the whole function?*/}
                 {(() => 
                     {
@@ -134,12 +134,12 @@ const SaveDropdown: React.FC<SaveDropdownType> =
                             {
                                 savedMaps.push
                                 (
-                                    <div className='saveDropdownEntry' key={theSave.id}>
+                                    <div className={`${saveEntryClassName ?? ''}`} key={theSave.id}>
                                         <input 
                                             type='text' 
                                             style={{marginRight: '5px'}} 
                                             placeholder='Enter a name for this save.' 
-                                            className='saveDropdownInput' 
+                                            className={`${inputClassName ?? ''}`}
                                             onChange={e => handleSaveInput(e.target.value, theSave.id)}
                                         />
                                         <button style={{marginLeft: 'auto'}} onClick={e => handleSaveClick(theSave.id)} className={`${saveButtonClassName ?? ''}`}>SAVE</button>

@@ -1,5 +1,5 @@
 import React, {JSX} from 'react';
-import './tooltip.css'
+import styles from './tooltip.module.css'
 
 interface TooltipType
 {
@@ -12,9 +12,9 @@ interface TooltipType
 const Tooltip: React.FC<TooltipType> = ({text, style, children, className}): JSX.Element =>
 {
     return (
-        <div className='tooltip'>
+        <div className={styles.tooltip}>
             {children}
-            <span className={`${className ?? ''} tooltiptext`} style={style}>{text}</span>
+            <span className={`${className ?? ''} ${styles.tooltiptext}`} style={style}>{text}</span>
         </div>
     )
 }

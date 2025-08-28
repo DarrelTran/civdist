@@ -28,19 +28,6 @@ const HomePage = () =>
                 <button className={common.smallButton} onClick={e => nav('/login')}>Login</button>
                 <button className={common.smallButton} onClick={e => nav('/map')}>Create A New Map</button>
             </div>
-
-            <button onClick={() => {nav('/map')}}>NEW MAP</button>
-            <button 
-                onClick=
-                {() => 
-                    {
-                        const res = backend_createUser('test', 'test')
-                        console.log(res)
-                    }
-                }
-            >
-                TEST API
-                </button>
         </div>
     );
 };

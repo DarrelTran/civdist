@@ -432,14 +432,14 @@ export type YieldImagesKey = `${TileYields}_${number}`;
 export type SaveType =
 {
   name: string | null, 
-  json: string, 
+  json: TileType[] | null, 
   id: number,
   textInputDisplay: string,
   textNameDisplay: string,
   inputText: string
 }
 
-/*********************** FOR SAVES ***********************/
+/*********************** FOR BACKEND/DATABASE ***********************/
 
 export type RESTResponse =
 {
@@ -451,4 +451,12 @@ export type RESTResponse =
 export function RESTResponseConstructor(output: any | null, status: number | null, errorMessage: string | null): RESTResponse
 {
   return {output: output, status: status, errorMessage: errorMessage};
+}
+
+export type DatabaseMapType =
+{
+  id: number,
+  map: TileType[],
+  username: string,
+  mapName: string
 }

@@ -2,11 +2,11 @@ from Backend.config import authSettings
 from datetime import datetime, timedelta, timezone
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
-from fastapi import HTTPException, Depends
+from fastapi import HTTPException, Depends, Cookie
 
 ALGORITHM = 'HS256'
-ACCESS_TOKEN_EXPIRE_MIN = 60
-REFRESH_TOKEN_EXPIRE_DAYS = 2
+ACCESS_TOKEN_EXPIRE_MIN = 30
+REFRESH_TOKEN_EXPIRE_DAYS = 4
 SECRET = authSettings.tokenSecret
 
 oath2Scheme = OAuth2PasswordBearer(tokenUrl='login')

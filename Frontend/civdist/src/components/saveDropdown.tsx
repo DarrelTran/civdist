@@ -21,6 +21,10 @@ interface SaveDropdownType
 
     handleSaveInput: (inputText: string, currID: number) => void;
     handleSaveClick: (currID: number) => void;
+    handleLoadClick: (currID: number) => void;
+
+    isLoading: boolean;
+    isSaving: boolean;
 
     containerClassName?: string;
 
@@ -49,6 +53,9 @@ const SaveDropdown: React.FC<SaveDropdownType> =
     dropdownButtonStyle,
     handleSaveInput,
     handleSaveClick,
+    handleLoadClick,
+    isLoading,
+    isSaving,
     containerClassName,
     containerDisplayType,
     saveEntryClassName,
@@ -101,57 +108,61 @@ const SaveDropdown: React.FC<SaveDropdownType> =
             <button onClick={() => {setSavesDisplay(savesDisplay === 'none' ? containerDisplayType : 'none')}} className={`${dropdownButtonClassName ?? ''}`} style={dropdownButtonStyle}>SAVES</button>
             
             <div className={`${containerClassName ?? ''} ${styles.dropdown}`} style={{display: savesDisplay}}>
-                {/* Parenthesis wrapped around function make it an expression to remove ambiguity and run the whole function?*/}
-                {(() => 
-                    {
-                        const savedMaps: JSX.Element[] = [];
-
-                        saveList.forEach((theSave) => 
+                <span style={{display: isLoading ? 'block' : 'none', fontWeight: 'bold'}}>Loading maps... Please wait...</span>
+                <span style={{display: isSaving ? 'block' : 'none', fontWeight: 'bold'}}>Saving maps... Please wait...</span>
+                <div style={{display: isLoading || isSaving ? 'none' : 'block'}}>
+                    {/* Parenthesis wrapped around function make it an expression to remove ambiguity and run the whole function?*/}
+                    {(() => 
                         {
-                            if (theSave.name && theSave.name.length > 0)
-                            {
-                                savedMaps.push
-                                (
-                                    <div className={`${saveEntryClassName ?? ''}`} key={theSave.id} style={saveEntryStyle}>
-                                        <Tooltip text={theSave.name} style={{width: getTextWidth(theSave.name, `${SAVE_TEXT_FONT_SIZE}px arial`)}}>
-                                            <span style={{display: theSave.textNameDisplay, marginRight: '5px', fontSize: `${SAVE_TEXT_FONT_SIZE}px`}} className={`${saveTextClassName ?? ''}`}>{getSaveText(theSave, maxSaveTextWidth)}</span>
-                                        </Tooltip>
-                                        <input 
-                                            type='text' 
-                                            style={{marginRight: '5px', display: theSave.textInputDisplay}} 
-                                            placeholder='Enter a name for this save.' 
-                                            className={`${inputClassName ?? ''}`} 
-                                            onChange={e => handleSaveInput(e.target.value, theSave.id)}
-                                        />
-                                        
-                                        <button style={{marginLeft: 'auto', marginRight: '5px'}} onClick={e => handleSaveClick(theSave.id)} className={`${saveButtonClassName ?? ''}`}>SAVE</button>
-                                        <button className={`${loadButtonClassName ?? ''}`}>LOAD</button>
-                                        <br/>
-                                    </div>
-                                );
-                            }
-                            else
-                            {
-                                savedMaps.push
-                                (
-                                    <div className={`${saveEntryClassName ?? ''}`} key={theSave.id}>
-                                        <input 
-                                            type='text' 
-                                            style={{marginRight: '5px'}} 
-                                            placeholder='Enter a name for this save.' 
-                                            className={`${inputClassName ?? ''}`}
-                                            onChange={e => handleSaveInput(e.target.value, theSave.id)}
-                                        />
-                                        <button style={{marginLeft: 'auto'}} onClick={e => handleSaveClick(theSave.id)} className={`${saveButtonClassName ?? ''}`}>SAVE</button>
-                                        <br/>
-                                    </div>
-                                );
-                            }
-                        })
+                            const savedMaps: JSX.Element[] = [];
 
-                        return savedMaps;
-                    }
-                )()}
+                            saveList.forEach((theSave) => 
+                            {
+                                if (theSave.name && theSave.name.length > 0)
+                                {
+                                    savedMaps.push
+                                    (
+                                        <div className={`${saveEntryClassName ?? ''}`} key={theSave.id} style={saveEntryStyle}>
+                                            <Tooltip text={theSave.name} style={{width: getTextWidth(theSave.name, `${SAVE_TEXT_FONT_SIZE}px arial`)}}>
+                                                <span style={{display: theSave.textNameDisplay, marginRight: '5px', fontSize: `${SAVE_TEXT_FONT_SIZE}px`}} className={`${saveTextClassName ?? ''}`}>{getSaveText(theSave, maxSaveTextWidth)}</span>
+                                            </Tooltip>
+                                            <input 
+                                                type='text' 
+                                                style={{marginRight: '5px', display: theSave.textInputDisplay}} 
+                                                placeholder='Enter a name for this save.' 
+                                                className={`${inputClassName ?? ''}`} 
+                                                onChange={e => handleSaveInput(e.target.value, theSave.id)}
+                                            />
+                                            
+                                            <button style={{marginLeft: 'auto', marginRight: '5px'}} onClick={e => handleSaveClick(theSave.id)} className={`${saveButtonClassName ?? ''}`}>SAVE</button>
+                                            <button className={`${loadButtonClassName ?? ''}`} onClick={e => handleLoadClick(theSave.id)}>LOAD</button>
+                                            <br/>
+                                        </div>
+                                    );
+                                }
+                                else
+                                {
+                                    savedMaps.push
+                                    (
+                                        <div className={`${saveEntryClassName ?? ''}`} key={theSave.id}>
+                                            <input 
+                                                type='text' 
+                                                style={{marginRight: '5px'}} 
+                                                placeholder='Enter a name for this save.' 
+                                                className={`${inputClassName ?? ''}`}
+                                                onChange={e => handleSaveInput(e.target.value, theSave.id)}
+                                            />
+                                            <button style={{marginLeft: 'auto'}} onClick={e => handleSaveClick(theSave.id)} className={`${saveButtonClassName ?? ''}`}>SAVE</button>
+                                            <br/>
+                                        </div>
+                                    );
+                                }
+                            })
+
+                            return savedMaps;
+                        }
+                    )()}
+                </div>
             </div>
             {children}
         </div>

@@ -60,6 +60,12 @@ const SignUpPage = () =>
 
                 <button onClick={handleSignUp} className={`${common.smallButton} ${styles.signUpButton}`}>SIGN UP</button>
 
+                <br/>
+
+                <div style={{margin: '0 auto'}}>
+                    <button className={`${common.smallButton} ${styles.returnButton}`} onClick={e => nav('/')}>RETURN</button>
+                </div>
+
                 <span style={{display: 'block', margin: '0 auto'}} className={common.errorText}>{errorText}</span>
             </div>
         </div>

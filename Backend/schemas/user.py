@@ -56,10 +56,12 @@ class UserItemsCreateSchema(BaseModel):
     # id is autoincrement
     map: TileType | List[TileType]
     username: str
+    mapName: str
 
 class UserItemUpdateSchemaID(BaseModel):
     id: int
     map: TileType | List[TileType]
+    mapName: str
 
 class UserItemsReadSchemaID(BaseModel):
     id: int

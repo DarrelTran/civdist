@@ -1,8 +1,9 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from Backend.schemas.user import UserCreateSchema, UserItemsCreateSchema, UserItemUpdateSchemaID, UserItemsReadSchemaID, UserItemsReadSchemaUsername, UserReadSchema
+from sqlalchemy.exc import IntegrityError
+from Backend.schemas.user import UserCreateSchema, UserItemsCreateSchema, UserItemUpdateSchemaID, UserItemsReadSchemaID, UserItemsReadSchemaUsername, UserReadSchema, TileType
 from Backend.db.models import UserBaseSQL, UserItemsBaseSQL
-from Backend.exceptions.user import BadPassword
+from Backend.exceptions.user import BadPassword, DoesNotExist
 from bcrypt import hashpw, gensalt, checkpw
 
 def getHashedPassword(password: str):
@@ -23,19 +24,29 @@ async def createUser(db: AsyncSession, user: UserCreateSchema):
     await db.refresh(userDB)
 
 async def createUserItem(db: AsyncSession, item: UserItemsCreateSchema):
-    userItem = UserItemsBaseSQL(map=item.map, username=item.username)
+    # pydantic models are not json serializable
+    mapData = item.map
+    if isinstance(item.map, TileType):
+        mapData = mapData.model_dump()
+    else:
+        mapData = [tile.model_dump() for tile in mapData]
 
-    db.add(userItem)
+    userItem = UserItemsBaseSQL(map=mapData, username=item.username, mapName=item.mapName)
 
-    await db.commit()
-    await db.refresh(userItem)
+    try:
+        db.add(userItem)
+
+        await db.commit()
+        await db.refresh(userItem)
+    except IntegrityError as e:
+        raise DoesNotExist(f'User {item.username} does not exist!')
 
 ''' ********* GET ********* '''
 async def getUser(db: AsyncSession, user: UserCreateSchema):
     userDB = await db.get(UserBaseSQL, user.username)
 
     if not userDB:
-        raise Exception(f"User with username of {user.username} was not found!")
+        raise DoesNotExist(f"User with username of {user.username} was not found!")
 
     thePass = user.password.encode('utf-8')
     if not checkpw(thePass, userDB.password):
@@ -47,14 +58,19 @@ async def getUserItem(db: AsyncSession, item: UserItemsReadSchemaID):
     userItem = await db.get(UserItemsBaseSQL, item.id)
 
     if not userItem:
-        raise Exception(f"UserItem with id of {item.id} was not found!")
+        raise DoesNotExist(f"UserItem with id of {item.id} was not found!")
 
     return userItem
 
 async def getAllUserItems(db: AsyncSession, user: UserItemsReadSchemaUsername):    
     userItems = await db.execute(select(UserItemsBaseSQL).where(UserItemsBaseSQL.username == user.username)) 
 
-    return userItems.scalars().all()
+    scalarItems = userItems.scalars().all()
+
+    if len(scalarItems) == 0:
+        raise DoesNotExist(f"UserItems with username of {user.username} was not found!")
+
+    return scalarItems
 
 ''' ********* UPDATE ********* '''
 # should only update the password
@@ -64,7 +80,7 @@ async def updateUser(db: AsyncSession, user: UserCreateSchema):
     theUser = userDB.scalar_one_or_none()
 
     if not theUser:
-        raise Exception(f"User with username of {user.username} was not found!")
+        raise DoesNotExist(f"User with username of {user.username} was not found!")
     
     theUser.password = getHashedPassword(user.password)
 
@@ -78,11 +94,19 @@ async def updateUserItem(db: AsyncSession, updatedItem: UserItemUpdateSchemaID):
 
     theItem = itemDB.scalar_one_or_none()
 
+    # pydantic models are not json serializable
+    mapData = updatedItem.map
+    if isinstance(updatedItem.map, TileType):
+        mapData = mapData.model_dump()
+    else:
+        mapData = [tile.model_dump() for tile in mapData]
+
     if not theItem:
-        raise Exception(f"UserItem with id of {updatedItem.id} was not found!")
+        raise DoesNotExist(f"UserItem with id of {updatedItem.id} was not found!")
     
     # users can't exchange maps, no need to change anything else
-    theItem.map = updatedItem.map
+    theItem.map = mapData
+    theItem.mapName = updatedItem.mapName
 
     await db.commit()
     await db.refresh(theItem)
@@ -96,7 +120,7 @@ async def deleteUser(db: AsyncSession, username: UserReadSchema):
     theUser = userDB.scalar_one_or_none()
 
     if not theUser:
-        raise Exception(f"User with username of {username} was not found!")
+        raise DoesNotExist(f"User with username of {username} was not found!")
         
     await db.delete(theUser)
 
@@ -108,7 +132,7 @@ async def deleteUserItemID(db: AsyncSession, item: UserItemsReadSchemaID):
     theItem = itemDB.scalar_one_or_none()
 
     if not theItem:
-        raise Exception(f"UserItem with id of {item.id} was not found!")
+        raise DoesNotExist(f"UserItem with id of {item.id} was not found!")
     
     await db.delete(theItem)
 
@@ -117,20 +141,13 @@ async def deleteUserItemID(db: AsyncSession, item: UserItemsReadSchemaID):
 async def deleteUserItemUsername(db: AsyncSession, map: UserItemsReadSchemaUsername):
     itemDB = await db.execute(select(UserItemsBaseSQL).where(UserItemsBaseSQL.username == map.username)) 
 
-    allItems = itemDB.scalars().all()
-    
+    itemScalars = itemDB.scalars().all()
+
+    if len(itemScalars) == 0:
+        raise DoesNotExist(f"UserItems with username of {map.username} was not found!")
+        
     # max 5 items so should not be too slow
-    for item in allItems:
+    for item in itemScalars:
         await db.delete(item)
 
     await db.commit()
-
-'''from asyncio import run
-from Backend.db.session import postgresqlSession
-from fastapi.encoders import jsonable_encoder
-
-async def test():
-    async with postgresqlSession() as session: 
-        user = await getUser(session, "hashedUser", "hashedP")
-
-run(test()) # hashedPW'''

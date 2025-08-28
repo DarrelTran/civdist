@@ -57,8 +57,9 @@ backend.interceptors.response.use
                 {
                     console.error('Refresh failed', refreshErr);
                     sessionStorage.removeItem('bearer');
-                    // nav doesnt work
-                    //alert('Unauthorized user! Please login first!')
+
+                    // /map can be used by logged in or guest user
+                    //alert('Unauthorized user! Please login first!');
                     //window.location.href = '/';
                 }
             }
@@ -72,7 +73,8 @@ backend.interceptors.response.use
 /**
  * 
  * @returns 
-* An appropriate RESTResponse or null in all RESTResponse fields if the url is invalid. Status codes:
+ * An appropriate RESTResponse containing the logged in user's username (string) or null in all RESTResponse fields if the url is invalid.  
+ * Status codes:
  * - 201 - Success
  * - 400 - Bad refresh token
  */
@@ -81,6 +83,36 @@ export async function backend_checkLoggedIn(): Promise<RESTResponse>
     try 
     {
         const response = await backend.post('/verify');
+
+        return RESTResponseConstructor(response.data.username, response.status, null);
+    } 
+    catch (err) 
+    {
+        if (axios.isAxiosError(err)) 
+        {
+            return RESTResponseConstructor(null, err.status ?? null, err.message);
+        }
+
+        return RESTResponseConstructor(null, null, "Unknown error");
+    }
+}
+
+/**
+ * 
+ * @returns 
+ * An appropriate RESTResponse containing the logged in user's username (string) or null in all RESTResponse fields if the url is invalid. Will only work if the user is still logged in.   
+ * Status codes:
+ * - 201 - Success
+ * - 401 - Bad refresh token
+ */
+export async function backend_refreshToken(): Promise<RESTResponse> 
+{
+    try 
+    {
+        const response = await backend.post('/refresh');
+        const token = response.data.access_token;
+
+        sessionStorage.setItem('bearer', token);
 
         return RESTResponseConstructor(null, response.status, null);
     } 
@@ -100,7 +132,8 @@ export async function backend_checkLoggedIn(): Promise<RESTResponse>
  * @param username 
  * @param password 
  * @returns 
- * An appropriate RESTResponse or null in all RESTResponse fields if the url is invalid. Status codes:
+ * An appropriate RESTResponse or null in all RESTResponse fields if the url is invalid.    
+ * Status codes:
  * - 201 - Success
  * - 400 - Invalid username/password
  * - 404 - User not found
@@ -146,7 +179,8 @@ export async function logout()
  * @param username 
  * @param password 
  * @returns 
- * An appropriate RESTResponse or null in all RESTResponse fields if the url is invalid. Status codes:
+ * An appropriate RESTResponse or null in all RESTResponse fields if the url is invalid.    
+ * Status codes:
  * - 201 - Success
  * - 409 - Duplicate user
  * - 411 - Empty username/password
@@ -183,18 +217,21 @@ export async function backend_createUser(username: string, password: string): Pr
  * @param json 
  * @param username 
  * @returns  
- * An appropriate RESTResponse or null in all RESTResponse fields if the url is invalid. Status codes:
+ * An appropriate RESTResponse or null in all RESTResponse fields if the url is invalid.    
+ * Status codes:
  * - 201 - Success
+ * - 404 - User does not exist
  * - 411 - Empty username/map
  * - 422 - Other type validation error
  * - 500 - Backend error
  */
-export async function backend_addMap(json: TileType[], username: string): Promise<RESTResponse>
+export async function backend_addMap(json: TileType[], username: string, mapName: string): Promise<RESTResponse>
 {
     const body =
     {
         map: json,
-        username: username
+        username: username,
+        mapName: mapName
     };
 
     const header: AxiosRequestConfig = 
@@ -228,8 +265,10 @@ export async function backend_addMap(json: TileType[], username: string): Promis
  * @param username 
  * @param password 
  * @returns 
- * An appropriate RESTResponse or null in all RESTResponse fields if the url is invalid. Status codes:
+ * An appropriate RESTResponse or null in all RESTResponse fields if the url is invalid.    
+ * Status codes:
  * - 204 - Success
+ * - 404 - User doesn't exist
  * - 411 - Empty username/password
  * - 422 - Other type validation error
  * - 500 - Backend error
@@ -273,18 +312,21 @@ export async function backend_updateUser(username: string, password: string): Pr
  * @param id 
  * @param json
  * @returns
- * An appropriate RESTResponse or null in all RESTResponse fields if the url is invalid. Status codes:
+ * An appropriate RESTResponse or null in all RESTResponse fields if the url is invalid.    
+ * Status codes:
  * - 204 - Success
+ * - 404 - Map doesnt exist 
  * - 411 - Empty map
  * - 422 - Other type validation error
  * - 500 - Backend error 
  */
-export async function backend_updateMap(id: number, json: TileType[]): Promise<RESTResponse>
+export async function backend_updateMap(id: number, json: TileType[], mapName: string): Promise<RESTResponse>
 {
     const body =
     {
         id: id,
-        map: json
+        map: json,
+        mapName: mapName
     };
 
     const header: AxiosRequestConfig = 
@@ -317,8 +359,10 @@ export async function backend_updateMap(id: number, json: TileType[]): Promise<R
  * 
  * @param id 
  * @returns 
- * An appropriate RESTResponse with the single json map or null in all RESTResponse fields if the url is invalid. Status codes:
+ * An appropriate RESTResponse with a {DatabaseMapType} or null in all RESTResponse fields if the url is invalid.    
+ * Status codes:
  * - 200 - Success
+ * - 404 - Map doesnt exist
  * - 422 - Other type validation error
  * - 500 - Backend error 
  */
@@ -354,8 +398,10 @@ export async function backend_getMap(id: number): Promise<RESTResponse>
  * 
  * @param username 
  * @returns 
- * An appropriate RESTResponse with the a json list of all maps or null in all RESTResponse fields if the url is invalid. Status codes:
+ * An appropriate RESTResponse with the a list of {DatabaseMapType}s or null in all RESTResponse fields if the url is invalid.   
+ * Status codes:
  * - 200 - Success
+ * - 404 - User doesn't exist
  * - 411 - Empty username
  * - 422 - Other type validation error
  * - 500 - Backend error
@@ -373,7 +419,7 @@ export async function backend_getAllMaps(username: string): Promise<RESTResponse
             }
         }
 
-        const response = await backend.get(`/allMaps?usernmae=${username}`, header);
+        const response = await backend.get(`/allMaps?username=${username}`, header);
 
         return RESTResponseConstructor(response.data.maps, response.status, null);
     }
@@ -392,8 +438,10 @@ export async function backend_getAllMaps(username: string): Promise<RESTResponse
  * 
  * @param username 
  * @returns 
- * An appropriate RESTResponse with the a json list of all maps or null in all RESTResponse fields if the url is invalid. Status codes:
+ * An appropriate RESTResponse with the a json list of all maps or null in all RESTResponse fields if the url is invalid.   
+ * Status codes:
  * - 204 - Success
+ * - 404 - User doesn't exist
  * - 411 - Empty username
  * - 422 - Other type validation error
  * - 500 - Backend error
@@ -421,8 +469,10 @@ export async function backend_deleteUser(username: string): Promise<RESTResponse
  * 
  * @param id 
  * @returns 
- * An appropriate RESTResponse with the a json list of all maps or null in all RESTResponse fields if the url is invalid. Status codes:
+ * An appropriate RESTResponse with the a json list of all maps or null in all RESTResponse fields if the url is invalid.   
+ * Status codes:
  * - 204 - Success
+ * - 404 - Map doesnt exist
  * - 422 - Other type validation error
  * - 500 - Backend error
  */
@@ -458,8 +508,10 @@ export async function backend_deleteMap(id: number): Promise<RESTResponse>
  * 
  * @param username 
  * @returns 
- * An appropriate RESTResponse with the a json list of all maps or null in all RESTResponse fields if the url is invalid. Status codes:
+ * An appropriate RESTResponse with the a json list of all maps or null in all RESTResponse fields if the url is invalid.   
+ * Status codes:
  * - 204 - Success
+ * - 404 - Username doesnt exist
  * - 411 - Empty username
  * - 422 - Other type validation error
  * - 500 - Backend error

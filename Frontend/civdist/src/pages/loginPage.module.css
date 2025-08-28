@@ -26,9 +26,28 @@
     margin-top: 10px;
     font-size: 1.25em;
     letter-spacing: 1px;
+    background-color: #65bd2a;
+}
+
+.loginButton:hover
+{
+    background-color: #479e0d;
 }
 
 .registerDiv
 {
     margin-top: 5px;
+}
+
+.returnButton
+{
+    font-size: 1em;
+    letter-spacing: 1px;
+    background-color: lightgrey;
+    padding: 2px 50px;
+}
+
+.returnButton:hover
+{
+    background-color: #a6a398;
 }

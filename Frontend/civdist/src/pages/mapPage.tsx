@@ -21,7 +21,7 @@ import { TITLE_CHAR_ANIM_DELAY_MS, TITLE_CHAR_ANIM_TIME_MS, TITLE_TEXT } from '.
 import Marquee from '../components/marquee';
 import HoldDownButton from '../components/holdDownButton';
 import SaveDropdown from '../components/saveDropdown';
-import { backend_addMap, backend_checkLoggedIn, backend_getAllMaps, backend_getMap, backend_updateMap } from '../REST/user';
+import { backend_addMap, backend_checkLoggedIn, backend_getAllMaps, backend_getMap, backend_logout, backend_refreshToken, backend_updateMap } from '../REST/user';
 import { useIdleTimer } from '../components/idleDetector';
 
 // assuming all resources are revealed
@@ -31,21 +31,13 @@ import { useIdleTimer } from '../components/idleDetector';
 
 TODO: Change session storage to http cookies????
 
-TODO: Change login button to signup if not logged in and if doing anything that requires login but session expires, change back to signup.
-
-TODO: On leave page or logout, call /logout, remove tokens.
-
-TODO: Possible error - not keeping user logged in???? Maybe check for inactivity & prompt user to refresh tokens.
-
 TODO: Add images to dropdown.
 
 TODO: Add reset button.
 
 TODO: Separate types in different categories/files.
 
-TODO: Add loading warning/prompt when map is being drawn
-
-TODO: Improve performance of zoom past 300 - reduce amount of renders. 
+TODO: Improve performance of zoom past 300 - reduce amount of renders. & Improve hover highlight performance.
 
 TODO: Refactor code to make it nicer/more organized and remove redundancies. Remove unnecessary useCallbacks. Remove unnecessary dependencies or refactor them. Turn stuff into components.
 
@@ -62,7 +54,7 @@ const MapPage = () =>
 {
     const nav = useNavigate();
 
-    const idleUser = useIdleTimer(10000);
+    const idleUser = useIdleTimer(60 * 60 * 1000); // 60 minutes max idle
 
     const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
     const [isLoadingUserMaps, setIsLoadingUserMaps] = useState<boolean>(false);
@@ -71,10 +63,12 @@ const MapPage = () =>
     const [districtErrorText, setDistrictErrorText] = useState<string>("");
     const [districtSuccessText, setDistrictSuccessText] = useState<string>("");
     const [saveErrorText, setSaveErrorText] = useState<string>("");
+    const [miscErrorText, setMiscErrorText] = useState<string>("");
 
     const dropdownErrorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const savesErrorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const miscErrorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // use ref since this will probably be updated a lot
     const hexmapCache = useRef<Map<string, TileType>>(new Map()); // oddr coords, tile
@@ -722,7 +716,6 @@ const MapPage = () =>
         {
             if (response.status === 201)
             {
-                console.log('working')
                 setIsLoggedIn(true);
                 setIsLoadingUserMaps(true);
 
@@ -792,15 +785,32 @@ const MapPage = () =>
 
     useEffect(() => 
     {
-        if (!idleUser)
+        const intervalMinutes = 50;
+        const intervalID = setInterval(async () => 
         {
-            const refreshToken = async () =>
+            if (!idleUser) // not idle - refresh so they stay logged in
             {
-                //await backend
-            }
+                const response = await backend_refreshToken();
 
-            refreshToken();
-        }
+                if (response.status !== 201)
+                {
+                    easySetTimeout<string> 
+                    (
+                        setMiscErrorText,
+                        miscErrorTimeoutRef,
+                        `Something went wrong (${response.status}).`,
+                        '',
+                        4000
+                    );
+                }
+            }
+            else // otherwise, logout
+            {
+                await handleLogout();
+            }
+        }, intervalMinutes * 60 * 1000)
+
+        return () => clearInterval(intervalID);
     }, [idleUser])
 
     useEffect(() => 
@@ -847,7 +857,7 @@ const MapPage = () =>
             setRiverTiles(riverArray);
     }, [tileSize, gridSize, cityBoundaryTiles, dropdownCity, areImagesLoaded, mapJSON, mapCacheVersion, optionalVisual, riverTiles, yieldAttributeCacheVersion]);
 
-    const initHexmapCache = useCallback(() => 
+    const initHexmapCache = useCallback((theMapJSON: TileType[]) => 
     {
         const hexmapCacheTemp = new Map<string, TileType>();
         const mountainCache = new Map<string, TileType>();
@@ -858,14 +868,16 @@ const MapPage = () =>
         const yieldMap = new Map<string, {imgElement: HTMLImageElement | undefined, scaleType: HexType}[]>();
 
         let loadCount = 0;
-        let totalTiles = mapJSON.length;
+        let totalTiles = theMapJSON.length;
 
         const context = theCanvas.current?.getContext('2d');
         if (!context) return;
 
-        mapJSON.forEach(tile => 
+        theMapJSON.forEach(shallowTile => 
         {
-            const imgAttributes = getImageAttributes(tile);
+            const tile = structuredClone(shallowTile); // deep copy
+
+            const imgAttributes = getImageAttributes(tile); 
             const img = imgAttributes.imgElement;
 
             if (img)
@@ -943,7 +955,7 @@ const MapPage = () =>
 
         if (hexmapCache.current.size === 0) 
         {
-            initHexmapCache();
+            initHexmapCache(mapJSON);
         } 
         else 
         {
@@ -1668,6 +1680,48 @@ const MapPage = () =>
         }
     }
 
+    async function handleLogout()
+    {
+        const response = await backend_logout();
+
+        if (response.status === 204)
+        {
+            nav('/');
+        }
+        else
+        {
+            easySetTimeout<string>
+            (
+                setMiscErrorText,
+                miscErrorTimeoutRef,
+                `Something went wrong (${response.status}).`,
+                '',
+                4000
+            );
+        }
+    }
+
+    function handleReset()
+    {
+        if (mapJSON && mapJSON.length > 0)
+        {
+            const newMapJSON = structuredClone(mapJSON);
+            resetInitialValues(newMapJSON);
+            initHexmapCache(newMapJSON);
+        }
+        else
+        {
+            easySetTimeout<string>
+            (
+                setMiscErrorText,
+                miscErrorTimeoutRef,
+                'No map loaded that can be reset!',
+                '',
+                4000
+            );
+        }
+    }
+
     return (
         <div className={styles.topSectionDiv}>
 
@@ -1680,10 +1734,14 @@ const MapPage = () =>
                 topDivClassName={common.title}
             />
 
-            <div style={{marginBottom: '5px', marginRight: '10px', display: 'flex', marginLeft: 'auto'}}>
-                <button className={common.smallButton} style={{marginRight: '5px', display: isLoggedIn ? 'none' : 'block'}}>LOGIN</button>
-                <button className={common.smallButton} style={{marginRight: '5px', display: isLoggedIn ? 'block' : 'none'}}>LOGOUT</button>
-                <button className={common.smallButton} onClick={e => {nav('/')}}>RETURN</button>
+            <div style={{display: 'flex'}}>
+                <span style={{marginLeft: '10px'}} className={common.errorText}>{miscErrorText}</span>
+                <div style={{marginBottom: '5px', marginRight: '10px', display: 'flex', marginLeft: 'auto'}}>
+                    <button className={common.smallButton} style={{marginRight: '5px'}} onClick={handleReset}>RESET</button>
+                    <button className={common.smallButton} style={{marginRight: '5px', display: isLoggedIn ? 'none' : 'block'}} onClick={e => nav('/login')}>LOGIN</button>
+                    <button className={common.smallButton} style={{marginRight: '5px', display: isLoggedIn ? 'block' : 'none'}} onClick={handleLogout}>LOGOUT</button> 
+                    <button className={common.smallButton} onClick={e => {nav('/')}}>RETURN</button>
+                </div>
             </div>
 
             <div style={{display: 'flex'}}>
@@ -1762,6 +1820,8 @@ const MapPage = () =>
                             <span className={styles.mandatory}>*</span>
 
                             <Select 
+                                inputId='civilization-dropdown'
+                                instanceId='civilization-dropdown'
                                 value={dropdownCiv ? {label: dropdownCiv, value: dropdownCiv} : null}
                                 options={getCivilizationOptions()} 
                                 styles={genericSingleSelectStyle} 
@@ -1791,6 +1851,8 @@ const MapPage = () =>
                             <span className={styles.mandatory}>*</span>
                             
                             <Select 
+                                inputId='city-dropdown'
+                                instanceId='city-dropdown'
                                 value={dropdownCity ? {label: dropdownCity, value: dropdownCity} : null}
                                 options={getCityOptions()} 
                                 styles={genericSingleSelectStyle} 
@@ -1820,6 +1882,8 @@ const MapPage = () =>
                             {/* District Type Selection */}
                             <span className={styles.mandatory}>*</span>
                             <Select
+                                inputId='district-dropdown'
+                                instanceId='district-dropdown'
                                 value={dropdownDistrict ? {label: dropdownDistrict, value: dropdownDistrict} : null}
                                 options={getDistrictOptions()}
                                 placeholder='Select a district'
@@ -1836,7 +1900,8 @@ const MapPage = () =>
                             <span className={styles.mandatory}>*</span>
                             {/* Nearby City Selection */}
                             <Select 
-                                
+                                inputId='nearbyCity-dropdown'
+                                instanceId='nearbyCity-dropdown'
                                 onChange=
                                 {
                                     val =>
@@ -1869,6 +1934,8 @@ const MapPage = () =>
                         <div style={{display: 'flex'}}>
                             {/* Yields Selection */}
                             <Select 
+                                inputId='yields-dropdown'
+                                instanceId='yields-dropdown'
                                 value={visualYieldDropdown}
                                 options={getSelectionYields()} 
                                 isMulti 
@@ -1898,6 +1965,8 @@ const MapPage = () =>
                         <div style={{display: 'flex'}}>
                             {/* Victory Type Selection */}
                             <Select
+                                inputId='victoryType-dropdown'
+                                instanceId='victoryType-dropdown'
                                 value={dropdownVictoryType ? {label: dropdownVictoryType, value: dropdownVictoryType} : null}
                                 options={getVictoryTypeOptions()}
                                 placeholder='Select a victory type'
@@ -1917,6 +1986,8 @@ const MapPage = () =>
                     <div className={styles.miscOptions}>
                         <div style={{display: 'flex'}}>
                             <Select 
+                                inputId='optionalVisuals-dropdown'
+                                instanceId='optionalVisuals-dropdown'
                                 options={getOptionalVisualOptions()} 
                                 styles={optionalVisualStyle(getOptionalVisualMaxWidth() * 1.75)} 
                                 onChange=
@@ -2002,12 +2073,7 @@ const MapPage = () =>
 
     async function testStuff()
     {
-        const allMaps: DatabaseMapType[] = (await backend_getAllMaps('test')).output;
-
-        allMaps.forEach((theMap: DatabaseMapType) => 
-        {
-            console.log(theMap)
-        })
+        
     }   
 };
 

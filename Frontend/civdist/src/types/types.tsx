@@ -402,6 +402,60 @@ export type TileType =
   DisfavoredYields: TileYields[]
 }
 
+/**
+ * 
+ * @returns A generatic tile with default values.
+ */
+export function createDefaultTile(): TileType
+{
+  return (
+    {
+      X: -1,
+      Y: -1,
+      TerrainType: TileNone.NONE,
+      FeatureType: TileNone.NONE,
+      ResourceType: TileNone.NONE,
+      ImprovementType: TileNone.NONE,
+      IsHills: false,
+      IsMountain: false,
+      IsWater: false,
+      IsLake: false,
+      IsFlatlands: false,
+      IsCity: false,
+      IsCapital: false,
+      OriginalOwner: TileNone.NONE,
+      Population: -1,
+      IsWorked: false,
+      TileCity: TileNone.NONE,
+      CityPantheon: TileNone.NONE,
+      FoundedReligion: TileNone.NONE,
+      IsRiver: false,
+      IsNEOfRiver: false,
+      IsWOfRiver: false,
+      IsNWOfRiver: false,
+      RiverSWFlow: TileNone.NONE,
+      RiverEFlow: TileNone.NONE,
+      RiverSEFlow: TileNone.NONE,
+      Appeal: -1,
+      Continent: TileNone.NONE,
+      Civilization: TileNone.NONE,
+      Leader: LeaderName.CITY_STATE,
+      CityName: TileNone.NONE,
+      District: TileNone.NONE,
+      Buildings: [],
+      Wonder: TileNone.NONE,
+      Food: -1, 
+      Production: -1, 
+      Gold: -1, 
+      Science: -1, 
+      Culture: -1, 
+      Faith: -1,
+      FavoredYields: [],
+      DisfavoredYields: []
+    }
+  );
+}
+
 export enum PossibleErrors
 {
   NONE = "No error",

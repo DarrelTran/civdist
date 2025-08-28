@@ -100,7 +100,7 @@ export async function backend_checkLoggedIn(): Promise<RESTResponse>
 /**
  * 
  * @returns 
- * An appropriate RESTResponse containing the logged in user's username (string) or null in all RESTResponse fields if the url is invalid. Will only work if the user is still logged in.   
+ * An appropriate RESTResponse or null in all RESTResponse fields if the url is invalid. Will only work if the user is still logged in.   
  * Status codes:
  * - 201 - Success
  * - 401 - Bad refresh token
@@ -113,6 +113,34 @@ export async function backend_refreshToken(): Promise<RESTResponse>
         const token = response.data.access_token;
 
         sessionStorage.setItem('bearer', token);
+
+        return RESTResponseConstructor(null, response.status, null);
+    } 
+    catch (err) 
+    {
+        if (axios.isAxiosError(err)) 
+        {
+            return RESTResponseConstructor(null, err.status ?? null, err.message);
+        }
+
+        return RESTResponseConstructor(null, null, "Unknown error");
+    }
+}
+
+/**
+ * 
+ * @returns 
+ * An appropriate RESTResponse or null in all RESTResponse fields if the url is invalid.  
+ * Status codes:
+ * - 204 - Success
+ * - 500 - Backend error
+ */
+export async function backend_logout(): Promise<RESTResponse> 
+{
+    try 
+    {
+        const response = await backend.post('/logout');
+        sessionStorage.setItem('bearer', '');
 
         return RESTResponseConstructor(null, response.status, null);
     } 

@@ -1,4 +1,4 @@
-import { HexType, TileType } from "../../../types/types";
+import { HexType, TileType } from "../../types/types";
 import { getMinMaxXY } from "../misc/misc";
 
 /**

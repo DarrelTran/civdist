@@ -1,5 +1,5 @@
 import { TileType, TileNone, TileFeatures, TileTerrain, TileWonders, TileDistricts, TileUniqueDistricts, TileNaturalWonders, TerrainFeatureKey, HexType, TileBonusResources, TileStrategicResources, TileLuxuryResources, TileArtifactResources, YieldImagesKey, TileYields } from "../types/types";
-import { hasNaturalWonder } from "../utils/functions/civ/civFunctions";
+import { hasNaturalWonder } from "../utils/civ/civFunctions";
 
 export function getNaturalWonder(tile: TileType, natWonderMap: Map<TileNaturalWonders, HTMLImageElement>): {imgElement: HTMLImageElement | undefined, scaleType: HexType}
 {

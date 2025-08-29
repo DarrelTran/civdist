@@ -1,8 +1,8 @@
 import React, { JSX, useState, useRef } from 'react';
-import { SaveType } from '../types/types';
+import { SaveType } from '../../types/types';
 import styles from './saveDropdown.module.css';
-import { getTextWidth } from '../utils/functions/misc/misc';
-import Tooltip from './tooltip';
+import { getTextWidth } from '../../utils/misc/misc';
+import Tooltip from '../tooltip/tooltip';
 
 interface SaveDropdownType 
 {

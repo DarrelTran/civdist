@@ -3,9 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import common from './common.module.css';
 import styles from './signUpPage.module.css';
 import { TITLE_CHAR_ANIM_DELAY_MS, TITLE_CHAR_ANIM_TIME_MS, TITLE_TEXT } from '../utils/constants';
-import Marquee from '../components/marquee';
+import Marquee from '../components/marquee/marquee';
 import { backend_checkLoggedIn, backend_createUser, backend_loginUser } from '../REST/user';
-import { easySetTimeout } from '../utils/functions/misc/misc';
+import { easySetTimeout } from '../utils/misc/misc';
 
 const SignUpPage = () => 
 {

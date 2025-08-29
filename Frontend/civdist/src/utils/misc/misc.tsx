@@ -1,5 +1,5 @@
 import { Dispatch, RefObject, SetStateAction } from "react";
-import { TileType } from "../../../types/types";
+import { TileType } from "../../types/types";
 
 export function getMinMaxXY(theJSON: TileType[]) 
 {

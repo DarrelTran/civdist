@@ -10,19 +10,19 @@ import { BASE_TILE_SIZE, getAllPossibleDistricts, getAllPossibleYields, getAllPo
 import { Civilization, getCivilizationObject, Norway } from '../civilization/civilizations';
 import { yieldSelectStyle, nearbyCityFontSize, nearbyCityStyles, genericSingleSelectStyle, optionalVisualFontSize, optionalVisualStyle } from './mapPageSelectStyles';
 import { OptionsWithImage, OptionsWithSpecialText, OptionsGenericString } from '../types/selectionTypes';
-import { downloadMapJSON, easySetTimeout, getMapOddrString, getMinMaxXY, getOddrFromOddrString, getTextWidth, hexmapCacheToJSONArray } from '../utils/functions/misc/misc';
-import { getHexPoint, getOffsets, oddrToPixel, pixelToOddr } from '../utils/functions/hex/genericHex';
-import { getScaledGridAndTileSizes, getScaledGridSizesFromTile, getScaleFromType } from '../utils/functions/imgScaling/scaling';
+import { downloadMapJSON, easySetTimeout, getMapOddrString, getMinMaxXY, getOddrFromOddrString, getTextWidth, hexmapCacheToJSONArray } from '../utils/misc/misc';
+import { getHexPoint, getOffsets, oddrToPixel, pixelToOddr } from '../utils/hex/genericHex';
+import { getScaledGridAndTileSizes, getScaledGridSizesFromTile, getScaleFromType } from '../utils/imgScaling/scaling';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCircleQuestion } from '@fortawesome/free-regular-svg-icons';
-import Tooltip from '../components/tooltip';
-import { allocateCitizensAuto, changeAppealToAdjFromDistrict, purgeTileForDistrict } from '../utils/functions/civ/civFunctions';
+import Tooltip from '../components/tooltip/tooltip';
+import { allocateCitizensAuto, changeAppealToAdjFromDistrict, purgeTileForDistrict } from '../utils/civ/civFunctions';
 import { TITLE_CHAR_ANIM_DELAY_MS, TITLE_CHAR_ANIM_TIME_MS, TITLE_TEXT } from '../utils/constants';
-import Marquee from '../components/marquee';
-import HoldDownButton from '../components/holdDownButton';
-import SaveDropdown from '../components/saveDropdown';
+import Marquee from '../components/marquee/marquee';
+import HoldDownButton from '../components/holdDownButton/holdDownButton';
+import SaveDropdown from '../components/saveDropdown/saveDropdown';
 import { backend_addMap, backend_checkLoggedIn, backend_getAllMaps, backend_getMap, backend_logout, backend_refreshToken, backend_updateMap } from '../REST/user';
-import { useIdleTimer } from '../components/idleDetector';
+import { useIdleTimer } from '../hooks/idleDetector';
 
 // assuming all resources are revealed
 
@@ -33,11 +33,7 @@ TODO: Change session storage to http cookies????
 
 TODO: Add images to dropdown.
 
-TODO: Add reset button.
-
 TODO: Separate types in different categories/files.
-
-TODO: Improve performance of zoom past 300 - reduce amount of renders. & Improve hover highlight performance.
 
 TODO: Refactor code to make it nicer/more organized and remove redundancies. Remove unnecessary useCallbacks. Remove unnecessary dependencies or refactor them. Turn stuff into components.
 
@@ -55,6 +51,8 @@ const MapPage = () =>
     const nav = useNavigate();
 
     const idleUser = useIdleTimer(60 * 60 * 1000); // 60 minutes max idle
+
+    const [zoomFactor, setZoomFactor] = useState<number>(1);
 
     const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
     const [isLoadingUserMaps, setIsLoadingUserMaps] = useState<boolean>(false);
@@ -88,6 +86,9 @@ const MapPage = () =>
 
     const [originalGridSize, setOriginalGridSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(BASE_TILE_SIZE, minAndMaxCoords, winSize).tileX, y: getScaledGridAndTileSizes(BASE_TILE_SIZE, minAndMaxCoords, winSize).tileY}); 
     const [gridSize, setGridSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(BASE_TILE_SIZE, minAndMaxCoords, winSize).gridX, y: getScaledGridAndTileSizes(BASE_TILE_SIZE, minAndMaxCoords, winSize).gridY});
+
+    const BASE_W = originalGridSize.x;
+    const BASE_H = originalGridSize.y;
     
     const [originalTileSize, setOriginalTileSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(BASE_TILE_SIZE, minAndMaxCoords, winSize).tileX, y: getScaledGridAndTileSizes(BASE_TILE_SIZE, minAndMaxCoords, winSize).tileY});
     const [tileSize, setTileSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(BASE_TILE_SIZE, minAndMaxCoords, winSize).tileX, y: getScaledGridAndTileSizes(BASE_TILE_SIZE, minAndMaxCoords, winSize).tileY});
@@ -540,7 +541,6 @@ const MapPage = () =>
                 drawResourceOnTile(context, tile);
 
             updateRiverCacheWithTile(tile, riverArray);
-                
         });
 
         drawRiversFromCache(context);
@@ -564,14 +564,21 @@ const MapPage = () =>
 
     function getMousePos(e: MouseEvent): {x: number, y: number} | undefined
     {
-        const rect = theCanvas.current?.getBoundingClientRect();
-        if (!rect || !theCanvas.current) return undefined;
+        const canvas = theCanvas.current;
 
-        const xPos = (e.clientX - rect.left) / (rect.right - rect.left) * theCanvas.current.width;
-        const rawY = ((e.pageY - rect.top) / (rect.bottom - rect.top) * theCanvas.current.height) - window.scrollY;
-        const yPos = theCanvas.current.height - rawY; // because map is flipped to make it look like the game!!!!
+        if (!canvas) 
+            return undefined;
 
-        return {x: xPos, y: yPos};
+        const rect = canvas.getBoundingClientRect();
+
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height; 
+
+        const x = (e.clientX - rect.left) * scaleX;
+        const yCanvasTopDown = (e.clientY - rect.top) * scaleY; // normal y
+        const y = canvas.height - yCanvasTopDown; // account for map being flipped
+
+        return { x, y };
     }
 
     const handleMouseMove = useCallback((e: MouseEvent) => 
@@ -971,29 +978,33 @@ const MapPage = () =>
         if (theZoom < MIN_ZOOM)
         {
             theZoom = MIN_ZOOM;
-            setVisualZoomInput(MIN_ZOOM);
         }
         else if (theZoom > MAX_ZOOM)
         {
             theZoom = MAX_ZOOM;
-            setVisualZoomInput(MAX_ZOOM);
         }
 
+        setVisualZoomInput(theZoom);
         const multiplier = Math.abs(theZoom) / 100.0;
+        setZoomFactor(multiplier);
 
-        const newTileSize = 
+        // or else at high zoom levels, will render too many pixels and lag
+        if (theZoom < 1)
         {
-            x: originalTileSize.x * multiplier,
-            y: originalTileSize.y * multiplier
-        };
+            const newTileSize = 
+            {
+                x: originalTileSize.x * multiplier,
+                y: originalTileSize.y * multiplier
+            };
 
-        setTileSize(newTileSize);
+            setTileSize(newTileSize);
 
-        // update gridSize (canvas size) to match enlarged map
-        // since tiles got bigger
-        // otherwise scroll won't show
-        const sizes = getScaledGridSizesFromTile(newTileSize, mapJSON);
-        setGridSize({ x: sizes.gridX, y: sizes.gridY });
+            // update gridSize (canvas size) to match enlarged map
+            // since tiles got bigger
+            // otherwise scroll won't show
+            const sizes = getScaledGridSizesFromTile(newTileSize, mapJSON);
+            setGridSize({ x: sizes.gridX, y: sizes.gridY });
+        }
     }, [originalGridSize, originalTileSize]);
 
     function handleZoomKeyDown(e: React.KeyboardEvent<HTMLDivElement>) 
@@ -1793,7 +1804,23 @@ const MapPage = () =>
                         ref={theCanvas}
                         width={gridSize.x}
                         height={gridSize.y}
-                        style={{ display: 'block'}}
+                        style=
+                        {
+                            { 
+                                display: 'block',
+                                ...(zoomFactor < 1 ?
+                                    {
+                                        width: `${BASE_W * zoomFactor}px`,
+                                        height: `${BASE_H * zoomFactor}px` 
+                                    }
+                                    :
+                                    {
+                                        transform: `scale(${zoomFactor})`,
+                                        transformOrigin: "top left"
+                                    }
+                                )
+                            }
+                        }
                     />
                 </div>
 

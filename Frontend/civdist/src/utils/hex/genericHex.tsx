@@ -2,7 +2,7 @@
 
 // https://www.redblobgames.com/grids/hexagons
 
-import { TileType } from "../../../types/types";
+import { TileType } from "../../types/types";
 
 export function hexAxialRound(cubeCoords: {q: number, r: number, s: number})
 {

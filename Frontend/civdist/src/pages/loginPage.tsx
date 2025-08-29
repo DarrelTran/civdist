@@ -4,9 +4,9 @@ import axios from 'axios';
 import common from './common.module.css';
 import styles from './loginPage.module.css';
 import { TITLE_CHAR_ANIM_DELAY_MS, TITLE_CHAR_ANIM_TIME_MS, TITLE_TEXT } from '../utils/constants';
-import Marquee from '../components/marquee';
+import Marquee from '../components/marquee/marquee';
 import { backend_checkLoggedIn, backend_loginUser } from '../REST/user';
-import { easySetTimeout } from '../utils/functions/misc/misc';
+import { easySetTimeout } from '../utils/misc/misc';
 
 const LoginPage = () => 
 {

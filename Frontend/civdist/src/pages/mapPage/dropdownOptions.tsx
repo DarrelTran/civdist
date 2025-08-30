@@ -1,6 +1,6 @@
 import { JSX } from "react";
-import { OptionsGenericString, OptionsWithImage, OptionsWithSpecialText } from "../../types/selectionTypes";
-import { OptionalVisualOptions, TileYields } from "../../types/types";
+import { OptionsGenericString, OptionsWithImage, OptionsWithSpecialText, OptionalVisualOptions } from "../../types/selectionTypes";
+import { TileYields } from "../../types/civTypes";
 import { getAllPossibleDistricts, getAllPossibleVictoryTypes, getAllPossibleYields } from "../../utils/constants";
 import { getTextWidth } from "../../utils/misc/misc";
 import { nearbyCityFontSize, optionalVisualFontSize } from "./mapPageSelectStyles";
@@ -28,7 +28,7 @@ export function formatSelectionYields(option: OptionsWithImage): JSX.Element
 {
     return <div>
         <span style={{paddingRight: '10px'}}>{option.label}</span>
-        <img src={option.image.src} width={20} height={20}/>
+        <img src={option.image.src} width={20} height={20} alt=''/>
     </div>
 }
 
@@ -36,17 +36,14 @@ export function getNearbyCityOptions(uniqueCities: Map<string, string[]>, dropdo
 {
     const tempArr: OptionsWithSpecialText[] = [];
 
-    if (dropdownCity)
+    uniqueCities.forEach((cities, civ) => 
     {
-        uniqueCities.forEach((cities, civ) => 
+        cities.forEach((city) => 
         {
-            cities.forEach((city) => 
-            {
-                if (city !== dropdownCity)
-                    tempArr.push({value: `${civ},${city}`, label: <div> <span>{city}</span> <br/> <span>({civ})</span> </div>, text: `${city} (${civ})`});
-            })
+            if (!dropdownCity || (dropdownCity && city !== dropdownCity))
+                tempArr.push({value: `${civ},${city}`, label: <div> <span>{city}</span> <br/> <span>({civ})</span> </div>, text: `${city} (${civ})`});
         })
-    }
+    })
 
     return tempArr;
 }
@@ -114,29 +111,24 @@ export function getVictoryTypeOptions()
     return tempArr;
 }
 
-export function getNearbyCityTextMaxWidth(uniqueCities: Map<string, string[]>, dropdownCity: string | null)
+export function getNearbyCityTextMaxWidth(nearbyCityOptions: OptionsWithSpecialText[])
 {
     let max = 0;
-    if (dropdownCity)
+    if (nearbyCityOptions.length > 0)
     {
-        const opts = getNearbyCityOptions(uniqueCities, dropdownCity);
-    
-        if (opts.length > 0)
+        nearbyCityOptions.forEach((vals) => 
         {
-            opts.forEach((vals) => 
-            {
-                const width = getTextWidth(vals.text, `${nearbyCityFontSize}px arial`);
-                if (width)
-                    max = Math.max(width);
-            })
-        }
-        else
-        {
-            const theString = 'Select a nearby city';
-            const width = getTextWidth(theString, `${nearbyCityFontSize}px arial`);
+            const width = getTextWidth(vals.text, `${nearbyCityFontSize}px arial`);
             if (width)
                 max = Math.max(width);
-        }
+        })
+    }
+    else
+    {
+        const theString = 'Select a nearby city';
+        const width = getTextWidth(theString, `${nearbyCityFontSize}px arial`);
+        if (width)
+            max = Math.max(width);
     }
 
     return max;

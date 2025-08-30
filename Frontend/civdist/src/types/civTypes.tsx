@@ -17,16 +17,8 @@ export enum RiverDirections
   NORTHWEST
 }
 
-export enum OptionalVisualOptions
-{
-  SHOW_YIELDS = 'Show Yields',
-  SHOW_RESOURCES = 'Show Resources'
-}
-
 export enum TileNone {NONE = "NONE"}
-/*********************** CIV TILE NAMES ***********************/
 
-/** */
 export enum TileNaturalWonders
 {
   CLIFFS_OF_DOVER = 'Cliffs of Dover',
@@ -471,46 +463,4 @@ export enum VictoryType
   RELIGIOUS = "Religious",
   DIPLOMATIC = "Diplomatic",
   NONE = "None"
-}
-
-/*********************** FOR IMAGES ***********************/
-
-/** Format is: "TileTerrain_[TileFeatures | TileNone]" EXCLUDING the brackets */
-export type TerrainFeatureKey = `${TileTerrain}_${TileFeatures | TileNone}`;
-
-/** Format is: "TileYields_theYieldValue" */
-export type YieldImagesKey = `${TileYields}_${number}`;
-
-/*********************** FOR SAVES ***********************/
-
-export type SaveType =
-{
-  name: string | null, 
-  json: TileType[] | null, 
-  id: number,
-  textInputDisplay: string,
-  textNameDisplay: string,
-  inputText: string
-}
-
-/*********************** FOR BACKEND/DATABASE ***********************/
-
-export type RESTResponse =
-{
-  output: any | null,
-  status: number | null,
-  errorMessage: string | null
-}
-
-export function RESTResponseConstructor(output: any | null, status: number | null, errorMessage: string | null): RESTResponse
-{
-  return {output: output, status: status, errorMessage: errorMessage};
-}
-
-export type DatabaseMapType =
-{
-  id: number,
-  map: TileType[],
-  username: string,
-  mapName: string
 }

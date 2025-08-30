@@ -1,4 +1,4 @@
-import { TileDistricts, TileYields, VictoryType } from "../types/types";
+import { TileDistricts, TileYields, VictoryType } from "../types/civTypes";
 
 export const BASE_TILE_SIZE : number = 10;
 export const MIN_ZOOM = 50;

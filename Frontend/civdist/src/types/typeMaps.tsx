@@ -1,4 +1,4 @@
-import { TileDistricts, TileUniqueDistricts, TileBuildings } from "./types"
+import { TileDistricts, TileUniqueDistricts, TileBuildings } from "./civTypes"
 
 /** Maps districts to their buildings. */
 export const TileBuildingsList: Record<TileDistricts | TileUniqueDistricts, TileBuildings[]> = 

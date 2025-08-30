@@ -1,5 +1,5 @@
 import React, {JSX} from 'react'
-import { TileYields } from './types';
+import { TileYields } from './civTypes';
 
 export type OptionsWithSpecialText = 
 {
@@ -20,3 +20,9 @@ export type OptionsGenericString =
   value: string | null;
   label: string | null;
 };
+
+export enum OptionalVisualOptions
+{
+  SHOW_YIELDS = 'Show Yields',
+  SHOW_RESOURCES = 'Show Resources'
+}

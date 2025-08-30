@@ -3,14 +3,16 @@ import Select, { GroupBase, SelectInstance } from 'react-select'
 import { Link, useNavigate } from 'react-router-dom';
 import styles from './mapPage.module.css';
 import common from '../common.module.css';
-import { TileNone, TileWonders, TileDistricts, TileNaturalWonders, TerrainFeatureKey, TileType, LeaderName, TileYields, PossibleErrors, VictoryType, TileBonusResources, TileLuxuryResources, TileStrategicResources, TileArtifactResources, TileUniqueDistricts, HexType, YieldImagesKey, OptionalVisualOptions, SaveType, DatabaseMapType} from '../../types/types'
+import { TileNone, TileWonders, TileDistricts, TileNaturalWonders, TileType, LeaderName, TileYields, PossibleErrors, VictoryType, TileBonusResources, TileLuxuryResources, TileStrategicResources, TileArtifactResources, TileUniqueDistricts, HexType} from '../../types/civTypes'
+import {SaveType, DatabaseMapType} from '../../types/serverTypes'
+import {TerrainFeatureKey, YieldImagesKey} from '../../types/imageTypes'
 import { loadDistrictImages, loadNaturalWonderImages, loadResourceImages, loadTerrainImages, loadWonderImages, loadYieldDropdownImages, loadYieldImages } from '../../images/imageLoaders';
 import { getYields } from '../../images/imageAttributeFinders';
-import { BASE_TILE_SIZE, getAllPossibleDistricts, getAllPossibleYields, getAllPossibleVictoryTypes, MIN_ZOOM, MAX_ZOOM } from '../../utils/constants';
+import { BASE_TILE_SIZE, MIN_ZOOM, MAX_ZOOM } from '../../utils/constants';
 import { Civilization, getCivilizationObject, Norway } from '../../civilization/civilizations';
-import { yieldSelectStyle, nearbyCityFontSize, nearbyCityStyles, genericSingleSelectStyle, optionalVisualFontSize, optionalVisualStyle } from './mapPageSelectStyles';
-import { OptionsWithImage, OptionsWithSpecialText, OptionsGenericString } from '../../types/selectionTypes';
-import { downloadMapJSON, easySetTimeout, getMapOddrString, getMinMaxXY, getOddrFromOddrString, getTextWidth, hexmapCacheToJSONArray } from '../../utils/misc/misc';
+import { yieldSelectStyle, nearbyCityFontSize, nearbyCityStyles, genericSingleSelectStyle, optionalVisualStyle } from './mapPageSelectStyles';
+import { OptionsWithSpecialText, OptionsGenericString, OptionalVisualOptions } from '../../types/selectionTypes';
+import { downloadMapJSON, getMapOddrString, getMinMaxXY, getOddrFromOddrString, getTextWidth, hexmapCacheToJSONArray } from '../../utils/misc/misc';
 import { getOffsets, oddrToPixel, pixelToOddr } from '../../utils/hex/genericHex';
 import { getScaledGridAndTileSizes, getScaledGridSizesFromTile } from '../../utils/imgScaling/scaling';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -26,6 +28,7 @@ import { useIdleTimer } from '../../hooks/idleDetector';
 import { drawBorderLines, drawHexImage, drawResourceOnTile, drawRiversFromCache, drawTextWithBox, drawYieldsOnTile, getHexMapOffset, getImageAttributes, wrapCol, wrapRow } from '../../utils/drawing/hexmap';
 import { formatSelectionYields, getCityOptions, getCivilizationOptions, getDistrictOptions, getNearbyCityOptions, getNearbyCityTextMaxWidth, getOptionalVisualMaxWidth, getOptionalVisualOptions, getSelectionYields, getVictoryTypeOptions } from './dropdownOptions';
 import { useMessage } from '../../hooks/useMessage';
+import { useThrottledCallback } from '../../hooks/throttledCallback';
 
 // assuming all resources are revealed
 
@@ -36,15 +39,11 @@ TODO: Change session storage to http cookies????
 
 TODO: Add images to dropdown.
 
-TODO: Separate types in different categories/files.
-
-TODO: Refactor code to make it nicer/more organized and remove redundancies. Remove unnecessary useCallbacks. Remove unnecessary dependencies or refactor them. Turn stuff into components.
+TODO: Remove number of re-renders! Remove unnecessary useCallbacks. Remove unnecessary dependencies or refactor them. Turn stuff into components.
 
 TODO: Add documentation to functions. Read random comments to see if any extra issues need fixing.
 
-TODO: Make page nice for mobile
-
-TODO: Add helper constructor functions for types.
+TODO: Make page nice for mobile.
 
 /////////////////////////////////////////////////////////////////
 */
@@ -214,7 +213,8 @@ const MapPage = () =>
                     textBoxText = tile.CityName;
                 }
 
-                setCurrentTile(tile);
+                if (currentTile && tile.X !== currentTile.X && tile.Y !== currentTile.Y)
+                    setCurrentTile(tile);
             }
             else if (tile.IsCity && tile.CityName === dropdownCity)
             {
@@ -281,7 +281,10 @@ const MapPage = () =>
         return { x, y };
     }
 
-    const handleMouseMove = useCallback((e: MouseEvent) => 
+    // 33 = 0.033s; 1/0.033 = 30 fps
+    const moveDelayMS = 33;
+
+    const handleMouseMove = useThrottledCallback((e: MouseEvent) => 
     {
         const mousePos = getMousePos(e);
 
@@ -292,7 +295,8 @@ const MapPage = () =>
 
             handleMouseHover(key, oddrCoord);
         }
-    }, [handleMouseHover]); // add function like handleMouseHover as functions can change due to the function's dependencies
+
+    }, 33) 
 
     const handleMouseClick = useCallback((e: MouseEvent) => 
     {
@@ -644,7 +648,7 @@ const MapPage = () =>
 
         yieldAttributeCache.current = yieldMap;
         setYieldAttributeCacheVersion(yieldAttributeCacheVersion + 1);
-    }, [drawMapFromCache, mapJSON]);
+    }, [mapJSON]);
 
     useEffect(() => 
     {
@@ -729,6 +733,7 @@ const MapPage = () =>
         setCurrentCity(undefined);
         setCityBoundaryTiles(new Map());
         setVisualZoomInput(100);
+        setZoomFactor(1);
         setVisualYieldDropdown([]);
         setCityOwnedTiles(new Map());
         setCivCompletedWonders(new Set());
@@ -744,6 +749,9 @@ const MapPage = () =>
 
         if (optionalVisualRef.current)
             optionalVisualRef.current.clearValue();
+
+        if (zoomInputRef.current)
+            zoomInputRef.current.value = '100';
     }
 
     function handleImportChange(e: React.ChangeEvent<HTMLInputElement>)
@@ -999,7 +1007,7 @@ const MapPage = () =>
 
                     newSaveList.push(save);
                 }
-                else if (!mapJSON || mapJSON && mapJSON.length === 0)
+                else if (!mapJSON || (mapJSON && mapJSON.length === 0))
                 {
                     showSaveError('Must load a map first!');
 
@@ -1182,7 +1190,7 @@ const MapPage = () =>
                 {
                     miscMessage && 
                     (
-                        <span className={miscMessage.type === "error" ? common.errorText : common.successText}>
+                        <span className={miscMessage.type === 'error' ? common.errorText : common.successText}>
                             {miscMessage.text}
                         </span>
                     )
@@ -1232,7 +1240,7 @@ const MapPage = () =>
                     {
                         saveMessage && 
                         (
-                            <span className={saveMessage.type === "error" ? common.errorText : common.successText}>
+                            <span className={saveMessage.type === 'error' ? common.errorText : common.successText}>
                                 {saveMessage.text}
                             </span>
                         )
@@ -1310,6 +1318,8 @@ const MapPage = () =>
                                             setDropdownCiv(null);
 
                                         setDropdownCity(null);
+                                        //nearbyCityRef.current?.clearValue();
+                                        //setDropdownNearbyCity(null);
                                     }
                                 } 
                                 placeholder={'Select a civilization'}
@@ -1397,20 +1407,20 @@ const MapPage = () =>
                                 options=
                                 {(() => 
                                     {
-                                        const options = getNearbyCityOptions(uniqueCities, dropdownCity);
+                                        const nearbyOptions = getNearbyCityOptions(uniqueCities, dropdownCity);
 
-                                        if (options.length === 0)
+                                        if (nearbyOptions.length === 0)
                                             return undefined;
                                         else
-                                            return options;
+                                            return nearbyOptions;
                                     }
                                 )()} 
                                 styles=
                                 {(() => 
                                     {
-                                        const options = getNearbyCityOptions(uniqueCities, dropdownCity);
+                                        const nearbyOptions = getNearbyCityOptions(uniqueCities, dropdownCity);
 
-                                        if (options.length === 0)
+                                        if (nearbyOptions.length === 0)
                                         {
                                             const width = getTextWidth('Select a nearby city', `${nearbyCityFontSize}px arial`);
 
@@ -1418,7 +1428,7 @@ const MapPage = () =>
                                                 return nearbyCityStyles(width * 1.25);
                                         }
                                         else
-                                            return nearbyCityStyles(getNearbyCityTextMaxWidth(uniqueCities, dropdownCity) * 1.25);
+                                            return nearbyCityStyles(getNearbyCityTextMaxWidth(nearbyOptions) * 1.25);
                                     }
                                 )()}
                                 placeholder='Select a nearby city'
@@ -1527,7 +1537,7 @@ const MapPage = () =>
                                 onBlur={e => handleZoomChange(Number(e.target.value))}
                             />
 
-                            <Tooltip text={'50 - 300%'}>
+                            <Tooltip text={`${MIN_ZOOM} - ${MAX_ZOOM}%`}>
                                 <FontAwesomeIcon icon={faCircleQuestion} className={styles.questionMark}/>
                             </Tooltip>
                         </div>
@@ -1535,7 +1545,7 @@ const MapPage = () =>
                         {
                             districtMessage && 
                             (
-                                <span className={districtMessage.type === "error" ? common.errorText : common.successText}>
+                                <span className={districtMessage.type === 'error' ? common.errorText : common.successText}>
                                     {districtMessage.text}
                                 </span>
                             )
@@ -1543,15 +1553,8 @@ const MapPage = () =>
                     </div>
                 </div>
             </div>
-
-            {<button onClick={testStuff}>TEST BUTTON</button>}
         </div>
     );
-
-    async function testStuff()
-    {
-        
-    }   
 };
 
 export default MapPage;

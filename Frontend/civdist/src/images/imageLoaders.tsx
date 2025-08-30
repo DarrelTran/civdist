@@ -1,4 +1,5 @@
-import { TileNone, TileDistricts, TileFeatures, TileTerrain, TileWonders, TileNaturalWonders, TerrainFeatureKey, TileYields, TileBonusResources, TileLuxuryResources, TileStrategicResources, TileArtifactResources, TileUniqueDistricts, YieldImagesKey } from "../types/types";
+import { TileDistricts, TileWonders, TileNaturalWonders, TileYields, TileBonusResources, TileLuxuryResources, TileStrategicResources, TileArtifactResources, TileUniqueDistricts } from "../types/civTypes";
+import { YieldImagesKey  } from "../types/imageTypes";
 import { allWonderImages } from "./importers/wondersImport";
 import { allDistrictImages } from "./importers/districtImport";
 import { allTerrainImages } from "./importers/terrainImport";

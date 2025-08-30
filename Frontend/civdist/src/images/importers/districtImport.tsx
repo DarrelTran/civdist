@@ -11,7 +11,7 @@ import neighborhood_district from '../districts/neighborhood_district2.png';
 import rocket_district from '../districts/rocket_district2.png';
 import science_district from '../districts/science_district2.png';
 import theater_district from '../districts/theater_district2.png';
-import { TileDistricts, TileUniqueDistricts } from '../../types/types';
+import { TileDistricts, TileUniqueDistricts } from '../../types/civTypes';
 
 export const allDistrictImages: Record<TileDistricts | TileUniqueDistricts, string> = 
 {

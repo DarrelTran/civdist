@@ -1,5 +1,6 @@
 import { getDistrict, getNaturalWonder, getResource, getTerrain, getWonder } from "../../images/imageAttributeFinders";
-import { HexType, RiverDirections, TerrainFeatureKey, TileArtifactResources, TileBonusResources, TileDistricts, TileLuxuryResources, TileNaturalWonders, TileNone, TileStrategicResources, TileType, TileUniqueDistricts, TileWonders } from "../../types/types";
+import { HexType, RiverDirections, TileArtifactResources, TileBonusResources, TileDistricts, TileLuxuryResources, TileNaturalWonders, TileNone, TileStrategicResources, TileType, TileUniqueDistricts, TileWonders } from "../../types/civTypes";
+import {TerrainFeatureKey} from '../../types/imageTypes'
 import { BASE_TILE_SIZE } from "../constants";
 import { getHexPoint, getOffsets, oddrToPixel } from "../hex/genericHex";
 import { getScaleFromType } from "../imgScaling/scaling";

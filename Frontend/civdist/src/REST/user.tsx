@@ -1,8 +1,7 @@
 import axios, { AxiosRequestConfig, isAxiosError } from 'axios';
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { BACKEND_URL } from '../utils/constants';
-import { TileType, RESTResponse, RESTResponseConstructor } from '../types/types';
+import { TileType } from '../types/civTypes';
+import {RESTResponse, RESTResponseConstructor} from '../types/serverTypes'
 
 interface CustomAxiosConfig extends AxiosRequestConfig
 {

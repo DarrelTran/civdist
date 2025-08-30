@@ -83,7 +83,8 @@ import production10 from '../yields/production_10.png'
 import production11 from '../yields/production_11.png'
 import production12 from '../yields/production_12_plus.png'
 
-import { TileYields, YieldImagesKey } from '../../types/types'
+import { TileYields } from '../../types/civTypes'
+import { YieldImagesKey } from "../../types/imageTypes";
 
 export const yieldDropdownImages: Record<TileYields, string> = 
 {

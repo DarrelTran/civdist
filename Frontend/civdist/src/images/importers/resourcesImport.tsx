@@ -51,7 +51,7 @@ import cloves from '../resources/cloves.png'
 import antiquity_site from '../resources/antiquity_site.png'
 import shipwreck from '../resources/shipwreck.png' 
 
-import { TileArtifactResources, TileBonusResources, TileLuxuryResources, TileStrategicResources } from '../../types/types'
+import { TileArtifactResources, TileBonusResources, TileLuxuryResources, TileStrategicResources } from '../../types/civTypes'
 
 export const allResourceImages: Record<TileBonusResources | TileLuxuryResources | TileStrategicResources | TileArtifactResources, string> = 
 {

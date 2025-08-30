@@ -9,7 +9,6 @@ export const TITLE_TEXT = "Civdist";
 export const TITLE_CHAR_ANIM_TIME_MS = 500;
 export const TITLE_CHAR_ANIM_DELAY_MS = 100;
 
-
 export const getAllPossibleDistricts = () =>
 {
     const allDistricts: TileDistricts[] = [];

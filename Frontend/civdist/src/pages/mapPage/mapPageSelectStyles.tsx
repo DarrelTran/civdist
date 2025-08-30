@@ -1,5 +1,5 @@
 import { CSSObjectWithLabel, StylesConfig } from "react-select";
-import { OptionsWithSpecialText, OptionsGenericString, OptionsWithImage } from "../types/selectionTypes";
+import { OptionsWithSpecialText, OptionsGenericString, OptionsWithImage } from "../../types/selectionTypes";
 
 export const genericMultiSelectStyle: StylesConfig<OptionsGenericString, true> = 
 {

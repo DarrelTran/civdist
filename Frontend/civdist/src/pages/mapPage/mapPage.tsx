@@ -2,27 +2,30 @@ import React, {useEffect, useState, useRef, useCallback, JSX} from 'react';
 import Select, { GroupBase, SelectInstance } from 'react-select'
 import { Link, useNavigate } from 'react-router-dom';
 import styles from './mapPage.module.css';
-import common from './common.module.css';
-import { TileNone, TileWonders, TileDistricts, TileNaturalWonders, TerrainFeatureKey, RiverDirections, TileType, LeaderName, TileYields, PossibleErrors, VictoryType, TileBonusResources, TileLuxuryResources, TileStrategicResources, TileArtifactResources, TileUniqueDistricts, HexType, YieldImagesKey, OptionalVisualOptions, SaveType, DatabaseMapType} from '../types/types'
-import { loadDistrictImages, loadNaturalWonderImages, loadResourceImages, loadTerrainImages, loadWonderImages, loadYieldDropdownImages, loadYieldImages } from '../images/imageLoaders';
-import { getTerrain, getDistrict, getNaturalWonder, getWonder, getResource, getYields } from '../images/imageAttributeFinders';
-import { BASE_TILE_SIZE, getAllPossibleDistricts, getAllPossibleYields, getAllPossibleVictoryTypes, MIN_ZOOM, MAX_ZOOM } from '../utils/constants';
-import { Civilization, getCivilizationObject, Norway } from '../civilization/civilizations';
+import common from '../common.module.css';
+import { TileNone, TileWonders, TileDistricts, TileNaturalWonders, TerrainFeatureKey, TileType, LeaderName, TileYields, PossibleErrors, VictoryType, TileBonusResources, TileLuxuryResources, TileStrategicResources, TileArtifactResources, TileUniqueDistricts, HexType, YieldImagesKey, OptionalVisualOptions, SaveType, DatabaseMapType} from '../../types/types'
+import { loadDistrictImages, loadNaturalWonderImages, loadResourceImages, loadTerrainImages, loadWonderImages, loadYieldDropdownImages, loadYieldImages } from '../../images/imageLoaders';
+import { getYields } from '../../images/imageAttributeFinders';
+import { BASE_TILE_SIZE, getAllPossibleDistricts, getAllPossibleYields, getAllPossibleVictoryTypes, MIN_ZOOM, MAX_ZOOM } from '../../utils/constants';
+import { Civilization, getCivilizationObject, Norway } from '../../civilization/civilizations';
 import { yieldSelectStyle, nearbyCityFontSize, nearbyCityStyles, genericSingleSelectStyle, optionalVisualFontSize, optionalVisualStyle } from './mapPageSelectStyles';
-import { OptionsWithImage, OptionsWithSpecialText, OptionsGenericString } from '../types/selectionTypes';
-import { downloadMapJSON, easySetTimeout, getMapOddrString, getMinMaxXY, getOddrFromOddrString, getTextWidth, hexmapCacheToJSONArray } from '../utils/misc/misc';
-import { getHexPoint, getOffsets, oddrToPixel, pixelToOddr } from '../utils/hex/genericHex';
-import { getScaledGridAndTileSizes, getScaledGridSizesFromTile, getScaleFromType } from '../utils/imgScaling/scaling';
+import { OptionsWithImage, OptionsWithSpecialText, OptionsGenericString } from '../../types/selectionTypes';
+import { downloadMapJSON, easySetTimeout, getMapOddrString, getMinMaxXY, getOddrFromOddrString, getTextWidth, hexmapCacheToJSONArray } from '../../utils/misc/misc';
+import { getOffsets, oddrToPixel, pixelToOddr } from '../../utils/hex/genericHex';
+import { getScaledGridAndTileSizes, getScaledGridSizesFromTile } from '../../utils/imgScaling/scaling';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCircleQuestion } from '@fortawesome/free-regular-svg-icons';
-import Tooltip from '../components/tooltip/tooltip';
-import { allocateCitizensAuto, changeAppealToAdjFromDistrict, purgeTileForDistrict } from '../utils/civ/civFunctions';
-import { TITLE_CHAR_ANIM_DELAY_MS, TITLE_CHAR_ANIM_TIME_MS, TITLE_TEXT } from '../utils/constants';
-import Marquee from '../components/marquee/marquee';
-import HoldDownButton from '../components/holdDownButton/holdDownButton';
-import SaveDropdown from '../components/saveDropdown/saveDropdown';
-import { backend_addMap, backend_checkLoggedIn, backend_getAllMaps, backend_getMap, backend_logout, backend_refreshToken, backend_updateMap } from '../REST/user';
-import { useIdleTimer } from '../hooks/idleDetector';
+import Tooltip from '../../components/tooltip/tooltip';
+import { allocateCitizensAuto, changeAppealToAdjFromDistrict, purgeTileForDistrict } from '../../utils/civ/civFunctions';
+import { TITLE_CHAR_ANIM_DELAY_MS, TITLE_CHAR_ANIM_TIME_MS, TITLE_TEXT } from '../../utils/constants';
+import Marquee from '../../components/marquee/marquee';
+import HoldDownButton from '../../components/holdDownButton/holdDownButton';
+import SaveDropdown from '../../components/saveDropdown/saveDropdown';
+import { backend_addMap, backend_checkLoggedIn, backend_getAllMaps, backend_getMap, backend_logout, backend_refreshToken, backend_updateMap } from '../../REST/user';
+import { useIdleTimer } from '../../hooks/idleDetector';
+import { drawBorderLines, drawHexImage, drawResourceOnTile, drawRiversFromCache, drawTextWithBox, drawYieldsOnTile, getHexMapOffset, getImageAttributes, wrapCol, wrapRow } from '../../utils/drawing/hexmap';
+import { formatSelectionYields, getCityOptions, getCivilizationOptions, getDistrictOptions, getNearbyCityOptions, getNearbyCityTextMaxWidth, getOptionalVisualMaxWidth, getOptionalVisualOptions, getSelectionYields, getVictoryTypeOptions } from './dropdownOptions';
+import { useMessage } from '../../hooks/useMessage';
 
 // assuming all resources are revealed
 
@@ -48,6 +51,26 @@ TODO: Add helper constructor functions for types.
 
 const MapPage = () => 
 {
+    const 
+    {
+        message: saveMessage,
+        showError: showSaveError,
+        showSuccess: showSaveSuccess,
+    } = useMessage();
+
+    const 
+    {
+        message: districtMessage,
+        showError: showDistrictError,
+        showSuccess: showDistrictSuccess,
+    } = useMessage();
+
+    const 
+    {
+        message: miscMessage,
+        showError: showMiscError,
+    } = useMessage();
+
     const nav = useNavigate();
 
     const idleUser = useIdleTimer(60 * 60 * 1000); // 60 minutes max idle
@@ -57,16 +80,6 @@ const MapPage = () =>
     const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
     const [isLoadingUserMaps, setIsLoadingUserMaps] = useState<boolean>(false);
     const [isSavingUserMaps, setIsSavingUserMaps] = useState<boolean>(false);
-
-    const [districtErrorText, setDistrictErrorText] = useState<string>("");
-    const [districtSuccessText, setDistrictSuccessText] = useState<string>("");
-    const [saveErrorText, setSaveErrorText] = useState<string>("");
-    const [miscErrorText, setMiscErrorText] = useState<string>("");
-
-    const dropdownErrorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const savesErrorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const miscErrorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // use ref since this will probably be updated a lot
     const hexmapCache = useRef<Map<string, TileType>>(new Map()); // oddr coords, tile
@@ -132,12 +145,6 @@ const MapPage = () =>
         {name: null, json: null, id: 4, textInputDisplay: 'block', textNameDisplay: 'none', inputText: ''},
     ]);
 
-    /**
-     * - Shifting hex img's by the subtraction seen in drawMap() keeps correct oddr coordinate detection but visuals will break
-     * - Adding this offset fixes the visuals and keeps the coordinates correct
-     */
-    const hexMapOffset = {x: tileSize.x * 2, y: tileSize.y * 2};
-
     const theCanvas = useRef<HTMLCanvasElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const zoomInputRef = useRef<HTMLInputElement>(null);
@@ -170,322 +177,10 @@ const MapPage = () =>
         setAreImagesLoaded(true);
     }
 
-    /**
-     * @param context 2D canvas context.
-     * @param px X & y pixel coordinates of the text box. Assumes that the hexmap has flipped y coordinates.
-     * @param text 
-     */
-    function drawTextWithBox(context: CanvasRenderingContext2D, px: {x: number, y: number}, text: string)
-    {
-        context.save();
-
-        // keep in line with the flipped hexmap
-        context.scale(1, -1);
-        context.translate(0, -gridSize.y);
-        // flip upright
-        context.scale(1, -1);
-
-        const minTile = Math.min(tileSize.x, tileSize.y);
-        const fontSize = minTile / 1.5;
-        //const fontSize = minGrid / minTile;
-        const font = `${fontSize}px arial`;
-
-        const textWidth = getTextWidth(text, font);
-
-        if (textWidth)
-        {
-            context.globalAlpha = 0.5;
-
-            context.beginPath();
-
-            let xPosRect = px.x;
-            let yPosRect = -px.y - ((fontSize * 2) / 1.5);
-            let widthRect = textWidth * 1.5;
-            let heightRect = fontSize * 2;
-            let finalXPosRect = xPosRect + widthRect;
-
-            let xPosText = px.x + (textWidth / 4);
-            let yPosText = -px.y;
-
-            if (finalXPosRect >= gridSize.x)
-            {
-                let diff = (finalXPosRect - gridSize.x) * 1.1;
-                xPosRect = xPosRect - diff;
-                xPosText = xPosText - diff;
-            }
-
-            context.rect(xPosRect, yPosRect, widthRect, heightRect);
-            context.fill();
-
-            context.globalAlpha = 1;
-
-            context.fillStyle = 'white';
-            context.font = font;
-
-            context.fillText(text, xPosText, yPosText);
-        }
-
-        context.restore();
-    }
-
-    /**
-     * 
-     * @param context 
-     * @param point1 The starting point
-     * @param point2 The last point
-     * @param strokeStyle 
-     * @param lineWidth 
-     */
-    function drawLine(context: CanvasRenderingContext2D, point1: {x: number, y: number}, point2: {x: number, y: number}, strokeStyle: string, lineWidth: number)
-    {
-        context.save();
-
-        context.scale(1, -1);
-        context.translate(0, -gridSize.y);
-
-        context.strokeStyle = strokeStyle;
-        context.lineWidth = lineWidth;
-        context.beginPath();
-        context.moveTo(point1.x, point1.y);
-        context.lineTo(point2.x, point2.y);
-        context.stroke();
-
-        context.restore();
-    }
-
-    function drawRiver6PossibleDirections(context: CanvasRenderingContext2D, riverDirection: RiverDirections, startingPos: {x: number, y: number})
-    {
-        if (riverDirection === RiverDirections.EAST)
-        {
-            drawLine(context, getHexPoint(0, startingPos, tileSize), getHexPoint(1, startingPos, tileSize), '#38afcd', Math.min(tileSize.x / 8, tileSize.y / 8));
-        }
-        else if (riverDirection === RiverDirections.NORTHEAST)
-        {
-            drawLine(context, getHexPoint(1, startingPos, tileSize), getHexPoint(2, startingPos, tileSize), '#38afcd', Math.min(tileSize.x / 8, tileSize.y / 8));
-        }
-        else if (riverDirection === RiverDirections.NORTHWEST)
-        {
-            drawLine(context, getHexPoint(2, startingPos, tileSize), getHexPoint(3, startingPos, tileSize), '#38afcd', Math.min(tileSize.x / 8, tileSize.y / 8));
-        }
-        else if (riverDirection === RiverDirections.SOUTHEAST)
-        {
-            drawLine(context, getHexPoint(5, startingPos, tileSize), getHexPoint(6, startingPos, tileSize), '#38afcd', Math.min(tileSize.x / 8, tileSize.y / 8));
-        }
-        else if (riverDirection === RiverDirections.SOUTHWEST)
-        {
-            drawLine(context, getHexPoint(4, startingPos, tileSize), getHexPoint(5, startingPos, tileSize), '#38afcd', Math.min(tileSize.x / 8, tileSize.y / 8));
-        }
-        else if (riverDirection === RiverDirections.WEST)
-        {
-            drawLine(context, getHexPoint(3, startingPos, tileSize), getHexPoint(4, startingPos, tileSize), '#38afcd', Math.min(tileSize.x / 8, tileSize.y / 8));
-        }
-    }
-
     function updateRiverCacheWithTile(tile: TileType, riverArray: TileType[])
     {
         if (riverTiles.length <= 0 && (tile.IsNEOfRiver || tile.IsNWOfRiver || tile.IsWOfRiver))
                 riverArray.push(tile);
-    }
-
-    function drawRiversFromCache(context: CanvasRenderingContext2D)
-    {
-        const drawRiverTile = (context: CanvasRenderingContext2D, tile: TileType) => 
-        {
-            const [col, row] = [tile.X, tile.Y];
-            const px = oddrToPixel(col, row, tileSize.x, tileSize.y, hexMapOffset);
-
-            let IsNEOfRiver = tile.IsNEOfRiver;
-            let IsNWOfRiver = tile.IsNWOfRiver;
-            let IsWOfRiver = tile.IsWOfRiver;
-
-            if (IsNEOfRiver)
-                drawRiver6PossibleDirections(context, RiverDirections.SOUTHWEST, px);
-            if (IsNWOfRiver)
-                drawRiver6PossibleDirections(context, RiverDirections.SOUTHEAST, px);
-            if (IsWOfRiver)
-                drawRiver6PossibleDirections(context, RiverDirections.EAST, px);
-        }
-
-        if (riverTiles.length <= 0)
-        {
-            hexmapCache.current.forEach((tile, oddr) => 
-            {
-                drawRiverTile(context, tile)
-            });
-        }
-        else
-        {
-            riverTiles.forEach((tile) => 
-            {
-                drawRiverTile(context, tile);
-            })
-        }
-    }
-
-    function wrapCol(x: number)
-    {
-        const { minX, maxX } = minAndMaxCoords;
-        const width = maxX - minX + 1;
-        // assuming min starts at 0
-        return ((x + width) % width);
-    };
-
-    function wrapRow(y: number)
-    {
-        const { minY, maxY } = minAndMaxCoords;
-        const height = maxY - minY + 1;
-        return ((y + height) % height);
-    };
-
-    /**
-     * Assume drawn using the cache as hovering over a tile (necessary for click) only considers drawing from the cache. 
-     * @param context 
-     */
-    function drawBorderLines(context: CanvasRenderingContext2D) 
-    {
-        cityBoundaryTiles.forEach((neighbors, tileKey) => 
-        {
-            const parsedStr = getOddrFromOddrString(tileKey);
-
-            if (parsedStr.col === -1 || parsedStr.row === -1)
-                return;
-
-            const col = parsedStr.col;
-            const row = parsedStr.row;
-
-            const center = oddrToPixel(col, row, tileSize.x, tileSize.y, hexMapOffset);
-            
-            // check against all hex edges
-            const offsets = getOffsets(row);
-
-            offsets.forEach(([dx, dy], i) => 
-            {
-                const neighborKey = getMapOddrString(wrapCol(col + dx), wrapRow(row + dy));
-                
-                if (!neighbors.includes(neighborKey)) 
-                    return; // if hex edge has neighbor not owned by city = draw on that edge
-
-                const start = getHexPoint(i, center, tileSize);
-                const end = getHexPoint((i + 1) % 6, center, tileSize);
-
-                drawLine(context, start, end, 'yellow', Math.min(tileSize.x, tileSize.y) / 20);
-            });
-        });
-    }
-
-    function drawResourceOnTile(context: CanvasRenderingContext2D, tile: TileType)
-    {
-        if (tile.ResourceType !== TileNone.NONE && tile.District === TileNone.NONE)
-        {
-            const px = oddrToPixel(tile.X, tile.Y, tileSize.x, tileSize.y, hexMapOffset);
-            const imgAttributes = getResource(tile, resourceImagesCache.current);
-
-            if (!imgAttributes.imgElement || imgAttributes.scaleType === HexType.UNKNOWN)
-                return;
-
-            const scale = getScaleFromType(imgAttributes.scaleType); 
-            const img = imgAttributes.imgElement;
-
-            // divide 2 since want img centered on tile and resources are roughly half the tile's size
-            // resource = 19x19 ; tile = 32x32
-            const drawWidth = tileSize.x / 2 * scale.scaleW;
-            const drawHeight = tileSize.y / 2 * scale.scaleH;
-
-            if (img)
-            {
-                context.save();
-
-                context.scale(1, -1);
-                context.translate(0, -gridSize.y);
-
-                context.drawImage(img, px.x - drawWidth / 2, px.y - drawHeight / 2, drawWidth, drawHeight);
-
-                context.restore();
-            }
-        }
-    }
-
-    function drawYieldsOnTile(context: CanvasRenderingContext2D, tile: TileType, yieldAttr: {imgElement: HTMLImageElement | undefined, scaleType: HexType}[])
-    {
-        const px = oddrToPixel(tile.X, tile.Y, tileSize.x, tileSize.y, hexMapOffset);
-        const imgAttributes = yieldAttr;
-
-        // only using the tile scale instead of the img scale as the tile scale changes on zoom change
-        const tileScaleY = tileSize.y / BASE_TILE_SIZE;
-        const tileScaleX = tileSize.x / BASE_TILE_SIZE;
-        
-        const leftTop = getHexPoint(3, px, tileSize);
-        const leftBottom = getHexPoint(4, px, tileSize);
-        const left = {x: leftTop.x, y: (leftTop.y + leftBottom.y) / 2};
-
-        const rightTop = getHexPoint(0, px, tileSize);
-        const rightBottom = getHexPoint(1, px, tileSize);
-        const right = {x: rightTop.x, y: (rightTop.y + rightBottom.y) / 2};
-
-        let yieldPosIndex = 0;
-        const yieldPositions: {x: number, y: number}[] = 
-        [
-            // top-left
-            {x: left.x + 4 * tileScaleX, y: left.y + 4 * tileScaleY},
-            // top-middle
-            {x: px.x, y: px.y + 4 * tileScaleY},
-            // top-right
-            {x: right.x - 4 * tileScaleX, y: right.y + 4 * tileScaleX},
-            // bottom-left 
-            {x: left.x + 4 * tileScaleX, y: left.y - 4 * tileScaleY},
-            // bottom-middle
-            {x: px.x, y: px.y - 4 * tileScaleY},
-            // bottom-right
-            {x: right.x - 4 * tileScaleX, y: right.y - 4 * tileScaleX}
-        ];
-
-        imgAttributes.forEach((attr) => 
-        {
-            if (!attr.imgElement || attr.scaleType === HexType.UNKNOWN)
-                return;
-
-            const scale = getScaleFromType(attr.scaleType); 
-            const img = attr.imgElement;
-
-            const drawWidth = tileSize.x / 8 * scale.scaleW;
-            const drawHeight = tileSize.y / 8 * scale.scaleH;
-
-            if (img)
-            {
-                context.save();
-
-                context.scale(1, -1);
-                context.translate(0, -gridSize.y);
-
-                context.drawImage(img, yieldPositions[yieldPosIndex].x - drawWidth / 2, yieldPositions[yieldPosIndex].y - drawHeight / 2, drawWidth, drawHeight);
-                context.restore();
-
-                ++yieldPosIndex;
-            }
-        })
-    }
-
-    function drawHexImage(context: CanvasRenderingContext2D, tile: TileType, opacity: number, img: HTMLImageElement)
-    {
-        const px = oddrToPixel(tile.X, tile.Y, tileSize.x, tileSize.y, hexMapOffset);
-        const imgAttributes = getImageAttributes(tile);
-        const scale = getScaleFromType(imgAttributes.scaleType); 
-
-        const drawWidth = tileSize.x * scale.scaleW;
-        const drawHeight = tileSize.y * scale.scaleH;
-
-        context.save();
-        // flip y coords to make everything look like in-game civ6
-        context.scale(1, -1);
-        context.translate(0, -gridSize.y);
-
-        context.globalAlpha = opacity;
-
-        context.drawImage(img, px.x - drawWidth / 2, px.y - drawHeight / 2, drawWidth, drawHeight);
-
-        context.globalAlpha = 1;
-
-        context.restore();
     }
 
     function drawMapWithHoveredTile(context: CanvasRenderingContext2D, oddrCoord: {col: number, row: number}, opacity: number)
@@ -507,7 +202,7 @@ const MapPage = () =>
 
             const col = parsedStr.col;
             const row = parsedStr.row;
-            const px = oddrToPixel(col, row, tileSize.x, tileSize.y, hexMapOffset);
+            const px = oddrToPixel(col, row, tileSize.x, tileSize.y, getHexMapOffset(tileSize));
 
             if (oddrCoord.col === col && oddrCoord.row === row)
             {  
@@ -530,23 +225,28 @@ const MapPage = () =>
                 theOpacity = 1;
             }
 
-            const theImage = getImageAttributes(tile).imgElement;
+            const theImage = getImageAttributes(tile, naturalWondersImagesCache.current, wondersImagesCache.current, districtsImagesCache.current, terrainImagesCache.current).imgElement;
             if (theImage)
-                drawHexImage(context, tile, theOpacity, theImage);
+                drawHexImage(context, tile, theOpacity, theImage, naturalWondersImagesCache.current, wondersImagesCache.current, districtsImagesCache.current, terrainImagesCache.current, tileSize, gridSize);
 
             const yieldAttr = yieldAttributeCache.current.get(getMapOddrString(tile.X, tile.Y));
             if (optionalVisual.yields && yieldAttr)
-                drawYieldsOnTile(context, tile, yieldAttr);
+                drawYieldsOnTile(context, tile, yieldAttr, tileSize, gridSize);
             else if (optionalVisual.resources)
-                drawResourceOnTile(context, tile);
+                drawResourceOnTile(context, tile, tileSize, gridSize, resourceImagesCache.current);
 
-            updateRiverCacheWithTile(tile, riverArray);
+            if (riverTiles.length <= 0)
+                updateRiverCacheWithTile(tile, riverArray);
         });
 
-        drawRiversFromCache(context);
-        drawBorderLines(context);
+        if (riverTiles.length <= 0)
+            drawRiversFromCache(context, tileSize, gridSize, riverArray, hexmapCache.current);
+        else
+            drawRiversFromCache(context, tileSize, gridSize, riverTiles, hexmapCache.current);
 
-        drawTextWithBox(context, {x: textBoxPos.x, y: textBoxPos.y}, textBoxText);
+        drawBorderLines(context, cityBoundaryTiles, tileSize, gridSize, minAndMaxCoords);
+
+        drawTextWithBox(context, {x: textBoxPos.x, y: textBoxPos.y}, textBoxText, tileSize, gridSize);
 
         if (riverTiles.length <= 0)
             setRiverTiles(riverArray);
@@ -587,7 +287,7 @@ const MapPage = () =>
 
         if (mousePos)
         {
-            const oddrCoord = pixelToOddr(mousePos, tileSize, hexMapOffset); 
+            const oddrCoord = pixelToOddr(mousePos, tileSize, getHexMapOffset(tileSize)); 
             const key = getMapOddrString(oddrCoord.col, oddrCoord.row);
 
             handleMouseHover(key, oddrCoord);
@@ -606,7 +306,7 @@ const MapPage = () =>
             const divRect = scrollRef.current.getBoundingClientRect(); // size will always be the same regardless of scroll
             const inDivBounds = clientX >= divRect.left && clientX <= divRect.right && clientY >= divRect.top && clientY <= divRect.bottom;
 
-            const oddrCoord = pixelToOddr(mousePos, tileSize, hexMapOffset);
+            const oddrCoord = pixelToOddr(mousePos, tileSize, getHexMapOffset(tileSize));
             const outOfHexBounds = oddrCoord.col < minX || oddrCoord.col > maxX || oddrCoord.row < minY || oddrCoord.row > maxY;
 
             // dont reset the clicked city stuff if click is out of bounds - only want to reset when click on the visible hexmap
@@ -635,7 +335,7 @@ const MapPage = () =>
                                 const offsets = getOffsets(row);
                                 offsets.forEach((neighbor) => 
                                 {
-                                    let neighborCoord = {x: wrapCol(col + neighbor[0]), y: wrapRow(row + neighbor[1])};
+                                    let neighborCoord = {x: wrapCol(col + neighbor[0], minAndMaxCoords), y: wrapRow(row + neighbor[1], minAndMaxCoords)};
                                     const neighborStringCoord = getMapOddrString(neighborCoord.x, neighborCoord.y);
                                     let cacheTile = hexmapCache.current.get(neighborStringCoord);
 
@@ -730,14 +430,7 @@ const MapPage = () =>
 
                 if (allMaps.status !== 200 && allMaps.status !== 404) // user may not have saved any maps yet
                 {
-                    easySetTimeout<string>
-                    (
-                        setSaveErrorText,
-                        savesErrorTimeoutRef,
-                        `Error loading maps from database (${allMaps.status})!`,
-                        '',
-                        4000
-                    );
+                    showSaveError(`Error loading maps from database (${allMaps.status})!`);
 
                     return;
                 }
@@ -801,14 +494,7 @@ const MapPage = () =>
 
                 if (response.status !== 201)
                 {
-                    easySetTimeout<string> 
-                    (
-                        setMiscErrorText,
-                        miscErrorTimeoutRef,
-                        `Something went wrong (${response.status}).`,
-                        '',
-                        4000
-                    );
+                    showMiscError(`Something went wrong (${response.status}).`);
                 }
             }
             else // otherwise, logout
@@ -844,21 +530,26 @@ const MapPage = () =>
             if (tile.IsCity && dropdownCity && tile.CityName === dropdownCity)
                 theOpacity = 0.25;
 
-            const theImage = getImageAttributes(tile).imgElement;
+            const theImage = getImageAttributes(tile, naturalWondersImagesCache.current, wondersImagesCache.current, districtsImagesCache.current, terrainImagesCache.current).imgElement;
             if (theImage)
-                drawHexImage(context, tile, theOpacity, theImage);
+                drawHexImage(context, tile, theOpacity, theImage, naturalWondersImagesCache.current, wondersImagesCache.current, districtsImagesCache.current, terrainImagesCache.current, tileSize, gridSize);
 
             const yieldAttr = yieldAttributeCache.current.get(getMapOddrString(tile.X, tile.Y));
             if (optionalVisual.yields && yieldAttr)
-                drawYieldsOnTile(context, tile, yieldAttr);
+                drawYieldsOnTile(context, tile, yieldAttr, tileSize, gridSize);
             else if (optionalVisual.resources)
-                drawResourceOnTile(context, tile);
+                drawResourceOnTile(context, tile, tileSize, gridSize, resourceImagesCache.current);
 
-            updateRiverCacheWithTile(tile, riverArray);
+            if (riverTiles.length <= 0)
+                updateRiverCacheWithTile(tile, riverArray);
         });
 
-        drawRiversFromCache(context);
-        drawBorderLines(context);
+        if (riverTiles.length <= 0)
+            drawRiversFromCache(context, tileSize, gridSize, riverArray, hexmapCache.current);
+        else
+            drawRiversFromCache(context, tileSize, gridSize, riverTiles, hexmapCache.current);
+
+        drawBorderLines(context, cityBoundaryTiles, tileSize, gridSize, minAndMaxCoords);
 
         if (riverTiles.length <= 0)
             setRiverTiles(riverArray);
@@ -884,7 +575,7 @@ const MapPage = () =>
         {
             const tile = structuredClone(shallowTile); // deep copy
 
-            const imgAttributes = getImageAttributes(tile); 
+            const imgAttributes = getImageAttributes(tile, naturalWondersImagesCache.current, wondersImagesCache.current, districtsImagesCache.current, terrainImagesCache.current); 
             const img = imgAttributes.imgElement;
 
             if (img)
@@ -1249,14 +940,7 @@ const MapPage = () =>
     
         if (theError.length > 0)
         {
-            easySetTimeout<string>
-            (
-                setDistrictErrorText,
-                dropdownErrorTimeoutRef,
-                theError,
-                '',
-                4000
-            );
+            showDistrictError(theError);
 
             return;
         }
@@ -1278,20 +962,7 @@ const MapPage = () =>
                     {
                         updateTilesWithDistrict(foundTile, dropdownCityOwnedTiles, theCiv);
 
-                        easySetTimeout<string>
-                        (
-                            setDistrictSuccessText,
-                            successTimeoutRef,
-                            'Success!',
-                            '',
-                            4000
-                        );
-
-                        if (dropdownErrorTimeoutRef.current)
-                        {
-                            clearTimeout(dropdownErrorTimeoutRef.current);
-                            setDistrictErrorText('');
-                        }
+                        showDistrictSuccess('Success!');
                     }
                 }
             }
@@ -1307,189 +978,11 @@ const MapPage = () =>
 
                 if (theError.length > 0)
                 {
-                    easySetTimeout<string>
-                    (
-                        setDistrictErrorText,
-                        dropdownErrorTimeoutRef,
-                        theError,
-                        '',
-                        4000
-                    );
+                    showDistrictError(theError);
                 }
             }
         }
     }, [cityOwnedTiles, dropdownDistrict, dropdownCity, dropdownCiv, dropdownYields, mapCacheVersion, includeWonders, civCompletedWonders, dropdownNearbyCity, dropdownVictoryType])
-
-    const getSelectionYields = useCallback(() => 
-    {
-        const allYields = getAllPossibleYields();
-        const tempArr: OptionsWithImage[] = [];
-
-        if (areImagesLoaded)
-        {
-            for (let i = 0; i < allYields.length; i++)
-            {
-                const currYield = allYields[i];
-                const currImage = dropdownYieldImagesCache.current.get(currYield);
-                if (currImage)
-                    tempArr.push({value: currYield, label: currYield, image: currImage});
-            }
-        }
-
-        return tempArr;
-    }, [areImagesLoaded])    
-
-    function formatSelectionYields(option: OptionsWithImage): JSX.Element
-    {
-        return <div>
-            <span style={{paddingRight: '10px'}}>{option.label}</span>
-            <img src={option.image.src} width={20} height={20}/>
-        </div>
-    }
-
-    const getNearbyCityOptions = useCallback(() => 
-    {
-        const tempArr: OptionsWithSpecialText[] = [];
-
-        uniqueCities.forEach((cities, civ) => 
-        {
-            cities.forEach((city) => 
-            {
-                if (city !== dropdownCity)
-                    tempArr.push({value: `${civ},${city}`, label: <div> <span>{city}</span> <br/> <span>({civ})</span> </div>, text: `${city} (${civ})`});
-            })
-        })
-
-        return tempArr;
-    }, [uniqueCities, dropdownCity])  
-
-    const getCivilizationOptions = useCallback(() => 
-    {
-        const tempArr: OptionsGenericString[] = [];
-
-        uniqueCivilizations.forEach((civ) => 
-        {
-            if (includeCityStates || (!includeCityStates && !civ.includes("city-state")))
-            {
-                tempArr.push({value: civ, label: civ});
-            }
-        })
-
-        return tempArr;
-    }, [uniqueCivilizations, includeCityStates])   
-
-    const getCityOptions = useCallback(() => 
-    {
-        const tempArr: OptionsGenericString[] = [];
-        if (dropdownCiv)
-        {
-            const cityList = uniqueCities.get(dropdownCiv);
-
-            if (cityList)
-            {
-                for (let i = 0; i < cityList.length; i++)
-                {
-                    const theCity = cityList[i];
-                    tempArr.push({value: theCity, label: theCity});
-                }
-            }
-        }
-
-        return tempArr;
-    }, [uniqueCities, dropdownCiv, getCivilizationOptions]) 
-
-    function getDistrictOptions() 
-    {
-        const tempArr: OptionsGenericString[] = [];
-        const allDistricts = getAllPossibleDistricts();
-
-        for (let i = 0; i < allDistricts.length; i++)
-        {
-            const theDistrict = allDistricts[i];
-            tempArr.push({value: theDistrict, label: theDistrict});
-        }
-
-        return tempArr;
-    }
-
-    function getVictoryTypeOptions() 
-    {
-        const tempArr: OptionsGenericString[] = [];
-        const allVictoryTypes = getAllPossibleVictoryTypes();
-
-        for (let i = 0; i < allVictoryTypes.length; i++)
-        {
-            const theVictoryType = allVictoryTypes[i];
-            tempArr.push({value: theVictoryType, label: theVictoryType});
-        }
-
-        return tempArr;
-    }
-
-    function getNearbyCityTextMaxWidth()
-    {
-        let max = 0;
-        const opts = getNearbyCityOptions();
-        
-        if (opts.length > 0)
-        {
-            opts.forEach((vals) => 
-            {
-                const width = getTextWidth(vals.text, `${nearbyCityFontSize}px arial`);
-                if (width)
-                    max = Math.max(width);
-            })
-        }
-        else
-        {
-            const theString = 'Select a nearby city';
-            const width = getTextWidth(theString, `${nearbyCityFontSize}px arial`);
-            if (width)
-                max = Math.max(width);
-        }
-
-        return max;
-    }
-
-    function getOptionalVisualMaxWidth()
-    {
-        let max = 0;
-        const opts = getOptionalVisualOptions();
-        
-        if (opts.length > 0)
-        {
-            opts.forEach((vals) => 
-            {
-                if (vals.value)
-                {
-                    const width = getTextWidth(vals.value, `${optionalVisualFontSize}px arial`);
-                    if (width)
-                        max = Math.max(width);
-                }
-            })
-        }
-        else
-        {
-            const theString = 'Select an optional visual';
-            const width = getTextWidth(theString, `${optionalVisualFontSize}px arial`);
-            if (width)
-                max = Math.max(width);
-        }
-
-        return max;
-    }
-
-    function getOptionalVisualOptions() 
-    {
-        const tempArr: OptionsGenericString[] = [];
-
-        for (const visuals of Object.values(OptionalVisualOptions))
-        {
-            tempArr.push({label: visuals, value: visuals});
-        }
-
-        return tempArr;
-    }
     
     async function handleSaveClick(currID: number) 
     {
@@ -1502,27 +995,13 @@ const MapPage = () =>
                 // check input error before toggling visibility
                 if (save.inputText.trim().length === 0 && save.textInputDisplay === 'block') 
                 {
-                    easySetTimeout<string>
-                    (
-                        setSaveErrorText,
-                        savesErrorTimeoutRef,
-                        'Please enter a valid save name!',
-                        '',
-                        4000
-                    );
+                    showSaveError('Please enter a valid save name!');
 
                     newSaveList.push(save);
                 }
                 else if (!mapJSON || mapJSON && mapJSON.length === 0)
                 {
-                    easySetTimeout<string>
-                    (
-                        setSaveErrorText,
-                        savesErrorTimeoutRef,
-                        'Must load a map first!',
-                        '',
-                        4000
-                    );
+                    showSaveError('Must load a map first!');
 
                     newSaveList.push(save);
                 }
@@ -1551,14 +1030,7 @@ const MapPage = () =>
                                     }
                                     else
                                     {
-                                        easySetTimeout<string>
-                                        (
-                                            setSaveErrorText,
-                                            savesErrorTimeoutRef,
-                                            `Something went wrong when updating the map. (${patchMapResponse.status})`,
-                                            '',
-                                            4000
-                                        );
+                                        showSaveError(`Something went wrong when updating the map. (${patchMapResponse.status})`);
                                     }
                                 }
                                 else if (checkMapExists.status === 404) // does not exist - add new map
@@ -1575,40 +1047,19 @@ const MapPage = () =>
                                         }
                                         else
                                         {
-                                            easySetTimeout<string>
-                                            (
-                                                setSaveErrorText,
-                                                savesErrorTimeoutRef,
-                                                `Something went wrong when adding a new map. (${newMapResponse.status})`,
-                                                '',
-                                                4000
-                                            );
+                                            showSaveError(`Something went wrong when adding a new map. (${newMapResponse.status})`);
                                         }
                                     }
                                     else
                                     {
-                                        easySetTimeout<string>
-                                        (
-                                            setSaveErrorText,
-                                            savesErrorTimeoutRef,
-                                            `Something went wrong when trying to verify the user. (${user.status})`,
-                                            '',
-                                            4000
-                                        );
+                                        showSaveError(`Something went wrong when trying to verify the user. (${user.status})`);
                                     }
                                 }
                                 else
                                 {
-                                    easySetTimeout<string>
-                                    (
-                                        setSaveErrorText,
-                                        savesErrorTimeoutRef,
-                                        `Something went wrong when checking if the map exists. (${checkMapExists.status})`,
-                                        '',
-                                        4000
-                                    );
+                                    showSaveError(`Something went wrong when checking if the map exists. (${checkMapExists.status})`);
 
-                                    // error don't do anything
+                                    // error, don't do anything
                                     newSaveList.push(save);
                                 }
                             }
@@ -1625,6 +1076,8 @@ const MapPage = () =>
                         newSaveList.push({ ...save, textInputDisplay: 'block', textNameDisplay: 'none', name: null });
                     }
                 }
+
+                showSaveSuccess('Success!');
             }
             else
             {
@@ -1680,14 +1133,7 @@ const MapPage = () =>
         }
         else
         {
-            easySetTimeout<string>
-            (
-                setSaveErrorText,
-                savesErrorTimeoutRef,
-                'Must load/import a json first!',
-                '',
-                4000
-            );
+            showSaveError('Must load/import a json first!');
         }
     }
 
@@ -1701,14 +1147,7 @@ const MapPage = () =>
         }
         else
         {
-            easySetTimeout<string>
-            (
-                setMiscErrorText,
-                miscErrorTimeoutRef,
-                `Something went wrong (${response.status}).`,
-                '',
-                4000
-            );
+            showMiscError(`Something went wrong (${response.status}).`);
         }
     }
 
@@ -1722,14 +1161,7 @@ const MapPage = () =>
         }
         else
         {
-            easySetTimeout<string>
-            (
-                setMiscErrorText,
-                miscErrorTimeoutRef,
-                'No map loaded that can be reset!',
-                '',
-                4000
-            );
+            showMiscError('No map loaded that can be reset!');
         }
     }
 
@@ -1746,7 +1178,16 @@ const MapPage = () =>
             />
 
             <div style={{display: 'flex'}}>
-                <span style={{marginLeft: '10px'}} className={common.errorText}>{miscErrorText}</span>
+
+                {
+                    miscMessage && 
+                    (
+                        <span className={miscMessage.type === "error" ? common.errorText : common.successText}>
+                            {miscMessage.text}
+                        </span>
+                    )
+                }
+
                 <div style={{marginBottom: '5px', marginRight: '10px', display: 'flex', marginLeft: 'auto'}}>
                     <button className={common.smallButton} style={{marginRight: '5px'}} onClick={handleReset}>RESET</button>
                     <button className={common.smallButton} style={{marginRight: '5px', display: isLoggedIn ? 'none' : 'block'}} onClick={e => nav('/login')}>LOGIN</button>
@@ -1788,7 +1229,14 @@ const MapPage = () =>
                         />
                     </div>
 
-                    <span className={common.errorText}>{saveErrorText}</span>
+                    {
+                        saveMessage && 
+                        (
+                            <span className={saveMessage.type === "error" ? common.errorText : common.successText}>
+                                {saveMessage.text}
+                            </span>
+                        )
+                    }
                 </div>
 
                 <div
@@ -1850,7 +1298,7 @@ const MapPage = () =>
                                 inputId='civilization-dropdown'
                                 instanceId='civilization-dropdown'
                                 value={dropdownCiv ? {label: dropdownCiv, value: dropdownCiv} : null}
-                                options={getCivilizationOptions()} 
+                                options={getCivilizationOptions(uniqueCivilizations, includeCityStates)} 
                                 styles={genericSingleSelectStyle} 
                                 onChange=
                                 {
@@ -1881,7 +1329,7 @@ const MapPage = () =>
                                 inputId='city-dropdown'
                                 instanceId='city-dropdown'
                                 value={dropdownCity ? {label: dropdownCity, value: dropdownCity} : null}
-                                options={getCityOptions()} 
+                                options={getCityOptions(uniqueCities, dropdownCiv)} 
                                 styles={genericSingleSelectStyle} 
                                 onChange=
                                 {
@@ -1946,8 +1394,33 @@ const MapPage = () =>
                                     }
 
                                 }
-                                options={getNearbyCityOptions()} 
-                                styles={nearbyCityStyles(getNearbyCityTextMaxWidth() * 1.25)}
+                                options=
+                                {(() => 
+                                    {
+                                        const options = getNearbyCityOptions(uniqueCities, dropdownCity);
+
+                                        if (options.length === 0)
+                                            return undefined;
+                                        else
+                                            return options;
+                                    }
+                                )()} 
+                                styles=
+                                {(() => 
+                                    {
+                                        const options = getNearbyCityOptions(uniqueCities, dropdownCity);
+
+                                        if (options.length === 0)
+                                        {
+                                            const width = getTextWidth('Select a nearby city', `${nearbyCityFontSize}px arial`);
+
+                                            if (width)
+                                                return nearbyCityStyles(width * 1.25);
+                                        }
+                                        else
+                                            return nearbyCityStyles(getNearbyCityTextMaxWidth(uniqueCities, dropdownCity) * 1.25);
+                                    }
+                                )()}
                                 placeholder='Select a nearby city'
                                 ref={nearbyCityRef}
                             />
@@ -1964,7 +1437,7 @@ const MapPage = () =>
                                 inputId='yields-dropdown'
                                 instanceId='yields-dropdown'
                                 value={visualYieldDropdown}
-                                options={getSelectionYields()} 
+                                options={getSelectionYields(areImagesLoaded, dropdownYieldImagesCache.current)} 
                                 isMulti 
                                 styles={yieldSelectStyle}
                                 onChange=
@@ -2059,8 +1532,14 @@ const MapPage = () =>
                             </Tooltip>
                         </div>
 
-                        <span className={common.errorText}>{districtErrorText}</span>
-                        <span className={common.successText}>{districtSuccessText}</span>
+                        {
+                            districtMessage && 
+                            (
+                                <span className={districtMessage.type === "error" ? common.errorText : common.successText}>
+                                    {districtMessage.text}
+                                </span>
+                            )
+                        }
                     </div>
                 </div>
             </div>
@@ -2068,35 +1547,6 @@ const MapPage = () =>
             {<button onClick={testStuff}>TEST BUTTON</button>}
         </div>
     );
-
-    /**
-     * 
-     * @param tile 
-     * Hex tile of TileType.
-     * @returns 
-     * The image type where imageType is the path to the actual image and scaleType returns the generic kind of image that will be displayed.
-     * Returns an empty string if the tile cannot be resolved.
-     * Assumes that the terrain, district, wonder, and natural wonder maps are already initialized.
-     * - Prioritization: Natural wonders > wonders > districts > terrain
-     */
-    function getImageAttributes(tile: TileType): {imgElement: HTMLImageElement | undefined, scaleType: number}
-    {    
-        const natWonder = getNaturalWonder(tile, naturalWondersImagesCache.current);
-        const wonder = getWonder(tile, wondersImagesCache.current);
-        const district = getDistrict(tile, districtsImagesCache.current);
-        const terrain = getTerrain(tile, terrainImagesCache.current);
-
-        if (natWonder.imgElement && natWonder.scaleType !== HexType.UNKNOWN)
-            return natWonder;
-        else if (wonder.imgElement && wonder.scaleType !== HexType.UNKNOWN)
-            return wonder;
-        else if (district.imgElement && district.scaleType !== HexType.UNKNOWN)
-            return district;
-        else if (terrain.imgElement && terrain.scaleType !== HexType.UNKNOWN)
-            return terrain;
-
-        return {imgElement: undefined, scaleType: -1};
-    }
 
     async function testStuff()
     {

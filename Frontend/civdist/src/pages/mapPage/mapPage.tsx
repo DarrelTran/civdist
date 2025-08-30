@@ -105,7 +105,6 @@ const MapPage = () =>
     const [originalTileSize, setOriginalTileSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(BASE_TILE_SIZE, minAndMaxCoords, winSize).tileX, y: getScaledGridAndTileSizes(BASE_TILE_SIZE, minAndMaxCoords, winSize).tileY});
     const [tileSize, setTileSize] = useState<{x: number, y: number}>({x: getScaledGridAndTileSizes(BASE_TILE_SIZE, minAndMaxCoords, winSize).tileX, y: getScaledGridAndTileSizes(BASE_TILE_SIZE, minAndMaxCoords, winSize).tileY});
 
-    const [currentTile, setCurrentTile] = useState<TileType>();
     const [currentCity, setCurrentCity] = useState<TileType>();
 
     const [cityBoundaryTiles, setCityBoundaryTiles] = useState<Map<string, string[]>>(new Map()); // <tile with boundary lines, neighboring tiles> - Uses the oddr coords
@@ -212,9 +211,6 @@ const MapPage = () =>
                     textBoxPos = {x: px.x, y: px.y};
                     textBoxText = tile.CityName;
                 }
-
-                if (currentTile && tile.X !== currentTile.X && tile.Y !== currentTile.Y)
-                    setCurrentTile(tile);
             }
             else if (tile.IsCity && tile.CityName === dropdownCity)
             {
@@ -296,7 +292,7 @@ const MapPage = () =>
             handleMouseHover(key, oddrCoord);
         }
 
-    }, 33) 
+    }, moveDelayMS) 
 
     const handleMouseClick = useCallback((e: MouseEvent) => 
     {
@@ -316,16 +312,18 @@ const MapPage = () =>
             // dont reset the clicked city stuff if click is out of bounds - only want to reset when click on the visible hexmap
             if (!inDivBounds || outOfHexBounds)
                 return;
-            
-            if (currentTile && currentTile.IsCity)
+
+            const clickedTile = hexmapCache.current.get(getMapOddrString(oddrCoord.col, oddrCoord.row));
+
+            if (clickedTile && clickedTile.IsCity)
             {
-                if (!currentCity || (currentCity && currentCity.CityName !== currentTile.CityName))
+                if (!currentCity || (currentCity && currentCity.CityName !== clickedTile.CityName))
                 {
-                    setCurrentCity(currentTile);
+                    setCurrentCity(clickedTile);
 
                     let tempMap = new Map<string, string[]>();
 
-                    const cityTiles = cityOwnedTiles.get(`${currentTile.Civilization},${currentTile.CityName}`);
+                    const cityTiles = cityOwnedTiles.get(`${clickedTile.Civilization},${clickedTile.CityName}`);
 
                     if (cityTiles)
                     {
@@ -334,7 +332,7 @@ const MapPage = () =>
                             const [col, row] = [tile.X, tile.Y];
 
                             let neighborList: string[] = [];
-                            if (tile.TileCity === currentTile.CityName)
+                            if (tile.TileCity === clickedTile.CityName)
                             {
                                 const offsets = getOffsets(row);
                                 offsets.forEach((neighbor) => 
@@ -344,7 +342,7 @@ const MapPage = () =>
                                     let cacheTile = hexmapCache.current.get(neighborStringCoord);
 
                                     // if tile is not part of city's owned tiles, that means the connecting edge to the current tile's edge must be a 'border edge'
-                                    if (cacheTile && cacheTile.TileCity !== currentTile.CityName)
+                                    if (cacheTile && cacheTile.TileCity !== clickedTile.CityName)
                                         neighborList.push(neighborStringCoord);
                                 });
                             }
@@ -356,7 +354,7 @@ const MapPage = () =>
 
                     setCityBoundaryTiles(tempMap);
                 }
-                else if (currentCity && currentCity.CityName === currentTile.CityName)
+                else if (currentCity && currentCity.CityName === clickedTile.CityName)
                 {
                     setCityBoundaryTiles(new Map());
                     setCurrentCity(undefined);
@@ -368,7 +366,7 @@ const MapPage = () =>
                 setCurrentCity(undefined);
             }
         }
-    }, [tileSize, gridSize, currentTile, currentCity, cityOwnedTiles]);
+    }, [tileSize, gridSize, currentCity, cityOwnedTiles]);
 
     useEffect(() => 
     {
@@ -729,7 +727,6 @@ const MapPage = () =>
         setDropdownValues(theJSON);
         setMapJSON(theJSON);
         setMinAndMaxCoords(getMinMaxXY(theJSON));
-        setCurrentTile(undefined);
         setCurrentCity(undefined);
         setCityBoundaryTiles(new Map());
         setVisualZoomInput(100);
@@ -1318,8 +1315,6 @@ const MapPage = () =>
                                             setDropdownCiv(null);
 
                                         setDropdownCity(null);
-                                        //nearbyCityRef.current?.clearValue();
-                                        //setDropdownNearbyCity(null);
                                     }
                                 } 
                                 placeholder={'Select a civilization'}

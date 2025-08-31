@@ -1,7 +1,8 @@
 import { DistrictIdentifierRecord, TileBuildingsCitizenSlots } from "../../types/typeMaps";
 import { TileType, TileTerrain, TileNaturalWonders, TileBonusResources, TileLuxuryResources, TileDistricts, TileUniqueDistricts, TileNone, TileBuildings, TileStrategicResources, TileFeatures, TileYields } from "../../types/civTypes";
-import { getOffsets } from "../hex/genericHex";
-import { getMapOddrString } from "../misc/misc";
+import { getMapOddrString, getOffsets } from "../hex/genericHex";
+
+/* Generic-ish functions that may be used outside of civ scoring. */
 
 /**
  * 

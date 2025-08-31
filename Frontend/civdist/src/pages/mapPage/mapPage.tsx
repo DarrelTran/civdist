@@ -1,19 +1,18 @@
-import React, {useEffect, useState, useRef, useCallback, JSX} from 'react';
+import React, {useEffect, useState, useRef, useCallback} from 'react';
 import Select, { GroupBase, SelectInstance } from 'react-select'
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import styles from './mapPage.module.css';
 import common from '../common.module.css';
 import { TileNone, TileWonders, TileDistricts, TileNaturalWonders, TileType, LeaderName, TileYields, PossibleErrors, VictoryType, TileBonusResources, TileLuxuryResources, TileStrategicResources, TileArtifactResources, TileUniqueDistricts, HexType} from '../../types/civTypes'
 import {SaveType, DatabaseMapType} from '../../types/serverTypes'
-import {TerrainFeatureKey, YieldImagesKey} from '../../types/imageTypes'
-import { loadDistrictImages, loadNaturalWonderImages, loadResourceImages, loadTerrainImages, loadWonderImages, loadYieldDropdownImages, loadYieldImages } from '../../images/imageLoaders';
+import {MiscImages, TerrainFeatureKey, YieldImagesKey} from '../../types/imageTypes'
+import { loadDistrictImages, loadMiscImages, loadNaturalWonderImages, loadResourceImages, loadTerrainImages, loadWonderImages, loadYieldDropdownImages, loadYieldImages } from '../../images/imageLoaders';
 import { getYields } from '../../images/imageAttributeFinders';
 import { BASE_TILE_SIZE, MIN_ZOOM, MAX_ZOOM } from '../../utils/constants';
-import { Civilization, getCivilizationObject, Norway } from '../../civilization/civilizations';
 import { yieldSelectStyle, nearbyCityFontSize, nearbyCityStyles, genericSingleSelectStyle, optionalVisualStyle } from './mapPageSelectStyles';
 import { OptionsWithSpecialText, OptionsGenericString, OptionalVisualOptions } from '../../types/selectionTypes';
-import { downloadMapJSON, getMapOddrString, getMinMaxXY, getOddrFromOddrString, getTextWidth, hexmapCacheToJSONArray } from '../../utils/misc/misc';
-import { getOffsets, oddrToPixel, pixelToOddr } from '../../utils/hex/genericHex';
+import { getTextWidth } from '../../utils/misc/misc';
+import { getOffsets, oddrToPixel, pixelToOddr, downloadMapJSON, getMapOddrString, getMinMaxXY, getOddrFromOddrString, hexmapCacheToJSONArray } from '../../utils/hex/genericHex';
 import { getScaledGridAndTileSizes, getScaledGridSizesFromTile } from '../../utils/imgScaling/scaling';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCircleQuestion } from '@fortawesome/free-regular-svg-icons';
@@ -25,10 +24,12 @@ import HoldDownButton from '../../components/holdDownButton/holdDownButton';
 import SaveDropdown from '../../components/saveDropdown/saveDropdown';
 import { backend_addMap, backend_checkLoggedIn, backend_getAllMaps, backend_getMap, backend_logout, backend_refreshToken, backend_updateMap } from '../../REST/user';
 import { useIdleTimer } from '../../hooks/idleDetector';
-import { drawBorderLines, drawHexImage, drawResourceOnTile, drawRiversFromCache, drawTextWithBox, drawYieldsOnTile, getHexMapOffset, getImageAttributes, wrapCol, wrapRow } from '../../utils/drawing/hexmap';
+import { drawBorderLines, drawCityHighlight, drawHexImage, drawResourceOnTile, drawRiversFromCache, drawTextWithBox, drawYieldsOnTile, getHexMapOffset, getImageAttributes, wrapCol, wrapRow } from '../../utils/drawing/hexmap';
 import { formatSelectionYields, getCityOptions, getCivilizationOptions, getDistrictOptions, getNearbyCityOptions, getNearbyCityTextMaxWidth, getOptionalVisualMaxWidth, getOptionalVisualOptions, getSelectionYields, getVictoryTypeOptions } from './dropdownOptions';
 import { useMessage } from '../../hooks/useMessage';
 import { useThrottledCallback } from '../../hooks/throttledCallback';
+import { Norway, getCivilizationObject } from '../../civilization/uniqueCivilizations';
+import { Civilization } from '../../civilization/civilizations';
 
 // assuming all resources are revealed
 
@@ -38,8 +39,6 @@ import { useThrottledCallback } from '../../hooks/throttledCallback';
 TODO: Change session storage to http cookies????
 
 TODO: Add images to dropdown.
-
-TODO: Remove number of re-renders! Remove unnecessary useCallbacks. Remove unnecessary dependencies or refactor them. Turn stuff into components.
 
 TODO: Add documentation to functions. Read random comments to see if any extra issues need fixing.
 
@@ -158,6 +157,7 @@ const MapPage = () =>
     const dropdownYieldImagesCache = useRef<Map<TileYields, HTMLImageElement>>(new Map());
     const yieldImagesCache = useRef<Map<YieldImagesKey, HTMLImageElement>>(new Map());
     const resourceImagesCache = useRef<Map<TileBonusResources | TileLuxuryResources | TileStrategicResources | TileArtifactResources, HTMLImageElement>>(new Map());
+    const miscImagesCache = useRef<Map<MiscImages, HTMLImageElement>>(new Map());
 
     const [areImagesLoaded, setAreImagesLoaded] = useState<boolean>(false);
     const [riverTiles, setRiverTiles] = useState<TileType[]>([]);
@@ -171,6 +171,7 @@ const MapPage = () =>
         await loadYieldDropdownImages(dropdownYieldImagesCache.current);
         await loadResourceImages(resourceImagesCache.current);
         await loadYieldImages(yieldImagesCache.current);
+        await loadMiscImages(miscImagesCache.current);
 
         setAreImagesLoaded(true);
     }
@@ -190,6 +191,9 @@ const MapPage = () =>
         let textBoxText = '';
 
         let theOpacity = opacity;
+
+        let cityHighlightTile: TileType | undefined = undefined;
+        let enemyHighlightTile: TileType | undefined = undefined;
 
         hexmapCache.current.forEach((tile, oddr) => 
         {
@@ -212,13 +216,18 @@ const MapPage = () =>
                     textBoxText = tile.CityName;
                 }
             }
-            else if (tile.IsCity && tile.CityName === dropdownCity)
-            {
-                theOpacity = 0.25;
-            }
             else
             {
                 theOpacity = 1;
+            }
+
+            if (dropdownCity && tile.IsCity && tile.CityName === dropdownCity && !cityHighlightTile)
+            {
+                cityHighlightTile = tile;
+            }
+            if (tile.IsCity && dropdownNearbyCity && tile.CityName === dropdownNearbyCity.CityName && !enemyHighlightTile)
+            {
+                enemyHighlightTile = tile;
             }
 
             const theImage = getImageAttributes(tile, naturalWondersImagesCache.current, wondersImagesCache.current, districtsImagesCache.current, terrainImagesCache.current).imgElement;
@@ -246,6 +255,12 @@ const MapPage = () =>
 
         if (riverTiles.length <= 0)
             setRiverTiles(riverArray);
+
+        if (cityHighlightTile)
+            drawCityHighlight(context, cityHighlightTile, tileSize, gridSize, MiscImages.CURRENT_CITY, 0.5, miscImagesCache.current);
+
+        if (enemyHighlightTile)
+            drawCityHighlight(context, enemyHighlightTile, tileSize, gridSize, MiscImages.ENEMY_CITY, 0.5, miscImagesCache.current);
     }
     
     const handleMouseHover = useCallback((key: string, oddrCoord: { col: number, row: number }) => 
@@ -256,7 +271,7 @@ const MapPage = () =>
         {
             drawMapWithHoveredTile(context, oddrCoord, 0.3);
         }
-    }, [tileSize, gridSize, cityBoundaryTiles, dropdownCity, optionalVisual, riverTiles, yieldAttributeCacheVersion]); // to ensure latest values are used
+    }, [tileSize, gridSize, cityBoundaryTiles, dropdownCity, dropdownNearbyCity, optionalVisual, riverTiles, yieldAttributeCacheVersion]); // to ensure latest values are used
 
     function getMousePos(e: MouseEvent): {x: number, y: number} | undefined
     {
@@ -412,11 +427,6 @@ const MapPage = () =>
         setUniqueCities(tempCitySet);
     }
 
-    useEffect(() => 
-    {
-        
-    }, [saveList, isLoggedIn])
-
     async function setupUser()
     {
         const response = await backend_checkLoggedIn();
@@ -487,26 +497,29 @@ const MapPage = () =>
 
     useEffect(() => 
     {
-        const intervalMinutes = 50;
-        const intervalID = setInterval(async () => 
+        if (isLoggedIn)
         {
-            if (!idleUser) // not idle - refresh so they stay logged in
+            const intervalMinutes = 50;
+            const intervalID = setInterval(async () => 
             {
-                const response = await backend_refreshToken();
-
-                if (response.status !== 201)
+                if (!idleUser) // not idle - refresh so they stay logged in
                 {
-                    showMiscError(`Something went wrong (${response.status}).`);
-                }
-            }
-            else // otherwise, logout
-            {
-                await handleLogout();
-            }
-        }, intervalMinutes * 60 * 1000)
+                    const response = await backend_refreshToken();
 
-        return () => clearInterval(intervalID);
-    }, [idleUser])
+                    if (response.status !== 201)
+                    {
+                        showMiscError(`Something went wrong (${response.status}).`);
+                    }
+                }
+                else // otherwise, logout
+                {
+                    await handleLogout();
+                }
+            }, intervalMinutes * 60 * 1000)
+
+            return () => clearInterval(intervalID);
+        }
+    }, [idleUser, isLoggedIn])
 
     useEffect(() => 
     {
@@ -526,6 +539,9 @@ const MapPage = () =>
         const riverArray: TileType[] = [];
         context.clearRect(0, 0, context.canvas.width, context.canvas.height);
 
+        let cityHighlightTile: TileType | undefined = undefined;
+        let enemyHighlightTile: TileType | undefined = undefined;
+
         hexmapCache.current.forEach(tile => 
         {
             let theOpacity = 1;
@@ -544,6 +560,15 @@ const MapPage = () =>
 
             if (riverTiles.length <= 0)
                 updateRiverCacheWithTile(tile, riverArray);
+
+            if (dropdownCity && tile.IsCity && tile.CityName === dropdownCity && !cityHighlightTile)
+            {
+                cityHighlightTile = tile;
+            }
+            if (tile.IsCity && dropdownNearbyCity && tile.CityName === dropdownNearbyCity.CityName && !enemyHighlightTile)
+            {
+                enemyHighlightTile = tile;
+            }
         });
 
         if (riverTiles.length <= 0)
@@ -555,7 +580,14 @@ const MapPage = () =>
 
         if (riverTiles.length <= 0)
             setRiverTiles(riverArray);
-    }, [tileSize, gridSize, cityBoundaryTiles, dropdownCity, areImagesLoaded, mapJSON, mapCacheVersion, optionalVisual, riverTiles, yieldAttributeCacheVersion]);
+
+        if (cityHighlightTile)
+            drawCityHighlight(context, cityHighlightTile, tileSize, gridSize, MiscImages.CURRENT_CITY, 0.5, miscImagesCache.current);
+
+        if (enemyHighlightTile)
+            drawCityHighlight(context, enemyHighlightTile, tileSize, gridSize, MiscImages.ENEMY_CITY, 0.5, miscImagesCache.current);
+
+    }, [tileSize, gridSize, cityBoundaryTiles, dropdownCity, areImagesLoaded, mapJSON, mapCacheVersion, optionalVisual, riverTiles, yieldAttributeCacheVersion, dropdownNearbyCity]);
 
     const initHexmapCache = useCallback((theMapJSON: TileType[]) => 
     {
@@ -1249,7 +1281,7 @@ const MapPage = () =>
                     style={{
                         overflow: 'auto',
                         border: '1px solid black',
-                        minWidth: '50px',
+                        height: 'auto',
                         maxWidth: gridSize.x > 0 ? gridSize.x / 1.5 : 'auto'
                     }}
                 >
@@ -1315,6 +1347,9 @@ const MapPage = () =>
                                             setDropdownCiv(null);
 
                                         setDropdownCity(null);
+
+                                        setDropdownNearbyCity(null);
+                                        nearbyCityRef.current?.clearValue();
                                     }
                                 } 
                                 placeholder={'Select a civilization'}

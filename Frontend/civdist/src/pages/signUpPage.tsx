@@ -1,5 +1,5 @@
-import React, {useEffect, useState, useRef} from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import {useEffect, useState, useRef} from 'react';
+import { useNavigate } from 'react-router-dom';
 import common from './common.module.css';
 import styles from './signUpPage.module.css';
 import { TITLE_CHAR_ANIM_DELAY_MS, TITLE_CHAR_ANIM_TIME_MS, TITLE_TEXT } from '../utils/constants';

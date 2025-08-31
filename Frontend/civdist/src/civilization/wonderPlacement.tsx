@@ -1,7 +1,6 @@
-import { TileType, LeaderName, TileNone, TileFeatures, TileTerrain, TileWonders, TileDistricts, TileUniqueDistricts, TileNaturalWonders, TileBonusResources, TileLuxuryResources, TileImprovements, TileStrategicResources, TilePantheons, TileYields, TileBuildings } from "../types/civTypes";
+import { TileType, TileNone, TileFeatures, TileTerrain, TileBonusResources, TileBuildings } from "../types/civTypes";
 import { getCityFoundedReligion, isCityCenter, isCommercialHub, isDesert, isTundra, isEncampment, isEntertainmentComplex, isHarbor, isHolySite, isLand, isTheaterSquare, isGrassland, isPlains, isCampus, isIndustrialZone, isMountainWonder } from "../utils/civ/civFunctions";
-import { getMapOddrString } from "../utils/misc/misc";
-import { getOffsets } from "../utils/hex/genericHex";
+import { getMapOddrString, getOffsets } from "../utils/hex/genericHex";
 
 export function canPlaceAlhambra(tile: TileType, mapCache: Map<string, TileType>): boolean
 {

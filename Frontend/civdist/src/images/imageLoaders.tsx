@@ -1,11 +1,12 @@
 import { TileDistricts, TileWonders, TileNaturalWonders, TileYields, TileBonusResources, TileLuxuryResources, TileStrategicResources, TileArtifactResources, TileUniqueDistricts } from "../types/civTypes";
-import { YieldImagesKey  } from "../types/imageTypes";
+import { MiscImages, YieldImagesKey  } from "../types/imageTypes";
 import { allWonderImages } from "./importers/wondersImport";
 import { allDistrictImages } from "./importers/districtImport";
 import { allTerrainImages } from "./importers/terrainImport";
 import { allNaturalWonderImages } from "./importers/naturalWondersImport";
 import { yieldDropdownImages, yieldHexmapImages } from "./importers/yieldsImport";
 import { allResourceImages } from "./importers/resourcesImport";
+import { allMiscImages } from "./importers/miscImport";
 
 async function loadImages<T extends string | number | symbol>(theMap: Map<T, HTMLImageElement>, imageImport: Record<T, string>)
 {
@@ -57,4 +58,9 @@ export async function loadYieldImages(yieldCache: Map<YieldImagesKey, HTMLImageE
 export async function loadResourceImages(resources: Map<TileBonusResources | TileLuxuryResources | TileStrategicResources | TileArtifactResources, HTMLImageElement>)
 {
     loadImages(resources, allResourceImages);
+}
+
+export async function loadMiscImages(misc: Map<MiscImages, HTMLImageElement>)
+{
+    loadImages(misc, allMiscImages);
 }

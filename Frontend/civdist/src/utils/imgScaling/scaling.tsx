@@ -1,5 +1,5 @@
 import { HexType, TileType } from "../../types/civTypes";
-import { getMinMaxXY } from "../misc/misc";
+import { getMinMaxXY } from "../hex/genericHex";
 
 /**
  * How small the hex is compared to the image itself because the <image> element uses the whole image, not just the hex.

@@ -1,10 +1,10 @@
-import { getDistrict, getNaturalWonder, getResource, getTerrain, getWonder } from "../../images/imageAttributeFinders";
+import { getDistrict, getDistrictHighlighter, getNaturalWonder, getResource, getTerrain, getWonder } from "../../images/imageAttributeFinders";
 import { HexType, RiverDirections, TileArtifactResources, TileBonusResources, TileDistricts, TileLuxuryResources, TileNaturalWonders, TileNone, TileStrategicResources, TileType, TileUniqueDistricts, TileWonders } from "../../types/civTypes";
-import {TerrainFeatureKey} from '../../types/imageTypes'
+import {MiscImages, TerrainFeatureKey} from '../../types/imageTypes'
 import { BASE_TILE_SIZE } from "../constants";
-import { getHexPoint, getOffsets, oddrToPixel } from "../hex/genericHex";
+import { getHexPoint, getMapOddrString, getOddrFromOddrString, getOffsets, oddrToPixel } from "../hex/genericHex";
 import { getScaleFromType } from "../imgScaling/scaling";
-import { getMapOddrString, getOddrFromOddrString, getTextWidth } from "../misc/misc";
+import { getTextWidth } from "../misc/misc";
 
 /**
  * 
@@ -363,6 +363,44 @@ export function drawRiversFromCache
         {
             drawRiverTile(context, tile);
         })
+    }
+}
+
+export function drawCityHighlight
+(
+    context: CanvasRenderingContext2D, 
+    tile: TileType, 
+    tileSize: {x: number, y: number}, 
+    gridSize: {x: number, y: number}, 
+    highlightType: MiscImages.CURRENT_CITY | MiscImages.ENEMY_CITY, 
+    opacity: number,
+    miscMap: Map<MiscImages, HTMLImageElement>
+)
+{
+    const hexMapOffset = getHexMapOffset(tileSize);
+    const px = oddrToPixel(tile.X, tile.Y, tileSize.x, tileSize.y, hexMapOffset);
+    const imgAttributes = getDistrictHighlighter(highlightType, miscMap);
+    const scale = getScaleFromType(imgAttributes.scaleType); 
+
+    const drawWidth = tileSize.x * scale.scaleW;
+    const drawHeight = tileSize.y * scale.scaleH;
+
+    const img = imgAttributes.imgElement;
+
+    if (img)
+    {
+        context.save();
+        
+        context.scale(1, -1);
+        context.translate(0, -gridSize.y);
+
+        context.globalAlpha = opacity;
+
+        context.drawImage(img, px.x - drawWidth / 2, px.y - drawHeight / 2, drawWidth, drawHeight);
+
+        context.globalAlpha = 1;
+
+        context.restore();
     }
 }
 

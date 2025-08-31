@@ -27,8 +27,8 @@ export function getSelectionYields(areImagesLoaded: boolean, dropdownYieldImages
 export function formatSelectionYields(option: OptionsWithImage): JSX.Element
 {
     return <div>
-        <span style={{paddingRight: '10px'}}>{option.label}</span>
-        <img src={option.image.src} width={20} height={20} alt=''/>
+        <img src={option.image.src} width={20} height={20} alt='' style={{paddingRight: '10px'}}/>
+        <span>{option.label}</span>
     </div>
 }
 

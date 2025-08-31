@@ -1,11 +1,9 @@
-import React, {use, useEffect, useState, useRef} from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import styles from './homePage.module.css';
 import common from './common.module.css';
-import { backend_createUser, backend_deleteUser, backend_loginUser } from '../REST/user';
 import Marquee from '../components/marquee/marquee';
 import { TITLE_CHAR_ANIM_DELAY_MS, TITLE_CHAR_ANIM_TIME_MS, TITLE_TEXT } from '../utils/constants';
+import titleImg from '../images/title.png'
 
 
 const HomePage = () => 
@@ -22,6 +20,8 @@ const HomePage = () =>
                 textMovingColor={[0, 256]}
                 topDivClassName={common.title}
             />
+
+            <img src={titleImg} alt='civdist map preview' className={styles.titleImg}/>
 
             <div className={styles.titleOptions}>
                 <button className={common.smallButton} onClick={e => nav('/signup')}>Sign Up</button>

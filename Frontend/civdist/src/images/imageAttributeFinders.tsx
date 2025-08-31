@@ -1,5 +1,5 @@
 import { TileType, TileNone, TileTerrain, TileWonders, TileDistricts, TileUniqueDistricts, TileNaturalWonders, HexType, TileBonusResources, TileStrategicResources, TileLuxuryResources, TileArtifactResources, TileYields } from "../types/civTypes";
-import { YieldImagesKey, TerrainFeatureKey} from "../types/imageTypes";
+import { YieldImagesKey, TerrainFeatureKey, MiscImages} from "../types/imageTypes";
 import { hasNaturalWonder } from "../utils/civ/civFunctions";
 
 export function getNaturalWonder(tile: TileType, natWonderMap: Map<TileNaturalWonders, HTMLImageElement>): {imgElement: HTMLImageElement | undefined, scaleType: HexType}
@@ -37,6 +37,16 @@ export function getDistrict(tile: TileType, districtMap: Map<TileDistricts | Til
         if (district)
             return {imgElement: district, scaleType: HexType.DISTRICT};
     }
+
+    return {imgElement: undefined, scaleType: HexType.UNKNOWN};
+}
+
+export function getDistrictHighlighter(highlightType: MiscImages.CURRENT_CITY | MiscImages.ENEMY_CITY, miscMap: Map<MiscImages, HTMLImageElement>): {imgElement: HTMLImageElement | undefined, scaleType: HexType}
+{
+    const misc = miscMap.get(highlightType);
+
+    if (misc)
+        return {imgElement: misc, scaleType: HexType.DISTRICT};
 
     return {imgElement: undefined, scaleType: HexType.UNKNOWN};
 }

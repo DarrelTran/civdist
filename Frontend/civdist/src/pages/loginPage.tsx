@@ -1,6 +1,5 @@
 import React, {useEffect, useState, useRef} from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import common from './common.module.css';
 import styles from './loginPage.module.css';
 import { TITLE_CHAR_ANIM_DELAY_MS, TITLE_CHAR_ANIM_TIME_MS, TITLE_TEXT } from '../utils/constants';

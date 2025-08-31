@@ -1,11 +1,12 @@
-import React, {useEffect, useState, useRef} from 'react';
+import {useState, useRef} from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import common from './common.module.css';
 import styles from './loginPage.module.css';
 import { TITLE_CHAR_ANIM_DELAY_MS, TITLE_CHAR_ANIM_TIME_MS, TITLE_TEXT } from '../utils/constants';
 import Marquee from '../components/marquee/marquee';
-import { backend_checkLoggedIn, backend_loginUser } from '../REST/user';
+import { backend_loginUser } from '../REST/user';
 import { easySetTimeout } from '../utils/misc/misc';
+import { useCheckLoggedIn } from '../hooks/checkLoggedIn';
 
 const LoginPage = () => 
 {
@@ -17,18 +18,7 @@ const LoginPage = () =>
     const [errorText, setErrorText] = useState<string>('');
     const errorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    useEffect(() => 
-    {
-        const checkAlreadyLoggedIn = async () =>
-        {
-            const isLoggedIn = await backend_checkLoggedIn();
-
-            if (isLoggedIn.status === 201)
-                nav('/map');
-        }
-
-        checkAlreadyLoggedIn();
-    }, [])
+    useCheckLoggedIn('/map');
 
     return (
         <div className={common.body}>

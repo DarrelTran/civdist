@@ -429,16 +429,13 @@ const MapPage = () =>
 
     async function setupUser()
     {
-        const response = await backend_checkLoggedIn();
-
-        try
+        const loadMaps = async (username: string) =>
         {
-            if (response.status === 201)
+            try
             {
-                setIsLoggedIn(true);
                 setIsLoadingUserMaps(true);
 
-                const allMaps = await backend_getAllMaps(response.output);
+                const allMaps = await backend_getAllMaps(username);
 
                 if (allMaps.status !== 200 && allMaps.status !== 404) // user may not have saved any maps yet
                 {
@@ -470,15 +467,35 @@ const MapPage = () =>
 
                 setSaveList(newSaveList);
             }
+            finally
+            {
+                setIsLoadingUserMaps(false);
+            }
         }
-        finally
+
+        if (sessionStorage.getItem('loggedIn') === 'true')
+            setIsLoggedIn(true);
+
+        const response = await backend_checkLoggedIn();
+
+        if (response.status === 201)
         {
-            setIsLoadingUserMaps(false);
+            if (sessionStorage.getItem('loggedIn') !== 'true')
+                setIsLoggedIn(true);
+
+            loadMaps(response.output);
+        }
+        else
+        {
+            sessionStorage.setItem('loggedIn', 'false');
+            setIsLoggedIn(false);
         }
     }
 
     useEffect(() => 
-    {
+    {   
+        const controller = new AbortController();
+
         const handleResize = () => 
         {
             setWinSize({ width: window.innerWidth, height: window.innerHeight })
@@ -492,7 +509,11 @@ const MapPage = () =>
         if (mapJSON)
             setDropdownValues(mapJSON);
 
-        return () => window.removeEventListener('resize', handleResize);
+        return () => 
+        {
+            window.removeEventListener('resize', handleResize);
+            controller.abort();
+        };
     }, []);
 
     useEffect(() => 

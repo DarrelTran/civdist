@@ -44,3 +44,10 @@ body
   display: inline-block;
   max-width: 100%;
 }
+
+.signInOverlayText
+{
+  color: white;
+  font-size: 2vw;
+  padding: 25px;
+}

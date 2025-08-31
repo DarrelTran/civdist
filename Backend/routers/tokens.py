@@ -30,8 +30,11 @@ def decodeToken(token: str):
     except JWTError as e:
         raise HTTPException(status_code=401, detail='Invalid or expired token!')
     
-def getUserWithJWT(token: str = Depends(oath2Scheme)):
-    payload = decodeToken(token)
+def getUserWithJWT(access_token: str | None = Cookie(default=None)): # access_token name has to be exact name as one sent in cookie response
+    if not access_token:
+        raise HTTPException(status_code=401, detail='Missing access token!')
+
+    payload = decodeToken(access_token)
     username = payload.get('sub')
 
     if not username: 

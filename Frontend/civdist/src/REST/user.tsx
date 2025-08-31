@@ -12,13 +12,6 @@ interface CustomAxiosConfig extends AxiosRequestConfig
 const backend = axios.create({baseURL: BACKEND_URL, withCredentials: true});
 const refreshClient = axios.create({ baseURL: BACKEND_URL, withCredentials: true }); // to prevent interceptor below from infinite loop
 
-backend.interceptors.request.use((config) => 
-{
-    config.headers.Authorization = `Bearer ${sessionStorage.getItem('bearer')}`;
-
-    return config;
-})
-
 backend.interceptors.response.use
 (
     (res) => res,
@@ -44,22 +37,12 @@ backend.interceptors.response.use
                 try 
                 {
                     const res = await refreshClient.post('/refresh');
-                    const token = res.data.access_token;
-
-                    sessionStorage.setItem('bearer', token);
-                    axiosConfig.headers = axiosConfig.headers ?? {};
-                    axiosConfig.headers.Authorization = `Bearer ${token}`;
 
                     return backend(axiosConfig);
                 } 
                 catch (refreshErr) 
                 {
                     console.error('Refresh failed', refreshErr);
-                    sessionStorage.removeItem('bearer');
-
-                    // /map can be used by logged in or guest user
-                    //alert('Unauthorized user! Please login first!');
-                    //window.location.href = '/';
                 }
             }
         }
@@ -109,9 +92,6 @@ export async function backend_refreshToken(): Promise<RESTResponse>
     try 
     {
         const response = await backend.post('/refresh');
-        const token = response.data.access_token;
-
-        sessionStorage.setItem('bearer', token);
 
         return RESTResponseConstructor(null, response.status, null);
     } 
@@ -139,7 +119,6 @@ export async function backend_logout(): Promise<RESTResponse>
     try 
     {
         const response = await backend.post('/logout');
-        sessionStorage.setItem('bearer', '');
 
         return RESTResponseConstructor(null, response.status, null);
     } 
@@ -180,7 +159,6 @@ export async function backend_loginUser(username: string, password: string): Pro
     try
     {
         const response = await backend.post('/login', body);
-        sessionStorage.setItem('bearer', response.data.access_token);
 
         return RESTResponseConstructor(null, response.status, null);
     }
@@ -263,11 +241,7 @@ export async function backend_addMap(json: TileType[], username: string, mapName
 
     const header: AxiosRequestConfig = 
     {
-        withCredentials: true,
-        headers:
-        {
-            Authorization: `Bearer ${sessionStorage.getItem('bearer')}`
-        }
+        withCredentials: true
     }
 
     try
@@ -310,11 +284,7 @@ export async function backend_updateUser(username: string, password: string): Pr
 
     const header: AxiosRequestConfig = 
     {
-        withCredentials: true,
-        headers:
-        {
-            Authorization: `Bearer ${sessionStorage.getItem('bearer')}`
-        }
+        withCredentials: true
     }
 
     try
@@ -358,11 +328,7 @@ export async function backend_updateMap(id: number, json: TileType[], mapName: s
 
     const header: AxiosRequestConfig = 
     {
-        withCredentials: true,
-        headers:
-        {
-            Authorization: `Bearer ${sessionStorage.getItem('bearer')}`
-        }
+        withCredentials: true
     }
 
     try
@@ -399,11 +365,7 @@ export async function backend_getMap(id: number): Promise<RESTResponse>
     {
         const header: AxiosRequestConfig = 
         {
-            withCredentials: true,
-            headers:
-            {
-                Authorization: `Bearer ${sessionStorage.getItem('bearer')}`
-            }
+            withCredentials: true
         }
 
         const response = await backend.get(`/map?id=${id}`, header);
@@ -439,11 +401,7 @@ export async function backend_getAllMaps(username: string): Promise<RESTResponse
     {
         const header: AxiosRequestConfig = 
         {
-            withCredentials: true,
-            headers:
-            {
-                Authorization: `Bearer ${sessionStorage.getItem('bearer')}`
-            }
+            withCredentials: true
         }
 
         const response = await backend.get(`/allMaps?username=${username}`, header);
@@ -509,11 +467,7 @@ export async function backend_deleteMap(id: number): Promise<RESTResponse>
     {
         const header: AxiosRequestConfig = 
         {
-            withCredentials: true,
-            headers:
-            {
-                Authorization: `Bearer ${sessionStorage.getItem('bearer')}`
-            }
+            withCredentials: true
         }
 
         const response = await backend.delete(`/map?id=${id}`, header);
@@ -549,11 +503,7 @@ export async function backend_deleteMaps(username: number): Promise<RESTResponse
     {
         const header: AxiosRequestConfig = 
         {
-            withCredentials: true,
-            headers:
-            {
-                Authorization: `Bearer ${sessionStorage.getItem('bearer')}`
-            }
+            withCredentials: true
         }
 
         const response = await backend.delete(`/allMaps?username=${username}`, header);

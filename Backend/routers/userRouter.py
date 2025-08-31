@@ -47,7 +47,7 @@ async def loginUser(user: UserCreateSchema, response: Response, db: AsyncSession
     refreshToken = tokens.createRefreshToken({'sub': userDB.username})
 
     response.set_cookie(
-        key='refresh-token',
+        key='refresh_token',
         value=refreshToken,
         httponly=True,
         secure=True,
@@ -55,10 +55,19 @@ async def loginUser(user: UserCreateSchema, response: Response, db: AsyncSession
         max_age=tokens.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
     )
 
-    return {'access_token': accessToken, 'token_type': 'bearer'}
+    response.set_cookie(
+        key='access_token',
+        value=accessToken,
+        httponly=True,
+        secure=True,
+        samesite='lax',
+        max_age=tokens.ACCESS_TOKEN_EXPIRE_MIN * 60
+    )
+
+    return
 
 @router.post('/refresh', status_code=201)
-async def refreshToken(refresh_token: str | None = Cookie(default=None)):
+async def refreshToken(response: Response, refresh_token: str | None = Cookie(default=None)):
     if not refresh_token:
         raise HTTPException(status_code=401, detail='Refresh token missing!')
 
@@ -68,12 +77,29 @@ async def refreshToken(refresh_token: str | None = Cookie(default=None)):
         raise HTTPException(status_code=401, detail='Invalid refresh token!')
 
     newAccessToken = tokens.createAccessToken({'sub': username})
-    return {'access_token': newAccessToken, 'token_type': 'bearer'}
+
+    response.set_cookie(
+        key='access_token',
+        value=newAccessToken,
+        httponly=True,
+        secure=True,
+        samesite='lax',
+        max_age=tokens.ACCESS_TOKEN_EXPIRE_MIN * 60
+    )
+
+    return
 
 @router.post('/logout', status_code=204)
 async def logoutUser(response: Response):
     response.delete_cookie(
-        key='refresh-token',
+        key='refresh_token',
+        httponly=True,
+        secure=True,
+        samesite='lax'
+    )
+
+    response.delete_cookie(
+        key='access_token',
         httponly=True,
         secure=True,
         samesite='lax'

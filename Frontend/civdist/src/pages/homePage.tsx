@@ -5,7 +5,6 @@ import Marquee from '../components/marquee/marquee';
 import { TITLE_CHAR_ANIM_DELAY_MS, TITLE_CHAR_ANIM_TIME_MS, TITLE_TEXT } from '../utils/constants';
 import titleImg from '../images/title.png'
 
-
 const HomePage = () => 
 {
     const nav = useNavigate();

@@ -20,7 +20,8 @@ interface SaveDropdownType
     dropdownButtonClassName?: string;
 
     handleSaveInput: (inputText: string, currID: number) => void;
-    handleSaveClick: (currID: number) => void;
+    handleSaveInitialClick: (currID: number) => void;
+    handleSaveFinalClick: (currID: number) => void;
     handleLoadClick: (currID: number) => void;
 
     isLoading: boolean;
@@ -52,7 +53,8 @@ const SaveDropdown: React.FC<SaveDropdownType> =
     children, 
     dropdownButtonStyle,
     handleSaveInput,
-    handleSaveClick,
+    handleSaveInitialClick,
+    handleSaveFinalClick,
     handleLoadClick,
     isLoading,
     isSaving,
@@ -128,13 +130,13 @@ const SaveDropdown: React.FC<SaveDropdownType> =
                                             </Tooltip>
                                             <input 
                                                 type='text' 
-                                                style={{marginRight: '5px', display: theSave.textInputDisplay}} 
-                                                placeholder='Enter a name for this save.' 
+                                                style={{marginRight: '5px', display: theSave.textInputDisplay, fontSize: SAVE_TEXT_FONT_SIZE}} 
+                                                placeholder='Enter a name.' 
                                                 className={`${inputClassName ?? ''}`} 
                                                 onChange={e => handleSaveInput(e.target.value, theSave.id)}
                                             />
                                             
-                                            <button style={{marginLeft: 'auto', marginRight: '5px'}} onClick={e => handleSaveClick(theSave.id)} className={`${saveButtonClassName ?? ''}`}>SAVE</button>
+                                            <button style={{marginLeft: 'auto', marginRight: '5px'}} onClick={e => handleSaveInitialClick(theSave.id)} className={`${saveButtonClassName ?? ''}`}>SAVE</button>
                                             <button className={`${loadButtonClassName ?? ''}`} onClick={e => handleLoadClick(theSave.id)}>LOAD</button>
                                             <br/>
                                         </div>
@@ -147,12 +149,12 @@ const SaveDropdown: React.FC<SaveDropdownType> =
                                         <div className={`${saveEntryClassName ?? ''}`} key={theSave.id}>
                                             <input 
                                                 type='text' 
-                                                style={{marginRight: '5px'}} 
-                                                placeholder='Enter a name for this save.' 
+                                                style={{marginRight: '5px', fontSize: SAVE_TEXT_FONT_SIZE}} 
+                                                placeholder='Enter a name.' 
                                                 className={`${inputClassName ?? ''}`}
                                                 onChange={e => handleSaveInput(e.target.value, theSave.id)}
                                             />
-                                            <button style={{marginLeft: 'auto'}} onClick={e => handleSaveClick(theSave.id)} className={`${saveButtonClassName ?? ''}`}>SAVE</button>
+                                            <button style={{marginLeft: 'auto'}} onClick={e => handleSaveFinalClick(theSave.id)} className={`${saveButtonClassName ?? ''}`}>SAVE</button>
                                             <br/>
                                         </div>
                                     );

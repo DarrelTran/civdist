@@ -6,7 +6,7 @@ from Backend.schemas.user import UserItemsCreateSchema, UserCreateSchema, UserRe
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.exc import IntegrityError
-from Backend.exceptions.user import BadPassword, DoesNotExist
+from Backend.exceptions.user import AlreadyExists, BadPassword, DoesNotExist
 import Backend.routers.tokens as tokens
 #from fastapi.middleware.gzip import GZipMiddleware
 
@@ -121,8 +121,8 @@ async def addUser(user: UserCreateSchema, db: AsyncSession = Depends(getDB)):
 
     try:
         await userServices.createUser(db, user)
-    except IntegrityError as ie:
-        raise HTTPException(status_code=409, detail=str(ie))
+    except AlreadyExists as ae:
+        raise HTTPException(status_code=409, detail=str(ae))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
@@ -137,6 +137,8 @@ async def addMap(map: UserItemsCreateSchema, db: AsyncSession = Depends(getDB), 
     
     try:
         await userServices.createUserItem(db, map)
+    except AlreadyExists as ae:
+        raise HTTPException(status_code=409, detail=str(ae))
     except DoesNotExist as dne:
         raise HTTPException(status_code=404, detail=str(dne))
     except Exception as e:
@@ -167,6 +169,9 @@ async def updateMap(map: UserItemUpdateSchemaID, db: AsyncSession = Depends(getD
     
     try:
         await userServices.updateUserItem(db, map)
+    except AlreadyExists as ae:
+        print('CAUGHT 409 UPDATING MAP')
+        raise HTTPException(status_code=409, detail=str(ae))
     except DoesNotExist as dne:
         raise HTTPException(status_code=404, detail=str(dne))
     except Exception as e:

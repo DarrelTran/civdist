@@ -57,11 +57,13 @@ class UserItemsCreateSchema(BaseModel):
     map: TileType | List[TileType]
     username: str
     mapName: str
+    visualIndex: int
 
 class UserItemUpdateSchemaID(BaseModel):
     id: int
     map: TileType | List[TileType]
     mapName: str
+    visualIndex: int
 
 class UserItemsReadSchemaID(BaseModel):
     id: int

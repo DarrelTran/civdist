@@ -1,9 +1,10 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
+from asyncpg.exceptions import UniqueViolationError
 from Backend.schemas.user import UserCreateSchema, UserItemsCreateSchema, UserItemUpdateSchemaID, UserItemsReadSchemaID, UserItemsReadSchemaUsername, UserReadSchema, TileType
 from Backend.db.models import UserBaseSQL, UserItemsBaseSQL
-from Backend.exceptions.user import BadPassword, DoesNotExist
+from Backend.exceptions.user import AlreadyExists, BadPassword, DoesNotExist
 from bcrypt import hashpw, gensalt, checkpw
 
 def getHashedPassword(password: str):
@@ -18,10 +19,15 @@ def getHashedPassword(password: str):
 async def createUser(db: AsyncSession, user: UserCreateSchema):
     userDB = UserBaseSQL(username=user.username, password=getHashedPassword(user.password))
 
-    db.add(userDB)
+    try:
+        db.add(userDB)
 
-    await db.commit()
-    await db.refresh(userDB)
+        await db.commit()
+        await db.refresh(userDB)
+
+    except IntegrityError as ue:
+        if hasattr(ue.orig, 'pgcode') and ue.orig.pgcode == '23505':
+            raise AlreadyExists(f'User {user.username} already exists!')
 
 async def createUserItem(db: AsyncSession, item: UserItemsCreateSchema):
     # pydantic models are not json serializable
@@ -31,13 +37,16 @@ async def createUserItem(db: AsyncSession, item: UserItemsCreateSchema):
     else:
         mapData = [tile.model_dump() for tile in mapData]
 
-    userItem = UserItemsBaseSQL(map=mapData, username=item.username, mapName=item.mapName)
+    userItem = UserItemsBaseSQL(map=mapData, username=item.username, mapName=item.mapName, visualIndex=item.visualIndex)
 
     try:
         db.add(userItem)
 
         await db.commit()
         await db.refresh(userItem)
+    except IntegrityError as ue:
+        if hasattr(ue.orig, 'pgcode') and ue.orig.pgcode == '23505':
+            raise AlreadyExists(f'Item {item.mapName} already exists!') 
     except IntegrityError as e:
         raise DoesNotExist(f'User {item.username} does not exist!')
 
@@ -107,9 +116,14 @@ async def updateUserItem(db: AsyncSession, updatedItem: UserItemUpdateSchemaID):
     # users can't exchange maps, no need to change anything else
     theItem.map = mapData
     theItem.mapName = updatedItem.mapName
+    theItem.visualIndex = updatedItem.visualIndex
 
-    await db.commit()
-    await db.refresh(theItem)
+    try:
+        await db.commit()
+        await db.refresh(theItem)
+    except IntegrityError as ue:
+        if hasattr(ue.orig, 'pgcode') and ue.orig.pgcode == '23505':
+            raise AlreadyExists(f'Item {updatedItem.mapName} already exists!') 
 
     return theItem
 

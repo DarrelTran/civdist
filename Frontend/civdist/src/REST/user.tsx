@@ -42,7 +42,7 @@ backend.interceptors.response.use
                 } 
                 catch (refreshErr) 
                 {
-                    console.error('Refresh failed', refreshErr);
+                    //console.error('Refresh failed', refreshErr);
                 }
             }
         }
@@ -225,18 +225,20 @@ export async function backend_createUser(username: string, password: string): Pr
  * An appropriate RESTResponse or null in all RESTResponse fields if the url is invalid.    
  * Status codes:
  * - 201 - Success
- * - 404 - User does not exist
+ * - 404 - User does not exist/cannot be found
+ * - 409 - Duplicate map name
  * - 411 - Empty username/map
  * - 422 - Other type validation error
  * - 500 - Backend error
  */
-export async function backend_addMap(json: TileType[], username: string, mapName: string): Promise<RESTResponse>
+export async function backend_addMap(json: TileType[], username: string, mapName: string, visualIndex: number): Promise<RESTResponse>
 {
     const body =
     {
         map: json,
         username: username,
-        mapName: mapName
+        mapName: mapName,
+        visualIndex: visualIndex
     };
 
     const header: AxiosRequestConfig = 
@@ -269,7 +271,8 @@ export async function backend_addMap(json: TileType[], username: string, mapName
  * An appropriate RESTResponse or null in all RESTResponse fields if the url is invalid.    
  * Status codes:
  * - 204 - Success
- * - 404 - User doesn't exist
+ * - 404 - User doesn't exist/cannot be found
+ * - 409 - Duplicate map name
  * - 411 - Empty username/password
  * - 422 - Other type validation error
  * - 500 - Backend error
@@ -317,13 +320,14 @@ export async function backend_updateUser(username: string, password: string): Pr
  * - 422 - Other type validation error
  * - 500 - Backend error 
  */
-export async function backend_updateMap(id: number, json: TileType[], mapName: string): Promise<RESTResponse>
+export async function backend_updateMap(id: number, json: TileType[], mapName: string, visualIndex: number): Promise<RESTResponse>
 {
     const body =
     {
         id: id,
         map: json,
-        mapName: mapName
+        mapName: mapName,
+        visualIndex: visualIndex
     };
 
     const header: AxiosRequestConfig = 
@@ -390,7 +394,7 @@ export async function backend_getMap(id: number): Promise<RESTResponse>
  * An appropriate RESTResponse with the a list of {DatabaseMapType}s or null in all RESTResponse fields if the url is invalid.   
  * Status codes:
  * - 200 - Success
- * - 404 - User doesn't exist
+ * - 404 - User doesn't exist/cannot be found
  * - 411 - Empty username
  * - 422 - Other type validation error
  * - 500 - Backend error
@@ -492,7 +496,7 @@ export async function backend_deleteMap(id: number): Promise<RESTResponse>
  * An appropriate RESTResponse with the a json list of all maps or null in all RESTResponse fields if the url is invalid.   
  * Status codes:
  * - 204 - Success
- * - 404 - Username doesnt exist
+ * - 404 - Username doesnt exist/cannot be found
  * - 411 - Empty username
  * - 422 - Other type validation error
  * - 500 - Backend error

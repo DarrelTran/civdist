@@ -1,6 +1,6 @@
 import React, {useEffect, useState, useRef, useCallback} from 'react';
 import Select, { GroupBase, SelectInstance } from 'react-select'
-import { useNavigate } from 'react-router-dom';
+import { replace, useNavigate } from 'react-router-dom';
 import styles from './mapPage.module.css';
 import common from '../common.module.css';
 import { TileNone, TileWonders, TileDistricts, TileNaturalWonders, TileType, LeaderName, TileYields, PossibleErrors, VictoryType, TileBonusResources, TileLuxuryResources, TileStrategicResources, TileArtifactResources, TileUniqueDistricts, HexType} from '../../types/civTypes'
@@ -30,13 +30,12 @@ import { useMessage } from '../../hooks/useMessage';
 import { useThrottledCallback } from '../../hooks/throttledCallback';
 import { Norway, getCivilizationObject } from '../../civilization/uniqueCivilizations';
 import { Civilization } from '../../civilization/civilizations';
+import Overlay from '../../components/overlay/overlay';
 
 // assuming all resources are revealed
 
 /*
 /////////////////////////////////////////////////////////////////
-
-TODO: Change session storage to http cookies????
 
 TODO: Add images to dropdown.
 
@@ -78,6 +77,7 @@ const MapPage = () =>
     const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
     const [isLoadingUserMaps, setIsLoadingUserMaps] = useState<boolean>(false);
     const [isSavingUserMaps, setIsSavingUserMaps] = useState<boolean>(false);
+    const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
 
     // use ref since this will probably be updated a lot
     const hexmapCache = useRef<Map<string, TileType>>(new Map()); // oddr coords, tile
@@ -133,13 +133,14 @@ const MapPage = () =>
 
     const [optionalVisual, setOptionalVisual] = useState<{yields: boolean, resources: boolean}>({yields: false, resources: false});
 
+    // should always contain default values for simplicity
     const [saveList, setSaveList] = useState<SaveType[]>
     ([
-        {name: null, json: null, id: 0, textInputDisplay: 'block', textNameDisplay: 'none', inputText: ''},
-        {name: null, json: null, id: 1, textInputDisplay: 'block', textNameDisplay: 'none', inputText: ''},
-        {name: null, json: null, id: 2, textInputDisplay: 'block', textNameDisplay: 'none', inputText: ''},
-        {name: null, json: null, id: 3, textInputDisplay: 'block', textNameDisplay: 'none', inputText: ''},
-        {name: null, json: null, id: 4, textInputDisplay: 'block', textNameDisplay: 'none', inputText: ''},
+        {name: null, json: null, id: 0, textInputDisplay: 'block', textNameDisplay: 'none', inputText: '', visualIndex: 0},
+        {name: null, json: null, id: 1, textInputDisplay: 'block', textNameDisplay: 'none', inputText: '', visualIndex: 1},
+        {name: null, json: null, id: 2, textInputDisplay: 'block', textNameDisplay: 'none', inputText: '', visualIndex: 2},
+        {name: null, json: null, id: 3, textInputDisplay: 'block', textNameDisplay: 'none', inputText: '', visualIndex: 3},
+        {name: null, json: null, id: 4, textInputDisplay: 'block', textNameDisplay: 'none', inputText: '', visualIndex: 4},
     ]);
 
     const theCanvas = useRef<HTMLCanvasElement>(null);
@@ -427,45 +428,67 @@ const MapPage = () =>
         setUniqueCities(tempCitySet);
     }
 
-    async function setupUser()
+    const setupUser = useCallback(async () => 
     {
         const loadMaps = async (username: string) =>
         {
             try
             {
+                if (isLoggingOut)
+                    return;
+
                 setIsLoadingUserMaps(true);
 
                 const allMaps = await backend_getAllMaps(username);
 
-                if (allMaps.status !== 200 && allMaps.status !== 404) // user may not have saved any maps yet
+                if (isLoggingOut) // just in case user clicks logout immediately after page loads
+                {
+                    setIsLoadingUserMaps(false);
+                    return;
+                }
+
+                // user may not have saved any maps yet
+                // catch all critical errors
+                if (allMaps.status !== 200 && allMaps.status !== 404) 
                 {
                     showSaveError(`Error loading maps from database (${allMaps.status})!`);
 
                     return;
                 }
 
-                const maps: DatabaseMapType[] = allMaps.output;
-
-                const newSaveList: SaveType[] = [];
-
-                saveList.forEach((save, index) => 
+                if (allMaps.status !== 404)
                 {
-                    if (index < maps.length)
-                    {
-                        const mapData = maps[index];
+                    const maps: DatabaseMapType[] = allMaps.output;
+                    
+                    const newSaveList: SaveType[] = [];
 
-                        save.id = mapData.id;
-                        save.name = mapData.mapName;
-                        save.inputText = '';
-                        save.json = mapData.map;
-                        save.textInputDisplay = 'none';
-                        save.textNameDisplay = 'block';
+                    let index = 0;
+                    maps.forEach((save) => 
+                    {
+                        const saveIndex = save.visualIndex;
+                        const changedSave = saveList[saveIndex];
+
+                        changedSave.id = save.id;
+                        changedSave.name = save.mapName;
+                        changedSave.inputText = '';
+                        changedSave.json = save.map;
+                        changedSave.textInputDisplay = 'none';
+                        changedSave.textNameDisplay = 'block'
+
+                        newSaveList[saveIndex] = changedSave;
+
+                        ++index;
+                    });
+
+                    // fill remaining slots with saves already in saveList
+                    for (let i = 0; i < 5; i++)
+                    {
+                        if (newSaveList[i] === undefined)
+                            newSaveList[i] = saveList[i];
                     }
 
-                    newSaveList.push(save);
-                });
-
-                setSaveList(newSaveList);
+                    setSaveList(newSaveList);
+                }
             }
             finally
             {
@@ -490,7 +513,7 @@ const MapPage = () =>
             sessionStorage.setItem('loggedIn', 'false');
             setIsLoggedIn(false);
         }
-    }
+    }, [isLoggingOut])
 
     useEffect(() => 
     {   
@@ -529,7 +552,7 @@ const MapPage = () =>
 
                     if (response.status !== 201)
                     {
-                        showMiscError(`Something went wrong (${response.status}).`);
+                        showMiscError(`Log out attempt failed (${response.status}).`);
                     }
                 }
                 else // otherwise, logout
@@ -1041,8 +1064,9 @@ const MapPage = () =>
             }
         }
     }, [cityOwnedTiles, dropdownDistrict, dropdownCity, dropdownCiv, dropdownYields, mapCacheVersion, includeWonders, civCompletedWonders, dropdownNearbyCity, dropdownVictoryType])
-    
-    async function handleSaveClick(currID: number) 
+
+    // make input box visible
+    function handleSaveInitialClick(currID: number)
     {
         const newSaveList: SaveType[] = [];
 
@@ -1050,7 +1074,38 @@ const MapPage = () =>
         {
             if (save.id === currID)
             {
-                // check input error before toggling visibility
+                if (!mapJSON || (mapJSON && mapJSON.length === 0))
+                {
+                    showSaveError('Must load a map first!');
+
+                    newSaveList.push(save);
+                }
+                else
+                {
+                    newSaveList.push({ ...save, textInputDisplay: 'block', textNameDisplay: 'none', name: null });
+                }
+            }
+            else
+            {
+                newSaveList.push(save);
+            }
+        });
+
+        setSaveList(newSaveList);
+    }
+    
+    // save map to db
+    async function handleSaveFinalClick(currID: number) 
+    {
+        const newSaveList: SaveType[] = [];
+
+        // saveList should always be set to 5 default values if no saves available
+        for (let i = 0; i < saveList.length; i++)
+        {
+            const save = saveList[i];
+
+            if (save.id === currID)
+            {
                 if (save.inputText.trim().length === 0 && save.textInputDisplay === 'block') 
                 {
                     showSaveError('Please enter a valid save name!');
@@ -1067,9 +1122,15 @@ const MapPage = () =>
                 {
                     const mapToSave = hexmapCacheToJSONArray(hexmapCache.current);
 
+                    // null display name = has input box
                     if (!save.name)
                     {
-                        const newSave = { ...save, name: save.inputText, textInputDisplay: 'none', textNameDisplay: 'block', json: mapToSave };
+                        const newSave: SaveType = structuredClone(save);
+                        newSave.name = save.inputText;
+                        newSave.textInputDisplay = 'none';
+                        newSave.textNameDisplay = 'block';
+                        newSave.json = mapToSave;
+                        newSave.visualIndex = i;
 
                         const addMapDatabase = async () =>
                         {
@@ -1080,15 +1141,23 @@ const MapPage = () =>
                                 const checkMapExists = await backend_getMap(newSave.id);
                                 if (checkMapExists.status === 200) // already exists - patch/update
                                 {
-                                    const patchMapResponse = await backend_updateMap(newSave.id, mapToSave, save.inputText);
+                                    const patchMapResponse = await backend_updateMap(newSave.id, mapToSave, save.inputText, save.visualIndex);
 
                                     if (patchMapResponse.status === 204)
                                     {
                                         newSaveList.push(newSave);
                                     }
+                                    else if (patchMapResponse.status === 409)
+                                    {
+                                        showSaveError('Map of the same name already exists!');
+
+                                        newSaveList.push(save);
+                                    }
                                     else
                                     {
                                         showSaveError(`Something went wrong when updating the map. (${patchMapResponse.status})`);
+
+                                        newSaveList.push(save);
                                     }
                                 }
                                 else if (checkMapExists.status === 404) // does not exist - add new map
@@ -1097,15 +1166,23 @@ const MapPage = () =>
                                     
                                     if (user.status === 201)
                                     {
-                                        const newMapResponse = await backend_addMap(mapToSave, user.output, save.inputText);
+                                        const newMapResponse = await backend_addMap(mapToSave, user.output, save.inputText, save.visualIndex);
 
                                         if (newMapResponse.status === 201)
                                         {
                                             newSaveList.push(newSave);
                                         }
+                                        else if (newMapResponse.status === 409)
+                                        {
+                                            showSaveError('Map of the same name already exists!');
+
+                                            newSaveList.push(save);
+                                        }
                                         else
                                         {
                                             showSaveError(`Something went wrong when adding a new map. (${newMapResponse.status})`);
+
+                                            newSaveList.push(save);
                                         }
                                     }
                                     else
@@ -1129,19 +1206,13 @@ const MapPage = () =>
 
                         await addMapDatabase();
                     }
-                    else
-                    {
-                        newSaveList.push({ ...save, textInputDisplay: 'block', textNameDisplay: 'none', name: null });
-                    }
                 }
-
-                showSaveSuccess('Success!');
             }
             else
             {
                 newSaveList.push(save);
             }
-        });
+        }
 
         setSaveList(newSaveList);
     }
@@ -1197,15 +1268,25 @@ const MapPage = () =>
 
     async function handleLogout()
     {
-        const response = await backend_logout();
+        try
+        {
+            setIsLoggingOut(true);
+            const response = await backend_logout();
 
-        if (response.status === 204)
-        {
-            nav('/');
+            if (response.status !== 204)
+            {
+                showMiscError(`Something went wrong (${response.status}).`);
+                setIsLoggingOut(false);
+            }
+            else
+            {
+                setIsLoggedIn(false);
+                sessionStorage.setItem('loggedIn', 'false');
+            }
         }
-        else
+        finally
         {
-            showMiscError(`Something went wrong (${response.status}).`);
+            setIsLoggingOut(false);
         }
     }
 
@@ -1225,6 +1306,12 @@ const MapPage = () =>
 
     return (
         <div className={styles.topSectionDiv}>
+
+            <Overlay 
+                text='Logging out...'
+                overlayStyle={{display: isLoggingOut ? 'flex' : 'none', backgroundColor: 'rgb(0, 0, 0, 0.5)', cursor: 'wait'}}
+                textClassName={common.overlayText}
+            />
 
             <Marquee 
                 text={TITLE_TEXT} 
@@ -1273,16 +1360,18 @@ const MapPage = () =>
                             isLoading={isLoadingUserMaps}
                             isSaving={isSavingUserMaps}
                             containerDisplayType='block' 
-                            handleSaveClick={handleSaveClick} 
+                            handleSaveInitialClick={handleSaveInitialClick}
+                            handleSaveFinalClick={handleSaveFinalClick}
                             handleSaveInput={handleSaveInput}
                             handleLoadClick={handleLoadClick}
                             maxSaveTextWidth={100}
                             dropdownButtonClassName={common.wideButton}
                             inputClassName={styles.saveDropdownInput}
                             saveEntryClassName={styles.saveDropdownEntry}
-                            saveButtonClassName={styles.savesSaveButton}
-                            loadButtonClassName={styles.savesLoadButton}
+                            saveButtonClassName={`${styles.savesSaveButton} ${common.smallButton}`}
+                            loadButtonClassName={common.smallButton}
                             saveTextClassName={styles.saveText}
+                            containerClassName={styles.saveContainer}
                             topmostDivStyle={{display: isLoggedIn ? 'block' : 'none'}}
                         />
                     </div>

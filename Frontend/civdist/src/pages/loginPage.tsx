@@ -6,7 +6,6 @@ import { TITLE_CHAR_ANIM_DELAY_MS, TITLE_CHAR_ANIM_TIME_MS, TITLE_TEXT } from '.
 import Marquee from '../components/marquee/marquee';
 import { backend_loginUser } from '../REST/user';
 import { easySetTimeout } from '../utils/misc/misc';
-import { useCheckLoggedIn } from '../hooks/checkLoggedIn';
 
 const LoginPage = () => 
 {
@@ -17,8 +16,6 @@ const LoginPage = () =>
 
     const [errorText, setErrorText] = useState<string>('');
     const errorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-    useCheckLoggedIn('/map');
 
     return (
         <div className={common.body}>
@@ -129,6 +126,7 @@ const LoginPage = () =>
                 return;
         }
 
+        sessionStorage.setItem('loggedIn', 'true');
         nav('/map');
     }
 };

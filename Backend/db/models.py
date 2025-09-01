@@ -18,5 +18,6 @@ class UserItemsBaseSQL(base):
     map = Column(JSON, nullable=False)
     username = Column(Text, ForeignKey("User.username", ondelete="CASCADE"), nullable=False)
     mapName = Column(Text, nullable=False)
+    visualIndex = Column(Integer, nullable=False)
 
     users = relationship("UserBaseSQL", back_populates="items")

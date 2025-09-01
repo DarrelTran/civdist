@@ -3,3 +3,6 @@ class BadPassword(Exception):
 
 class DoesNotExist(Exception):
     pass
+
+class AlreadyExists(Exception):
+    pass

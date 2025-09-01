@@ -7,7 +7,8 @@ export type SaveType =
   id: number,
   textInputDisplay: string,
   textNameDisplay: string,
-  inputText: string
+  inputText: string,
+  visualIndex: number
 }
 
 export type RESTResponse =
@@ -27,5 +28,6 @@ export type DatabaseMapType =
   id: number,
   map: TileType[],
   username: string,
-  mapName: string
+  mapName: string,
+  visualIndex: number
 }

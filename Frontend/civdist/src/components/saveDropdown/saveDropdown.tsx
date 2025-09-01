@@ -131,7 +131,7 @@ const SaveDropdown: React.FC<SaveDropdownType> =
                                             <input 
                                                 type='text' 
                                                 style={{marginRight: '5px', display: theSave.textInputDisplay, fontSize: SAVE_TEXT_FONT_SIZE}} 
-                                                placeholder='Enter a name.' 
+                                                placeholder='Enter a name' 
                                                 className={`${inputClassName ?? ''}`} 
                                                 onChange={e => handleSaveInput(e.target.value, theSave.id)}
                                             />
@@ -150,7 +150,7 @@ const SaveDropdown: React.FC<SaveDropdownType> =
                                             <input 
                                                 type='text' 
                                                 style={{marginRight: '5px', fontSize: SAVE_TEXT_FONT_SIZE}} 
-                                                placeholder='Enter a name.' 
+                                                placeholder='Enter a name' 
                                                 className={`${inputClassName ?? ''}`}
                                                 onChange={e => handleSaveInput(e.target.value, theSave.id)}
                                             />

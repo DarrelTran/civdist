@@ -6,8 +6,6 @@ import { TITLE_CHAR_ANIM_DELAY_MS, TITLE_CHAR_ANIM_TIME_MS, TITLE_TEXT } from '.
 import titleImg from '../images/title.png'
 import { backend_logout } from '../REST/user';
 import { useMessage } from '../hooks/useMessage';
-import { useState } from 'react';
-import Overlay from '../components/overlay/overlay';
 
 const HomePage = () => 
 {

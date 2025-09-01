@@ -37,6 +37,12 @@ import Overlay from '../../components/overlay/overlay';
 /*
 /////////////////////////////////////////////////////////////////
 
+TODO: Check user log in on home page and refresh if possible.
+
+TODO: Use localstorage, remove data when tab closed.
+
+TODO: Logout/login when new tab does this.
+
 TODO: Add images to dropdown.
 
 TODO: Add documentation to functions. Read random comments to see if any extra issues need fixing.

@@ -4,6 +4,7 @@ import { TileYields } from "../../types/civTypes";
 import { getAllPossibleDistricts, getAllPossibleVictoryTypes, getAllPossibleYields } from "../../utils/constants";
 import { getTextWidth } from "../../utils/misc/misc";
 import { nearbyCityFontSize, optionalVisualFontSize } from "./mapPageSelectStyles";
+import { Civilization } from "../../civilization/civilizations";
 
 export function getSelectionYields(areImagesLoaded: boolean, dropdownYieldImagesCache: Map<TileYields, HTMLImageElement>)
 {
@@ -83,10 +84,10 @@ export function getCityOptions(uniqueCities: Map<string, string[]>, dropdownCiv:
     return tempArr;
 }
 
-export function getDistrictOptions() 
+export function getDistrictOptions(civObj: Civilization | null) 
 {
     const tempArr: OptionsGenericString[] = [];
-    const allDistricts = getAllPossibleDistricts();
+    const allDistricts = getAllPossibleDistricts(civObj);
 
     for (let i = 0; i < allDistricts.length; i++)
     {

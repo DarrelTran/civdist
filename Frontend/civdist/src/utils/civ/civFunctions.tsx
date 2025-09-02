@@ -1,4 +1,4 @@
-import { DistrictIdentifierRecord, TileBuildingsCitizenSlots } from "../../types/typeMaps";
+import { DistrictIdentifierRecord, TileBuildingsCitizenSlots, UniqueDistrictToDefault } from "../../types/typeMaps";
 import { TileType, TileTerrain, TileNaturalWonders, TileBonusResources, TileLuxuryResources, TileDistricts, TileUniqueDistricts, TileNone, TileBuildings, TileStrategicResources, TileFeatures, TileYields } from "../../types/civTypes";
 import { getMapOddrString, getOffsets } from "../hex/genericHex";
 
@@ -256,177 +256,142 @@ export function isCoast(tile: TileType)
 
 export function hasCampus(ownedTiles: readonly TileType[]): boolean
 {
-    return ownedTiles.some(tile => isCampus(tile));
+    return ownedTiles.some(tile => isCampus(tile.District));
 }
 
 export function hasHolySite(ownedTiles: readonly TileType[]): boolean
 {
-    return ownedTiles.some(tile => isHolySite(tile));
+    return ownedTiles.some(tile => isHolySite(tile.District));
 }
 
 export function hasTheater(ownedTiles: readonly TileType[]): boolean
 {
-    return ownedTiles.some(tile => isTheaterSquare(tile));
+    return ownedTiles.some(tile => isTheaterSquare(tile.District));
 }
 
 export function hasEntertainment(ownedTiles: readonly TileType[]): boolean
 {
-    return ownedTiles.some(tile => isEntertainmentComplex(tile));
+    return ownedTiles.some(tile => isEntertainmentComplex(tile.District));
 }
 
 export function hasHarbor(ownedTiles: readonly TileType[]): boolean
 {
-    return ownedTiles.some(tile => isHarbor(tile));
+    return ownedTiles.some(tile => isHarbor(tile.District));
 }
 
 export function hasIndustrial(ownedTiles: readonly TileType[]): boolean
 {
-    return ownedTiles.some(tile => isIndustrialZone(tile));
+    return ownedTiles.some(tile => isIndustrialZone(tile.District));
 }
 
 export function hasCommercial(ownedTiles: readonly TileType[]): boolean
 {
-    return ownedTiles.some(tile => isCommercialHub(tile));
+    return ownedTiles.some(tile => isCommercialHub(tile.District));
 }
 
 export function hasAqueduct(ownedTiles: readonly TileType[]): boolean
 {
-    return ownedTiles.some(tile => isAqueduct(tile));
+    return ownedTiles.some(tile => isAqueduct(tile.District));
 }
 
 export function hasEncampment(ownedTiles: readonly TileType[]): boolean
 {
-    return ownedTiles.some(tile => isEncampment(tile));
+    return ownedTiles.some(tile => isEncampment(tile.District));
 }
 
 export function hasAerodrome(ownedTiles: readonly TileType[]): boolean
 {
-    return ownedTiles.some(tile => isAerodrome(tile));
+    return ownedTiles.some(tile => isAerodrome(tile.District));
 }
 
 export function hasSpaceport(ownedTiles: readonly TileType[]): boolean
 {
-    return ownedTiles.some(tile => isSpaceport(tile));
+    return ownedTiles.some(tile => isSpaceport(tile.District));
 }
 
-export function isAerodrome(tile: TileType)
+function isDistrictHelper(districtName: TileDistricts | TileUniqueDistricts | TileNone.NONE, targetDistrict: TileDistricts)
 {
-    return (tile.District === TileDistricts.AERODROME_DISTRICT);
-}
+    let trueDistrictName = districtName;
 
-export function isAqueduct(tile: TileType)
-{
-    return (tile.District === TileDistricts.AQUEDUCT_DISTRICT || tile.District === TileUniqueDistricts.BATH_DISTRICT);
-}
-
-export function isCampus(tile: TileType)
-{
-    if (tile.District === TileNone.NONE)
+    if (districtName === TileNone.NONE)
         return false;
 
-    const districts = DistrictIdentifierRecord[TileDistricts.SCIENCE_DISTRICT];
+    const uniqueDistrict = UniqueDistrictToDefault[districtName as TileUniqueDistricts];
 
-    return districts.includes(tile.District);
-}
+    if (uniqueDistrict)
+        trueDistrictName = UniqueDistrictToDefault[districtName as TileUniqueDistricts];
 
-export function isCityCenter(tile: TileType)
-{
-    if (tile.District === TileNone.NONE)
+    const districts = DistrictIdentifierRecord[targetDistrict];
+
+    if (!districts)
         return false;
 
-    const districts = DistrictIdentifierRecord[TileDistricts.CENTER_DISTRICT];
-
-    return districts.includes(tile.District);
+    return districts.includes(trueDistrictName as (TileDistricts | TileUniqueDistricts));
 }
 
-export function isCommercialHub(tile: TileType)
+export function isAerodrome(districtName: TileDistricts | TileUniqueDistricts | TileNone.NONE)
 {
-    if (tile.District === TileNone.NONE)
-        return false;
-
-    const districts = DistrictIdentifierRecord[TileDistricts.COMMERCIAL_DISTRICT];
-
-    return districts.includes(tile.District);
+    return isDistrictHelper(districtName, TileDistricts.AERODROME_DISTRICT);
 }
 
-export function isEncampment(tile: TileType)
+export function isAqueduct(districtName: TileDistricts | TileUniqueDistricts | TileNone.NONE)
 {
-    if (tile.District === TileNone.NONE)
-        return false;
-
-    const districts = DistrictIdentifierRecord[TileDistricts.ENCAMPMENT_DISTRICT];
-
-    return districts.includes(tile.District);
+    return isDistrictHelper(districtName, TileDistricts.AQUEDUCT_DISTRICT);
 }
 
-export function isEntertainmentComplex(tile: TileType)
+export function isCampus(districtName: TileDistricts | TileUniqueDistricts | TileNone.NONE)
 {
-    if (tile.District === TileNone.NONE)
-        return false;
-
-    const districts = DistrictIdentifierRecord[TileDistricts.ENTERTAINMENT_DISTRICT];
-
-    return districts.includes(tile.District);
+    return isDistrictHelper(districtName, TileDistricts.SCIENCE_DISTRICT);
 }
 
-export function isHolySite(tile: TileType)
+export function isCityCenter(districtName: TileDistricts | TileUniqueDistricts | TileNone.NONE)
 {
-    if (tile.District === TileNone.NONE)
-        return false;
-
-    const districts = DistrictIdentifierRecord[TileDistricts.FAITH_DISTRICT];
-
-    return districts.includes(tile.District);
+    return isDistrictHelper(districtName, TileDistricts.CENTER_DISTRICT);
 }
 
-export function isIndustrialZone(tile: TileType)
+export function isCommercialHub(districtName: TileDistricts | TileUniqueDistricts | TileNone.NONE)
 {
-    if (tile.District === TileNone.NONE)
-        return false;
-
-    const districts = DistrictIdentifierRecord[TileDistricts.INDUSTRIAL_DISTRICT];
-
-    return districts.includes(tile.District);
+    return isDistrictHelper(districtName, TileDistricts.COMMERCIAL_DISTRICT);
 }
 
-export function isNeighborhood(tile: TileType)
+export function isEncampment(districtName: TileDistricts | TileUniqueDistricts | TileNone.NONE)
 {
-    if (tile.District === TileNone.NONE)
-        return false;
-
-    const districts = DistrictIdentifierRecord[TileDistricts.NEIGHBORHOOD_DISTRICT];
-
-    return districts.includes(tile.District);
+    return isDistrictHelper(districtName, TileDistricts.ENCAMPMENT_DISTRICT);
 }
 
-export function isSpaceport(tile: TileType)
+export function isEntertainmentComplex(districtName: TileDistricts | TileUniqueDistricts | TileNone.NONE)
 {
-    if (tile.District === TileNone.NONE)
-        return false;
-
-    const districts = DistrictIdentifierRecord[TileDistricts.ROCKET_DISTRICT];
-
-    return districts.includes(tile.District);
+    return isDistrictHelper(districtName, TileDistricts.ENTERTAINMENT_DISTRICT);
 }
 
-export function isTheaterSquare(tile: TileType)
+export function isHolySite(districtName: TileDistricts | TileUniqueDistricts | TileNone.NONE)
 {
-    if (tile.District === TileNone.NONE)
-        return false;
-
-    const districts = DistrictIdentifierRecord[TileDistricts.THEATER_DISTRICT];
-
-    return districts.includes(tile.District);
+    return isDistrictHelper(districtName, TileDistricts.FAITH_DISTRICT);
 }
 
-export function isHarbor(tile: TileType)
+export function isIndustrialZone(districtName: TileDistricts | TileUniqueDistricts | TileNone.NONE)
 {
-    if (tile.District === TileNone.NONE)
-        return false;
+    return isDistrictHelper(districtName, TileDistricts.INDUSTRIAL_DISTRICT);
+}
 
-    const districts = DistrictIdentifierRecord[TileDistricts.HARBOR_DISTRICT];
+export function isNeighborhood(districtName: TileDistricts | TileUniqueDistricts | TileNone.NONE)
+{
+    return isDistrictHelper(districtName, TileDistricts.NEIGHBORHOOD_DISTRICT);
+}
 
-    return districts.includes(tile.District);
+export function isSpaceport(districtName: TileDistricts | TileUniqueDistricts | TileNone.NONE)
+{
+    return isDistrictHelper(districtName, TileDistricts.ROCKET_DISTRICT);
+}
+
+export function isTheaterSquare(districtName: TileDistricts | TileUniqueDistricts | TileNone.NONE)
+{
+    return isDistrictHelper(districtName, TileDistricts.THEATER_DISTRICT);
+}
+
+export function isHarbor(districtName: TileDistricts | TileUniqueDistricts | TileNone.NONE)
+{
+    return isDistrictHelper(districtName, TileDistricts.HARBOR_DISTRICT);
 }
 
 // https://ondras.github.io/rot.js/manual/#hex/indexing
@@ -682,7 +647,14 @@ export function changeAppealToAdjFromDistrict(districtTile: TileType, mapCache: 
     const theDistrict = districtTile.District;
 
     if (theDistrict !== TileNone.NONE && 
-       (isHolySite(districtTile) || isTheaterSquare(districtTile) || isEntertainmentComplex(districtTile) || isIndustrialZone(districtTile) || isAerodrome(districtTile) || isSpaceport(districtTile) || isEncampment(districtTile)))
+       (isHolySite(districtTile.District) || 
+       isTheaterSquare(districtTile.District) || 
+       isEntertainmentComplex(districtTile.District) || 
+       isIndustrialZone(districtTile.District) || 
+       isAerodrome(districtTile.District) || 
+       isSpaceport(districtTile.District) || 
+       isEncampment(districtTile.District))
+       )
     {
         const offsets = getOffsets(districtTile.Y);
         for (let i = 0; i < offsets.length; i++)
@@ -695,9 +667,9 @@ export function changeAppealToAdjFromDistrict(districtTile: TileType, mapCache: 
 
             if (adjTile && !adjTile.IsMountain && !isMountainWonder(adjTile) && !hasNaturalWonder(adjTile.FeatureType))
             {
-                if (isHolySite(districtTile) || isTheaterSquare(districtTile) || isEntertainmentComplex(districtTile))
+                if (isHolySite(districtTile.District) || isTheaterSquare(districtTile.District) || isEntertainmentComplex(districtTile.District))
                     adjTile.Appeal = adjTile.Appeal + 1;
-                else if (isIndustrialZone(districtTile) || isAerodrome(districtTile) || isSpaceport(districtTile) || isEncampment(districtTile))
+                else if (isIndustrialZone(districtTile.District) || isAerodrome(districtTile.District) || isSpaceport(districtTile.District) || isEncampment(districtTile.District))
                     adjTile.Appeal = adjTile.Appeal - 1;
             }
         }
@@ -732,33 +704,33 @@ export function calculateDistrictYieldsFromCitizens(districtTile: TileType, city
 
                 if (correctDistrictBuildings.includes(theBuilding))
                 {
-                    if (isCampus(districtTile))
+                    if (isCampus(districtTile.District))
                     {
                         newDistrictTile.Science = newDistrictTile.Science + 2;
                     }
-                    else if (isHolySite(districtTile))
+                    else if (isHolySite(districtTile.District))
                     {
                         newDistrictTile.Faith = newDistrictTile.Faith + 2;
                     }
-                    else if (isEncampment(districtTile))
+                    else if (isEncampment(districtTile.District))
                     {
                         newDistrictTile.Production = newDistrictTile.Production + 1;
                         newDistrictTile.Gold = newDistrictTile.Gold + 2;
                     }
-                    else if (isHarbor(districtTile))
+                    else if (isHarbor(districtTile.District))
                     {
                         newDistrictTile.Food = newDistrictTile.Food + 1;
                         newDistrictTile.Gold = newDistrictTile.Gold + 2;
                     }
-                    else if (isCommercialHub(districtTile))
+                    else if (isCommercialHub(districtTile.District))
                     {
                         newDistrictTile.Gold = newDistrictTile.Gold + 4;
                     }
-                    else if (isIndustrialZone(districtTile))
+                    else if (isIndustrialZone(districtTile.District))
                     {
                         newDistrictTile.Production = newDistrictTile.Production + 2;
                     }
-                    else if (isTheaterSquare(districtTile))
+                    else if (isTheaterSquare(districtTile.District))
                     {
                         newDistrictTile.Culture = newDistrictTile.Culture + 2;
                     }

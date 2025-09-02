@@ -1,3 +1,4 @@
+import { Brazil, England, Germany, Greece, Kongo, Rome, Russia } from "../civilization/uniqueCivilizations"
 import { TileDistricts, TileUniqueDistricts, TileBuildings } from "./civTypes"
 
 /** Maps districts to their buildings. */
@@ -66,4 +67,44 @@ export const DistrictIdentifierRecord: Record<TileDistricts, (TileDistricts | Ti
     [TileDistricts.NEIGHBORHOOD_DISTRICT]:                [TileDistricts.NEIGHBORHOOD_DISTRICT, TileUniqueDistricts.MBANZA_DISTRICT],
     [TileDistricts.ROCKET_DISTRICT]:                      [TileDistricts.ROCKET_DISTRICT],
     [TileDistricts.THEATER_DISTRICT]:                     [TileDistricts.THEATER_DISTRICT, TileUniqueDistricts.ACROPOLIS_DISTRICT],
+}
+
+/** Format is <CivObject.name, [Regular district, Unique district]> - The regular district tells what the unique district is a subtype of */
+export const CivilizationToUniqueDistrict: Record<string, [TileDistricts, TileUniqueDistricts]> = 
+{
+    [Rome.name]: [TileDistricts.AQUEDUCT_DISTRICT, TileUniqueDistricts.BATH_DISTRICT],
+    [Brazil.name]: [TileDistricts.ENTERTAINMENT_DISTRICT, TileUniqueDistricts.STREET_CARNIVAL_DISTRICT],
+    [Russia.name]: [TileDistricts.FAITH_DISTRICT, TileUniqueDistricts.LAVRA_DISTRICT],
+    [England.name]: [TileDistricts.HARBOR_DISTRICT, TileUniqueDistricts.ROYAL_NAVY_DOCKYARD_DISTRICT],
+    [Germany.name]: [TileDistricts.INDUSTRIAL_DISTRICT, TileUniqueDistricts.HANSA_DISTRICT],
+    [Kongo.name]: [TileDistricts.NEIGHBORHOOD_DISTRICT, TileUniqueDistricts.MBANZA_DISTRICT],
+    [Greece.name]: [TileDistricts.THEATER_DISTRICT, TileUniqueDistricts.ACROPOLIS_DISTRICT]
+}
+
+export const DefaultDistrictToUnique: Record<TileDistricts, TileUniqueDistricts[]> = 
+{
+    [TileDistricts.AERODROME_DISTRICT]:                   [],
+    [TileDistricts.AQUEDUCT_DISTRICT]:                    [TileUniqueDistricts.BATH_DISTRICT],
+    [TileDistricts.SCIENCE_DISTRICT]:                     [],
+    [TileDistricts.CENTER_DISTRICT]:                      [],
+    [TileDistricts.COMMERCIAL_DISTRICT]:                  [],
+    [TileDistricts.ENCAMPMENT_DISTRICT]:                  [],
+    [TileDistricts.ENTERTAINMENT_DISTRICT]:               [TileUniqueDistricts.STREET_CARNIVAL_DISTRICT],
+    [TileDistricts.HARBOR_DISTRICT]:                      [TileUniqueDistricts.ROYAL_NAVY_DOCKYARD_DISTRICT],
+    [TileDistricts.FAITH_DISTRICT]:                       [TileUniqueDistricts.LAVRA_DISTRICT],
+    [TileDistricts.INDUSTRIAL_DISTRICT]:                  [TileUniqueDistricts.HANSA_DISTRICT],
+    [TileDistricts.NEIGHBORHOOD_DISTRICT]:                [TileUniqueDistricts.MBANZA_DISTRICT],
+    [TileDistricts.ROCKET_DISTRICT]:                      [],
+    [TileDistricts.THEATER_DISTRICT]:                     [TileUniqueDistricts.ACROPOLIS_DISTRICT],
+}
+
+export const UniqueDistrictToDefault: Record<TileUniqueDistricts, TileDistricts> = 
+{
+    [TileUniqueDistricts.STREET_CARNIVAL_DISTRICT]:             TileDistricts.ENTERTAINMENT_DISTRICT,
+    [TileUniqueDistricts.ROYAL_NAVY_DOCKYARD_DISTRICT]:         TileDistricts.HARBOR_DISTRICT,
+    [TileUniqueDistricts.LAVRA_DISTRICT]:                       TileDistricts.FAITH_DISTRICT,
+    [TileUniqueDistricts.HANSA_DISTRICT]:                       TileDistricts.INDUSTRIAL_DISTRICT,
+    [TileUniqueDistricts.MBANZA_DISTRICT]:                      TileDistricts.NEIGHBORHOOD_DISTRICT,
+    [TileUniqueDistricts.ACROPOLIS_DISTRICT]:                   TileDistricts.THEATER_DISTRICT,
+    [TileUniqueDistricts.BATH_DISTRICT]:                        TileDistricts.AQUEDUCT_DISTRICT
 }

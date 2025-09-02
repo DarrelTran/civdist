@@ -407,7 +407,7 @@ export class Germany extends Civilization
 
             if (adjCacheTile)
             {
-                if (isCommercialHub(adjCacheTile))
+                if (isCommercialHub(adjCacheTile.District))
                     bonus = bonus + 2;
                 if (adjCacheTile.ResourceType !== TileNone.NONE)
                     bonus = bonus + 1;
@@ -784,7 +784,7 @@ export class Norway extends Civilization
      */
     updateCityTilesWithProduction(addedDistrictTile: TileType, ownedTiles: TileType[], mapCache: Map<string, TileType>)
     {
-        if (!isHolySite(addedDistrictTile))
+        if (!isHolySite(addedDistrictTile.District))
             return;
 
         ownedTiles.forEach((tile) => 
@@ -891,11 +891,11 @@ const CivRegistry: Record<LeaderName, new () => Civilization> =
     [LeaderName.MONTEZUMA_I]: Aztec
 };
 
-export function getCivilizationObject(leaderName: LeaderName | TileNone): Civilization | TileNone
+export function getCivilizationObject(leaderName: LeaderName | null): Civilization | null
 {
-    let theCiv: Civilization | TileNone = TileNone.NONE;
+    let theCiv: Civilization | null = null;
 
-    if (leaderName !== TileNone.NONE)
+    if (leaderName)
     {
         const FoundCiv = CivRegistry[leaderName];
         if (FoundCiv)

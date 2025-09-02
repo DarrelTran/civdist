@@ -323,6 +323,14 @@ export function drawBorderLines
     });
 } 
 
+/**
+ * Will try to draw from the river cache, otherwise, will draw using the hexmapcache.
+ * @param context 
+ * @param tileSize 
+ * @param gridSize 
+ * @param riverTiles 
+ * @param hexmapCache 
+ */
 export function drawRiversFromCache
 (
     context: CanvasRenderingContext2D,

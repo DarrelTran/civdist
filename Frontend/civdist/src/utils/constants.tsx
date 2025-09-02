@@ -1,4 +1,6 @@
-import { TileDistricts, TileYields, VictoryType } from "../types/civTypes";
+import { Civilization } from "../civilization/civilizations";
+import { TileDistricts, TileUniqueDistricts, TileYields, VictoryType } from "../types/civTypes";
+import { CivilizationToUniqueDistrict } from "../types/typeMaps";
 
 export const BASE_TILE_SIZE : number = 10;
 export const MIN_ZOOM = 50;
@@ -9,13 +11,35 @@ export const TITLE_TEXT = "Civdist";
 export const TITLE_CHAR_ANIM_TIME_MS = 500;
 export const TITLE_CHAR_ANIM_DELAY_MS = 100;
 
-export const getAllPossibleDistricts = () =>
+export const getAllPossibleDistricts = (civObj: Civilization | null) =>
 {
-    const allDistricts: TileDistricts[] = [];
+    const allDistricts: (TileDistricts | TileUniqueDistricts)[] = [];
 
     for (const dist of Object.values(TileDistricts)) 
     {
-        allDistricts.push(dist);
+        if (civObj)
+        {
+            const uniqueDistrTuple = CivilizationToUniqueDistrict[civObj.constructor.name];
+            
+            if (uniqueDistrTuple)
+            {
+                const districtIdentifier = uniqueDistrTuple[0];
+                const uniqueDistrict = uniqueDistrTuple[1];
+
+                if (dist === districtIdentifier) // this failing means just need to find district at appropriate spot - a unique one does exist
+                    allDistricts.push(uniqueDistrict);
+                else
+                    allDistricts.push(dist);
+            }
+            else // civ exists, but no unique = fallback
+            {
+                allDistricts.push(dist);
+            }
+        }
+        else // no civ = fallback to defaults
+        {
+            allDistricts.push(dist);
+        }
     }
 
     return allDistricts;

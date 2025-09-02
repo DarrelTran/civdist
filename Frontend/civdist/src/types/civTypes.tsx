@@ -375,7 +375,7 @@ export type TileType =
   Appeal: number,
   Continent: string,
   Civilization: string,
-  Leader: LeaderName,
+  Leader: LeaderName | TileNone.NONE,
   CityName: string,
   District: TileDistricts | TileUniqueDistricts | TileNone.NONE,
   /** ONLY EXISTS ON THE CITY TILE */

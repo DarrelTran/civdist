@@ -15,7 +15,7 @@ export function canPlaceAlhambra(tile: TileType, mapCache: Map<string, TileType>
             const oddrStr = getMapOddrString(tile.X + dx, tile.Y + dy);
             const adjTile = mapCache.get(oddrStr);
 
-            if (adjTile && isEncampment(adjTile))
+            if (adjTile && isEncampment(adjTile.District))
                 return true;
         }
     }
@@ -46,7 +46,7 @@ export function canPlaceBigBen(tile: TileType, mapCache: Map<string, TileType>, 
             const oddrStr = getMapOddrString(tile.X + dx, tile.Y + dy);
             const adjTile = mapCache.get(oddrStr);
 
-            if (adjTile && isCommercialHub(adjTile))
+            if (adjTile && isCommercialHub(adjTile.District))
                 hasCommercial = true;
 
             if (hasCommercial && hasBank)
@@ -70,7 +70,7 @@ export function canPlaceBolshoiTheatre(tile: TileType, mapCache: Map<string, Til
             const oddrStr = getMapOddrString(tile.X + dx, tile.Y + dy);
             const adjTile = mapCache.get(oddrStr);
 
-            if (adjTile && isTheaterSquare(adjTile))
+            if (adjTile && isTheaterSquare(adjTile.District))
                 return true;
         }
     }
@@ -91,7 +91,7 @@ export function canPlaceBroadway(tile: TileType, mapCache: Map<string, TileType>
             const oddrStr = getMapOddrString(tile.X + dx, tile.Y + dy);
             const adjTile = mapCache.get(oddrStr);
 
-            if (adjTile && isTheaterSquare(adjTile))
+            if (adjTile && isTheaterSquare(adjTile.District))
                 return true;
         }
     }
@@ -120,7 +120,7 @@ export function canPlaceColosseum(tile: TileType, mapCache: Map<string, TileType
             const oddrStr = getMapOddrString(tile.X + dx, tile.Y + dy);
             const adjTile = mapCache.get(oddrStr);
 
-            if (adjTile && isEntertainmentComplex(adjTile))
+            if (adjTile && isEntertainmentComplex(adjTile.District))
                 return true;
         }
     }
@@ -144,7 +144,7 @@ export function canPlaceColossus(tile: TileType, mapCache: Map<string, TileType>
             const oddrStr = getMapOddrString(tile.X + dx, tile.Y + dy);
             const adjTile = mapCache.get(oddrStr);
 
-            if (adjTile && isHarbor(adjTile))
+            if (adjTile && isHarbor(adjTile.District))
                 hasHarbor = true;
             else if (adjTile && isLand(adjTile))
                 hasLand = true;
@@ -178,7 +178,7 @@ export function canPlaceEiffelTower(tile: TileType, mapCache: Map<string, TileTy
             const oddrStr = getMapOddrString(tile.X + dx, tile.Y + dy);
             const adjTile = mapCache.get(oddrStr);
 
-            if (adjTile && isCityCenter(adjTile))
+            if (adjTile && isCityCenter(adjTile.District))
                 return true;
         }
     }
@@ -209,7 +209,7 @@ export function canPlaceEstadioDoMaracana(tile: TileType, mapCache: Map<string, 
             const oddrStr = getMapOddrString(tile.X + dx, tile.Y + dy);
             const adjTile = mapCache.get(oddrStr);
 
-            if (adjTile && isEntertainmentComplex(adjTile))
+            if (adjTile && isEntertainmentComplex(adjTile.District))
                 hasEntertainment = true;
 
             if (hasEntertainment && hasStadium)
@@ -233,7 +233,7 @@ export function canPlaceForbiddenCity(tile: TileType, mapCache: Map<string, Tile
             const oddrStr = getMapOddrString(tile.X + dx, tile.Y + dy);
             const adjTile = mapCache.get(oddrStr);
 
-            if (adjTile && isCityCenter(adjTile))
+            if (adjTile && isCityCenter(adjTile.District))
                 return true;
         }
     }
@@ -264,7 +264,7 @@ export function canPlaceGreatLibrary(tile: TileType, mapCache: Map<string, TileT
             const oddrStr = getMapOddrString(tile.X + dx, tile.Y + dy);
             const adjTile = mapCache.get(oddrStr);
 
-            if (adjTile && isEntertainmentComplex(adjTile))
+            if (adjTile && isEntertainmentComplex(adjTile.District))
                 hasCampus = true;
 
             if (hasCampus && hasLibrary)
@@ -297,7 +297,7 @@ export function canPlaceGreatZimbabwe(tile: TileType, mapCache: Map<string, Tile
         const oddrStr = getMapOddrString(tile.X + dx, tile.Y + dy);
         const adjTile = mapCache.get(oddrStr);
 
-        if (adjTile && isCommercialHub(adjTile))
+        if (adjTile && isCommercialHub(adjTile.District))
             hasCommercial = true;
         else if (adjTile && tile.ResourceType === TileBonusResources.CATTLE)
             hasCattle = true;
@@ -333,7 +333,7 @@ export function canPlaceGreatLighthouse(tile: TileType, mapCache: Map<string, Ti
             const oddrStr = getMapOddrString(tile.X + dx, tile.Y + dy);
             const adjTile = mapCache.get(oddrStr);
 
-            if (adjTile && isHarbor(adjTile))
+            if (adjTile && isHarbor(adjTile.District))
                 hasHarbor = true;
             else if (adjTile && isLand(adjTile))
                 hasLand = true;
@@ -359,7 +359,7 @@ export function canPlaceHagiaSophia(tile: TileType, mapCache: Map<string, TileTy
             const oddrStr = getMapOddrString(tile.X + dx, tile.Y + dy);
             const adjTile = mapCache.get(oddrStr);
 
-            if (adjTile && isHolySite(adjTile))
+            if (adjTile && isHolySite(adjTile.District))
                 return true;
         }
     }
@@ -427,7 +427,7 @@ export function canPlaceMahabodhiTemple(tile: TileType, mapCache: Map<string, Ti
             const oddrStr = getMapOddrString(tile.X + dx, tile.Y + dy);
             const adjTile = mapCache.get(oddrStr);
 
-            if (adjTile && isHolySite(adjTile))
+            if (adjTile && isHolySite(adjTile.District))
                 hasHoly = true;
 
             if (hasHoly && hasTemple)
@@ -477,7 +477,7 @@ export function canPlaceOxfordUniversity(tile: TileType, mapCache: Map<string, T
             const oddrStr = getMapOddrString(tile.X + dx, tile.Y + dy);
             const adjTile = mapCache.get(oddrStr);
 
-            if (adjTile && isCampus(adjTile))
+            if (adjTile && isCampus(adjTile.District))
                 hasCampus = true;
 
             if (hasCampus && hasUniversity)
@@ -548,7 +548,7 @@ export function canPlaceRuhrValley(tile: TileType, mapCache: Map<string, TileTyp
             const oddrStr = getMapOddrString(tile.X + dx, tile.Y + dy);
             const adjTile = mapCache.get(oddrStr);
 
-            if (adjTile && isIndustrialZone(adjTile))
+            if (adjTile && isIndustrialZone(adjTile.District))
                 hasIndustrial = true;
 
             if (hasIndustrial && hasFactory)
@@ -596,7 +596,7 @@ export function canPlaceSydneyOperaHouse(tile: TileType, mapCache: Map<string, T
             const oddrStr = getMapOddrString(tile.X + dx, tile.Y + dy);
             const adjTile = mapCache.get(oddrStr);
 
-            if (adjTile && isHarbor(adjTile))
+            if (adjTile && isHarbor(adjTile.District))
                 hasHarbor = true;
             else if (adjTile && isLand(adjTile))
                 hasLand = true;
@@ -632,7 +632,7 @@ export function canPlaceTerracottaArmy(tile: TileType, mapCache: Map<string, Til
             const oddrStr = getMapOddrString(tile.X + dx, tile.Y + dy);
             const adjTile = mapCache.get(oddrStr);
 
-            if (adjTile && isEncampment(adjTile))
+            if (adjTile && isEncampment(adjTile.District))
                 hasEncampment = true;
 
             if (hasEncampment && hasBarracksOrStable)
@@ -656,7 +656,7 @@ export function canPlaceVenetianArsenal(tile: TileType, mapCache: Map<string, Ti
             const oddrStr = getMapOddrString(tile.X + dx, tile.Y + dy);
             const adjTile = mapCache.get(oddrStr);
 
-            if (adjTile && isIndustrialZone(adjTile))
+            if (adjTile && isIndustrialZone(adjTile.District))
                 return true;
         }
     }

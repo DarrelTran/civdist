@@ -175,8 +175,21 @@ export async function backend_loginUser(username: string, password: string): Pro
 
 export async function logout()
 {
-    sessionStorage.setItem('bearer', '');
-    await backend.post('/logout');
+    try
+    {
+        const response = await backend.post('/logout');
+
+        return RESTResponseConstructor(null, response.status, null);
+    }
+    catch(err)
+    {
+        if (axios.isAxiosError(err))
+        {
+            return RESTResponseConstructor(null, err.status ? err.status : null, err.message);
+        }
+
+        return RESTResponseConstructor(null, null, "Unknown error");
+    }
 }
 
 /**

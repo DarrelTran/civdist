@@ -10,6 +10,6 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=8000,
         reload=True,
-        ssl_certfile=str(CERT_DIR / "cert.pem"),
-        ssl_keyfile=str(CERT_DIR / "key.pem")
+        ssl_certfile=str(CERT_DIR / "localhost.pem"),
+        ssl_keyfile=str(CERT_DIR / "localhost-key.pem")
     )

@@ -90,7 +90,10 @@ async def refreshToken(response: Response, refresh_token: str | None = Cookie(de
     return
 
 @router.post('/logout', status_code=204)
-async def logoutUser(response: Response):
+async def logoutUser(response: Response, username: str = Depends(tokens.getUserWithJWT)):
+    if not username:
+        raise HTTPException(status_code=401, detail='Invalid user!')
+
     response.delete_cookie(
         key='refresh_token',
         httponly=True,

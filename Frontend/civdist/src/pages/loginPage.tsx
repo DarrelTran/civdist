@@ -1,4 +1,4 @@
-import {useState, useRef} from 'react';
+import {useState, useRef, useEffect} from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import common from './common.module.css';
 import styles from './loginPage.module.css';
@@ -16,6 +16,25 @@ const LoginPage = () =>
 
     const [errorText, setErrorText] = useState<string>('');
     const errorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => 
+    {
+        const handleStorageChange = (event: StorageEvent) =>
+        {
+            if (event.key === 'loggedIn')
+            {
+                if (event.newValue === 'true')
+                    nav('/map');
+            }
+        }
+
+        window.addEventListener('storage', handleStorageChange);
+
+        return () =>
+        {
+            window.removeEventListener('storage', handleStorageChange);
+        }         
+    }, [])
 
     return (
         <div className={common.body}>
@@ -126,7 +145,7 @@ const LoginPage = () =>
                 return;
         }
 
-        sessionStorage.setItem('loggedIn', 'true');
+        localStorage.setItem('loggedIn', 'true');
         nav('/map');
     }
 };

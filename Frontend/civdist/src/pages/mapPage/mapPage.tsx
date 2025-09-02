@@ -398,7 +398,7 @@ const MapPage = () =>
         return () => 
         {
             window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mousedown', handleMouseClick)
+            window.removeEventListener('mousedown', handleMouseClick);
         };
     }, [handleMouseMove, handleMouseClick]);
 
@@ -502,27 +502,37 @@ const MapPage = () =>
             }
         }
 
-        if (sessionStorage.getItem('loggedIn') === 'true')
+        if (localStorage.getItem('loggedIn') === 'true')
             setIsLoggedIn(true);
 
         const response = await backend_checkLoggedIn();
 
         if (response.status === 201)
         {
-            if (sessionStorage.getItem('loggedIn') !== 'true')
+            if (localStorage.getItem('loggedIn') !== 'true')
                 setIsLoggedIn(true);
 
             loadMaps(response.output);
         }
         else
         {
-            sessionStorage.setItem('loggedIn', 'false');
+            localStorage.setItem('loggedIn', 'false');
             setIsLoggedIn(false);
         }
     }, [isLoggingOut])
 
     useEffect(() => 
     {   
+        const handleStorageChange = (event: StorageEvent) =>
+        {
+            if (event.key === 'loggedIn')
+            {
+                setIsLoggedIn(event.newValue === 'true');
+            }
+        }
+
+        window.addEventListener('storage', handleStorageChange);
+
         const controller = new AbortController();
 
         const handleResize = () => 
@@ -541,6 +551,9 @@ const MapPage = () =>
         return () => 
         {
             window.removeEventListener('resize', handleResize);
+            window.removeEventListener('storage', handleStorageChange);
+
+            // if maps are still being loaded from backend, stop
             controller.abort();
         };
     }, []);
@@ -1287,7 +1300,7 @@ const MapPage = () =>
             else
             {
                 setIsLoggedIn(false);
-                sessionStorage.setItem('loggedIn', 'false');
+                localStorage.setItem('loggedIn', 'false');
             }
         }
         finally

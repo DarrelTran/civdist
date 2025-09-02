@@ -1,4 +1,4 @@
-import {useState, useRef} from 'react';
+import {useState, useRef, useEffect} from 'react';
 import { useNavigate } from 'react-router-dom';
 import common from './common.module.css';
 import styles from './signUpPage.module.css';
@@ -18,6 +18,25 @@ const SignUpPage = () =>
     const [errorText, setErrorText] = useState<string>('');
     const errorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    useEffect(() => 
+    {
+        const handleStorageChange = (event: StorageEvent) =>
+        {
+            if (event.key === 'loggedIn')
+            {
+                if (event.newValue === 'true')
+                    nav('/map');
+            }
+        }
+
+        window.addEventListener('storage', handleStorageChange);
+
+        return () =>
+        {
+            window.removeEventListener('storage', handleStorageChange);
+        }         
+    }, [])
+
     return (
         <div className={common.body}>
             <Marquee 
@@ -28,6 +47,7 @@ const SignUpPage = () =>
                 textMovingColor={[0, 256]}
                 topDivClassName={common.title}
             />
+
 
             <div className={styles.signUpDiv}>
                 <span className={styles.signUpText}>Username: </span>
@@ -199,6 +219,7 @@ const SignUpPage = () =>
                 return;
         }
 
+        localStorage.setItem('loggedIn', 'true');
         nav('/map');
     }
 };

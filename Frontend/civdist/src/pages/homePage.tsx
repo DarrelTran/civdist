@@ -6,11 +6,12 @@ import { TITLE_CHAR_ANIM_DELAY_MS, TITLE_CHAR_ANIM_TIME_MS, TITLE_TEXT } from '.
 import titleImg from '../images/title.png'
 import { backend_logout } from '../REST/user';
 import { useMessage } from '../hooks/useMessage';
+import { useEffect } from 'react';
 
 const HomePage = () => 
 {
     const nav = useNavigate();
-    const loggedIn = sessionStorage.getItem('loggedIn');
+    const loggedIn = localStorage.getItem('loggedIn');
 
     const 
     {
@@ -28,11 +29,26 @@ const HomePage = () =>
         }
         else
         {
-            sessionStorage.setItem('loggedIn', 'false');
+            localStorage.setItem('loggedIn', 'false');
         }
 
         showMiscError(''); // lazy way to re-render
     }
+
+    useEffect(() => 
+    {
+        const handleStorageChange = (event: StorageEvent) =>
+        {
+            showMiscError(''); // lazy way to re-render
+        }
+
+        window.addEventListener('storage', handleStorageChange);
+
+        return () =>
+        {
+            window.removeEventListener('storage', handleStorageChange);
+        }         
+    }, [])
 
     return (
         <div className={common.body}>

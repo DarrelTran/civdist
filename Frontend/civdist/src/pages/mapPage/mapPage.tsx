@@ -751,7 +751,7 @@ const MapPage = () =>
                 }
                 catch(error)
                 {
-                    console.log(error)
+                    showSaveError(`Error importing a map! Message: ${JSON.stringify(error)}`);
                 }
             }
 

@@ -6,7 +6,7 @@ import common from '../common.module.css';
 import { TileNone, TileWonders, TileDistricts, TileNaturalWonders, TileType, LeaderName, TileYields, PossibleErrors, VictoryType, TileBonusResources, TileLuxuryResources, TileStrategicResources, TileArtifactResources, TileUniqueDistricts, HexType} from '../../types/civTypes'
 import {SaveType, DatabaseMapType} from '../../types/serverTypes'
 import {MiscImages, TerrainFeatureKey, YieldImagesKey} from '../../types/imageTypes'
-import { loadDistrictDropdownImages, loadDistrictImages, loadMiscImages, loadNaturalWonderImages, loadResourceImages, loadTerrainImages, loadVictoryDropdownImages, loadWonderImages, loadYieldDropdownImages, loadYieldImages } from '../../images/imageLoaders';
+import { loadCivFlagImages, loadDistrictDropdownImages, loadDistrictImages, loadMiscImages, loadNaturalWonderImages, loadResourceImages, loadTerrainImages, loadVictoryDropdownImages, loadWonderImages, loadYieldDropdownImages, loadYieldImages } from '../../images/imageLoaders';
 import { getYields } from '../../images/imageAttributeFinders';
 import { BASE_TILE_SIZE, MIN_ZOOM, MAX_ZOOM } from '../../utils/constants';
 import { nearbyCityFontSize, nearbyCityStyles, genericSingleSelectStyle, optionalVisualStyle, genericWithSingleImageStyle, genericWithMultiImageStyle } from './mapPageSelectStyles';
@@ -25,7 +25,7 @@ import SaveDropdown from '../../components/saveDropdown/saveDropdown';
 import { backend_addMap, backend_checkLoggedIn, backend_getAllMaps, backend_getMap, backend_logout, backend_refreshToken, backend_updateMap } from '../../REST/user';
 import { useIdleTimer } from '../../hooks/idleDetector';
 import { drawBorderLines, drawCityHighlight, drawHexImage, drawResourceOnTile, drawRiversFromCache, drawTextWithBox, drawYieldsOnTile, getHexMapOffset, getImageAttributes, wrapCol, wrapRow } from '../../utils/drawing/hexmap';
-import { formatDistrictOptions, formatSelectionYields, formatVictoryOptions, getCityOptions, getCivilizationOptions, getDistrictOptions, getNearbyCityOptions, getNearbyCityTextMaxWidth, getOptionalVisualMaxWidth, getOptionalVisualOptions, getSelectionYields, getVictoryTypeOptions } from './dropdownOptions';
+import { formatCivilizationOptions, formatDistrictOptions, formatSelectionYields, formatVictoryOptions, getCityOptions, getCivilizationOptions, getDistrictOptions, getNearbyCityOptions, getNearbyCityTextMaxWidth, getOptionalVisualMaxWidth, getOptionalVisualOptions, getSelectionYields, getVictoryTypeOptions } from './dropdownOptions';
 import { useMessage } from '../../hooks/useMessage';
 import { useThrottledCallback } from '../../hooks/throttledCallback';
 import { Norway, getCivilizationObject } from '../../civilization/uniqueCivilizations';
@@ -119,6 +119,7 @@ const MapPage = () =>
     const [civLeaders, setCivLeaders] = useState<Map<string, LeaderName>>(new Map()); // <empire name, leader name>
 
     const [dropdownCiv, setDropdownCiv] = useState<string | null>(null);
+    const [visualDropdownCiv, setVisualDropdownCiv] = useState<OptionsWithImage | null>(null);
 
     const [includeCityStates, setIncludeCityStates] = useState<boolean>(false);
     const [includeWonders, setIncludeWonders] = useState<boolean>(false);
@@ -166,6 +167,7 @@ const MapPage = () =>
     const miscImagesCache = useRef<Map<MiscImages, HTMLImageElement>>(new Map());
     const dropdownDistrictsCache = useRef<Map<TileDistricts | TileUniqueDistricts, HTMLImageElement>>(new Map());
     const victoryDropdownCache = useRef<Map<VictoryType, HTMLImageElement>>(new Map());
+    const dropdownCivFlagCache = useRef<Map<LeaderName, HTMLImageElement>>(new Map());
 
     const [areImagesLoaded, setAreImagesLoaded] = useState<boolean>(false);
     const [riverTiles, setRiverTiles] = useState<TileType[]>([]);
@@ -182,6 +184,7 @@ const MapPage = () =>
         await loadMiscImages(miscImagesCache.current);
         await loadDistrictDropdownImages(dropdownDistrictsCache.current);
         await loadVictoryDropdownImages(victoryDropdownCache.current);
+        await loadCivFlagImages(dropdownCivFlagCache.current);
 
         setAreImagesLoaded(true);
     }
@@ -885,7 +888,7 @@ const MapPage = () =>
     {
         if (dropdownCiv)
         {
-            if (dropdownCiv.includes("city-state"))
+            if (dropdownCiv.includes('city-state'))
             {
                 return LeaderName.CITY_STATE;
             }
@@ -1398,17 +1401,33 @@ const MapPage = () =>
                             <Select 
                                 inputId='civilization-dropdown'
                                 instanceId='civilization-dropdown'
-                                value={dropdownCiv ? {label: dropdownCiv, value: dropdownCiv} : null}
-                                options={getCivilizationOptions(uniqueCivilizations, includeCityStates)} 
-                                styles={genericSingleSelectStyle} 
+                                value={visualDropdownCiv ? visualDropdownCiv : null}
+                                options=
+                                {
+                                    getCivilizationOptions
+                                    (
+                                        areImagesLoaded,
+                                        includeCityStates,
+                                        civLeaders,
+                                        dropdownCivFlagCache.current
+                                    )
+                                } 
+                                styles={genericWithSingleImageStyle} 
+                                formatOptionLabel={formatCivilizationOptions}
                                 onChange=
                                 {
                                     val => 
                                     { 
                                         if (val && val.value) 
+                                        {
                                             setDropdownCiv(val.value); 
+                                            setVisualDropdownCiv(val);
+                                        }
                                         else 
+                                        {
                                             setDropdownCiv(null);
+                                            setVisualDropdownCiv(null);
+                                        }
 
                                         setDropdownCity(null);
 

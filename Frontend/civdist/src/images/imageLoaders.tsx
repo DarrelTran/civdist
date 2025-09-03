@@ -1,4 +1,4 @@
-import { TileDistricts, TileWonders, TileNaturalWonders, TileYields, TileBonusResources, TileLuxuryResources, TileStrategicResources, TileArtifactResources, TileUniqueDistricts, VictoryType } from "../types/civTypes";
+import { TileDistricts, TileWonders, TileNaturalWonders, TileYields, TileBonusResources, TileLuxuryResources, TileStrategicResources, TileArtifactResources, TileUniqueDistricts, VictoryType, LeaderName } from "../types/civTypes";
 import { MiscImages, YieldImagesKey  } from "../types/imageTypes";
 import { allWonderImages } from "./importers/wondersImport";
 import { allDistrictDropdownImages, allDistrictImages } from "./importers/districtImport";
@@ -8,6 +8,7 @@ import { yieldDropdownImages, yieldHexmapImages } from "./importers/yieldsImport
 import { allResourceImages } from "./importers/resourcesImport";
 import { allMiscImages } from "./importers/miscImport";
 import { allVictoryDropdownImages } from "./importers/victoryImport";
+import { allCivFlagImages } from "./importers/civImport";
 
 async function loadImages<T extends string | number | symbol>(theMap: Map<T, HTMLImageElement>, imageImport: Record<T, string>)
 {
@@ -74,4 +75,9 @@ export async function loadMiscImages(misc: Map<MiscImages, HTMLImageElement>)
 export async function loadVictoryDropdownImages(vict: Map<VictoryType, HTMLImageElement>)
 {
     loadImages(vict, allVictoryDropdownImages);
+}
+
+export async function loadCivFlagImages(civ: Map<LeaderName, HTMLImageElement>)
+{
+    loadImages(civ, allCivFlagImages);
 }

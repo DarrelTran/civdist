@@ -1,6 +1,6 @@
 import { JSX } from "react";
 import { OptionsGenericString, OptionsWithImage, OptionsWithSpecialText, OptionalVisualOptions } from "../../types/selectionTypes";
-import { TileDistricts, TileUniqueDistricts, TileYields, VictoryType } from "../../types/civTypes";
+import { LeaderName, TileDistricts, TileUniqueDistricts, TileYields, VictoryType } from "../../types/civTypes";
 import { getAllPossibleDistricts, getAllPossibleVictoryTypes, getAllPossibleYields } from "../../utils/constants";
 import { getTextWidth } from "../../utils/misc/misc";
 import { nearbyCityFontSize, optionalVisualFontSize } from "./mapPageSelectStyles";
@@ -49,19 +49,40 @@ export function getNearbyCityOptions(uniqueCities: Map<string, string[]>, dropdo
     return tempArr;
 }
 
-export function getCivilizationOptions(uniqueCivilizations: Set<string>, includeCityStates: boolean)
+export function getCivilizationOptions
+(
+    areImagesLoaded: boolean, 
+    includeCityStates: boolean, 
+    leaderNameMap: Map<string, LeaderName>,
+    dropdownCivFlagCache: Map<LeaderName, HTMLImageElement>
+)
 {
-    const tempArr: OptionsGenericString[] = [];
+    const tempArr: OptionsWithImage[] = [];
 
-    uniqueCivilizations.forEach((civ) => 
+    if (areImagesLoaded)
     {
-        if (includeCityStates || (!includeCityStates && !civ.includes("city-state")))
+        // leader name map already loads all the empires (civs) with their leader
+        leaderNameMap.forEach((leader, empire) => 
         {
-            tempArr.push({value: civ, label: civ});
-        }
-    })
+            if (includeCityStates || (!includeCityStates && !empire.includes("city-state")))
+            {
+                const currImage = dropdownCivFlagCache.get(leader);
+
+                if (currImage)
+                    tempArr.push({value: empire, label: empire, image: currImage});
+            }
+        })
+    }
 
     return tempArr;
+}
+
+export function formatCivilizationOptions(option: OptionsWithImage): JSX.Element
+{
+    return <div style={{display: 'flex'}}>
+        <img src={option.image.src} width={30} height={30} alt='' style={{paddingRight: '10px'}}/>
+        <span style={{color: 'black'}}>{option.label}</span>
+    </div>
 }
 
 export function getCityOptions(uniqueCities: Map<string, string[]>, dropdownCiv: string | null)

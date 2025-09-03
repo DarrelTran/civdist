@@ -1,3 +1,0 @@
-frontend - vercel
-db - supabase
-backend - ?

@@ -12,7 +12,7 @@ import { BASE_TILE_SIZE, MIN_ZOOM, MAX_ZOOM } from '../../utils/constants';
 import { nearbyCityFontSize, nearbyCityStyles, genericSingleSelectStyle, optionalVisualStyle, genericWithSingleImageStyle, genericWithMultiImageStyle } from './mapPageSelectStyles';
 import { OptionsWithSpecialText, OptionsGenericString, OptionalVisualOptions, OptionsWithImage } from '../../types/selectionTypes';
 import { getTextWidth } from '../../utils/misc/misc';
-import { getOffsets, oddrToPixel, pixelToOddr, downloadMapJSON, getMapOddrString, getMinMaxXY, hexmapCacheToJSONArray } from '../../utils/hex/genericHex';
+import { getOffsets, pixelToOddr, downloadMapJSON, getMapOddrString, getMinMaxXY, hexmapCacheToJSONArray } from '../../utils/hex/genericHex';
 import { getScaledGridAndTileSizes, getScaledGridSizesFromTile } from '../../utils/imgScaling/scaling';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCircleQuestion } from '@fortawesome/free-regular-svg-icons';
@@ -24,7 +24,7 @@ import HoldDownButton from '../../components/holdDownButton/holdDownButton';
 import SaveDropdown from '../../components/saveDropdown/saveDropdown';
 import { backend_addMap, backend_checkLoggedIn, backend_getAllMaps, backend_getMap, backend_logout, backend_refreshToken, backend_updateMap } from '../../REST/user';
 import { useIdleTimer } from '../../hooks/idleDetector';
-import { drawBorderLines, drawCityHighlight, drawHexImage, drawResourceOnTile, drawRiversFromCache, drawTextWithBox, drawYieldsOnTile, getHexMapOffset, getImageAttributes, wrapCol, wrapRow } from '../../utils/drawing/hexmap';
+import { drawMapFromCache, getHexMapOffset, getImageAttributes, wrapCol, wrapRow } from '../../utils/drawing/hexmap';
 import { formatCivilizationOptions, formatDistrictOptions, formatSelectionYields, formatVictoryOptions, getCityOptions, getCivilizationOptions, getDistrictOptions, getNearbyCityOptions, getNearbyCityTextMaxWidth, getOptionalVisualMaxWidth, getOptionalVisualOptions, getSelectionYields, getVictoryTypeOptions } from './dropdownOptions';
 import { useMessage } from '../../hooks/useMessage';
 import { useThrottledCallback } from '../../hooks/throttledCallback';
@@ -219,7 +219,27 @@ const MapPage = () =>
 
     const throttledMapDraw = useThrottledCallback((context: CanvasRenderingContext2D) => 
     {
-        drawMapFromCache(context);
+        drawMapFromCache
+        (
+            context,
+            hexmapCache.current,
+            hoveredTile,
+            tileSize,
+            gridSize,
+            minAndMaxCoords,
+            naturalWondersImagesCache.current,
+            wondersImagesCache.current,
+            districtsImagesCache.current,
+            terrainImagesCache.current,
+            resourceImagesCache.current,
+            miscImagesCache.current,
+            optionalVisual,
+            yieldAttributeCache.current,
+            dropdownCity,
+            dropdownNearbyCity,
+            cityBoundaryTiles,
+            riverTiles
+        );
     }, moveDelayMS)
 
     function handleMouseClick(e: MouseEvent)
@@ -313,7 +333,7 @@ const MapPage = () =>
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mousedown', handleMouseClick);
         };
-    }, [tileSize, gridSize, currentCity, cityOwnedTiles, cityBoundaryTiles, mapCacheVersion, currentCity, dropdownCity, hoveredTile, dropdownNearbyCity, optionalVisual])
+    }, [tileSize, gridSize, currentCity, cityOwnedTiles, cityBoundaryTiles, mapCacheVersion, currentCity, dropdownCity, hoveredTile, dropdownNearbyCity, optionalVisual, yieldAttributeCacheVersion])
 
     function setDropdownValues(theJSON: TileType[])
     {
@@ -503,6 +523,7 @@ const MapPage = () =>
         setOriginalTileSize({ x: sizes.tileX, y: sizes.tileY });
         setOriginalGridSize({ x: sizes.gridX, y: sizes.gridY });
 
+        // resize grid based on window size only if zoom is 100
         if (visualZoomInput === 100) 
         {
             setTileSize({x: sizes.tileX, y: sizes.tileY});
@@ -510,75 +531,9 @@ const MapPage = () =>
         }
     }, [winSize, minAndMaxCoords]);
 
-    function drawMapFromCache(context: CanvasRenderingContext2D)
-    {
-        const riverArray: TileType[] = [];
-        context.clearRect(0, 0, context.canvas.width, context.canvas.height);
-
-        let cityHighlightTile: TileType | undefined = undefined;
-        let enemyHighlightTile: TileType | undefined = undefined;
-
-        // so can draw on top of everything
-        const cityNameAttr = {px: {x: -1, y: -1}, text: ''};
-
-        hexmapCache.current.forEach(tile => 
-        {
-            let theOpacity = 1;
-            if (hoveredTile)
-            {
-                if (hoveredTile.IsCity)
-                {
-                    cityNameAttr.px = oddrToPixel(hoveredTile.X, hoveredTile.Y, tileSize.x, tileSize.y, getHexMapOffset(tileSize));
-                    cityNameAttr.text = hoveredTile.CityName;
-                }
-
-                if (tile === hoveredTile)
-                    theOpacity = 0.5;
-            }
-
-            const theImage = getImageAttributes(tile, naturalWondersImagesCache.current, wondersImagesCache.current, districtsImagesCache.current, terrainImagesCache.current).imgElement;
-            if (theImage)
-                drawHexImage(context, tile, theOpacity, theImage, naturalWondersImagesCache.current, wondersImagesCache.current, districtsImagesCache.current, terrainImagesCache.current, tileSize, gridSize);
-
-            // draw all yields or resources for this tile
-            const yieldAttr = yieldAttributeCache.current.get(getMapOddrString(tile.X, tile.Y));
-            if (optionalVisual.yields && yieldAttr)
-                drawYieldsOnTile(context, tile, yieldAttr, tileSize, gridSize);
-            else if (optionalVisual.resources)
-                drawResourceOnTile(context, tile, tileSize, gridSize, resourceImagesCache.current);
-
-            // will be empty on init, but redraws happen so fast and so frequently, so user probably wont notice
-            if (riverTiles.length <= 0)
-                updateRiverCacheWithTile(tile, riverArray);
-
-            if (dropdownCity && tile.IsCity && tile.CityName === dropdownCity && !cityHighlightTile)
-                cityHighlightTile = tile;
-
-            if (tile.IsCity && dropdownNearbyCity && tile.CityName === dropdownNearbyCity.CityName && !enemyHighlightTile)
-                enemyHighlightTile = tile;
-        });
-
-        if (riverTiles.length <= 0)
-            drawRiversFromCache(context, tileSize, gridSize, riverArray, hexmapCache.current);
-        else
-            drawRiversFromCache(context, tileSize, gridSize, riverTiles, hexmapCache.current);
-
-        drawBorderLines(context, cityBoundaryTiles, tileSize, gridSize, minAndMaxCoords);
-
-        if (riverTiles.length <= 0)
-            setRiverTiles(riverArray);
-
-        if (cityHighlightTile)
-            drawCityHighlight(context, cityHighlightTile, tileSize, gridSize, MiscImages.CURRENT_CITY, 0.5, miscImagesCache.current);
-
-        if (enemyHighlightTile)
-            drawCityHighlight(context, enemyHighlightTile, tileSize, gridSize, MiscImages.ENEMY_CITY, 0.5, miscImagesCache.current);
-
-        drawTextWithBox(context, cityNameAttr.px, cityNameAttr.text, tileSize, gridSize);
-    }
-
     function initHexmapCache(theMapJSON: TileType[])
     {
+        const riverTiles: TileType[] = [];
         const hexmapCacheTemp = new Map<string, TileType>();
         const mountainCache = new Map<string, TileType>();
         const otherCache = new Map<string, TileType>();
@@ -644,8 +599,6 @@ const MapPage = () =>
                     // mountains last will go on top
                     mountainCache.forEach((value, key) => hexmapCacheTemp.set(key, value));
                     hexmapCache.current = hexmapCacheTemp;
-
-                    drawMapFromCache(context);
                 }
 
                 if (tile.Leader !== TileNone.NONE)
@@ -653,6 +606,8 @@ const MapPage = () =>
 
                 const yieldAttributes = getYields(tile, yieldImagesCache.current);
                 yieldMap.set(getMapOddrString(tile.X, tile.Y), yieldAttributes);
+
+                updateRiverCacheWithTile(tile, riverTiles);
             }
         });
 
@@ -672,6 +627,9 @@ const MapPage = () =>
         setYieldAttributeCacheVersion(yieldAttributeCacheVersion + 1);
 
         setCivLeaders(leaderMapTemp);
+        setRiverTiles(riverTiles);
+
+        setMapCacheVersion(mapCacheVersion + 1);
     }
 
     useEffect(() => 
@@ -682,12 +640,6 @@ const MapPage = () =>
         if (hexmapCache.current.size === 0) 
         {
             initHexmapCache(mapJSON);
-        } 
-        else 
-        {
-            const context = theCanvas.current?.getContext('2d');
-            if (context) 
-                drawMapFromCache(context);
         }
     }, [areImagesLoaded, mapJSON, minAndMaxCoords, mapCacheVersion]);
 
@@ -750,6 +702,8 @@ const MapPage = () =>
 
     function resetInitialValues(theJSON: TileType[])
     {
+        hexmapCache.current = new Map();
+
         setDropdownValues(theJSON);
         setMapJSON(theJSON);
         setMinAndMaxCoords(getMinMaxXY(theJSON));
@@ -1200,8 +1154,6 @@ const MapPage = () =>
 
                 if (hexmapCache && savedMap)
                 {
-                    hexmapCache.current = new Map();
-
                     const json = JSON.parse(JSON.stringify(savedMap));
                     resetInitialValues(json);
                 }

@@ -476,3 +476,79 @@ export function drawTextWithBox
 
     context.restore();
 }
+
+export function drawMapFromCache
+(
+    context: CanvasRenderingContext2D,
+    hexmapCache: Map<string, TileType>,
+    hoveredTile: TileType | undefined,
+    tileSize: {x: number, y: number},
+    gridSize: {x: number, y: number},
+    minAndMaxCoords: {minX: number, maxX: number, minY: number, maxY: number},
+    naturalWondersImagesCache: Map<TileNaturalWonders, HTMLImageElement>,
+    wondersImagesCache: Map<TileWonders, HTMLImageElement>,
+    districtsImagesCache: Map<TileDistricts | TileUniqueDistricts, HTMLImageElement>,
+    terrainImagesCache: Map<TerrainFeatureKey, HTMLImageElement>,
+    resourceImagesCache: Map<TileBonusResources | TileLuxuryResources | TileStrategicResources | TileArtifactResources, HTMLImageElement>,
+    miscImagesCache: Map<MiscImages, HTMLImageElement>,
+    optionalVisual: {yields: boolean, resources: boolean},
+    yieldAttributeCache: Map<string, {imgElement: HTMLImageElement | undefined, scaleType: HexType}[]>,
+    dropdownCity: string | null,
+    dropdownNearbyCity: TileType | null,
+    cityBoundaryTiles: Map<string, string[]>,
+    riverTiles: TileType[]
+)
+{
+    context.clearRect(0, 0, context.canvas.width, context.canvas.height);
+
+    let cityHighlightTile: TileType | undefined = undefined;
+    let enemyHighlightTile: TileType | undefined = undefined;
+
+    // so can draw on top of everything
+    const cityNameAttr = {px: {x: -1, y: -1}, text: ''};
+
+    hexmapCache.forEach(tile => 
+    {
+        let theOpacity = 1;
+        if (hoveredTile)
+        {
+            if (hoveredTile.IsCity)
+            {
+                cityNameAttr.px = oddrToPixel(hoveredTile.X, hoveredTile.Y, tileSize.x, tileSize.y, getHexMapOffset(tileSize));
+                cityNameAttr.text = hoveredTile.CityName;
+            }
+
+            if (tile === hoveredTile)
+                theOpacity = 0.5;
+        }
+
+        const theImage = getImageAttributes(tile, naturalWondersImagesCache, wondersImagesCache, districtsImagesCache, terrainImagesCache).imgElement;
+        if (theImage)
+            drawHexImage(context, tile, theOpacity, theImage, naturalWondersImagesCache, wondersImagesCache, districtsImagesCache, terrainImagesCache, tileSize, gridSize);
+
+        // draw all yields or resources for this tile
+        const yieldAttr = yieldAttributeCache.get(getMapOddrString(tile.X, tile.Y));
+        if (optionalVisual.yields && yieldAttr)
+            drawYieldsOnTile(context, tile, yieldAttr, tileSize, gridSize);
+        else if (optionalVisual.resources)
+            drawResourceOnTile(context, tile, tileSize, gridSize, resourceImagesCache);
+
+        if (dropdownCity && tile.IsCity && tile.CityName === dropdownCity && !cityHighlightTile)
+            cityHighlightTile = tile;
+
+        if (tile.IsCity && dropdownNearbyCity && tile.CityName === dropdownNearbyCity.CityName && !enemyHighlightTile)
+            enemyHighlightTile = tile;
+    });
+
+    drawRiversFromCache(context, tileSize, gridSize, riverTiles, hexmapCache);
+
+    drawBorderLines(context, cityBoundaryTiles, tileSize, gridSize, minAndMaxCoords);
+
+    if (cityHighlightTile)
+        drawCityHighlight(context, cityHighlightTile, tileSize, gridSize, MiscImages.CURRENT_CITY, 0.5, miscImagesCache);
+
+    if (enemyHighlightTile)
+        drawCityHighlight(context, enemyHighlightTile, tileSize, gridSize, MiscImages.ENEMY_CITY, 0.5, miscImagesCache);
+
+    drawTextWithBox(context, cityNameAttr.px, cityNameAttr.text, tileSize, gridSize);
+}

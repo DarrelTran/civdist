@@ -114,7 +114,7 @@ export const genericSingleSelectStyle: StylesConfig<OptionsGenericString, false>
     })
 }
 
-export const yieldSelectStyle: StylesConfig<OptionsWithImage, true> = 
+export const genericWithMultiImageStyle: StylesConfig<OptionsWithImage, true> = 
 {
     control: (baseStyles: CSSObjectWithLabel, state) => 
     ({
@@ -172,6 +172,55 @@ export const yieldSelectStyle: StylesConfig<OptionsWithImage, true> =
         ...baseStyles,
         backgroundColor: 'grey'
     }),
+}
+
+export const genericWithSingleImageStyle: StylesConfig<OptionsWithImage, false> = 
+{
+    control: (baseStyles: CSSObjectWithLabel, state) => 
+    ({
+        ...baseStyles,
+        backgroundColor: state.isFocused ? '#d0d0d7' : '#e8e8ec',
+        ':hover': 
+        {
+            backgroundColor: '#d0d0d7',
+            border: '2px solid black'
+        },
+        border: '2px solid black'
+    }),
+    menu: (baseStyles: CSSObjectWithLabel) => 
+    ({
+        ...baseStyles,
+        marginTop: 0,
+        backgroundColor: '#edf1f2',
+        width: '120%'
+    }),
+    dropdownIndicator: (baseStyles: CSSObjectWithLabel) => 
+    ({
+        ...baseStyles,
+        color: '#020202',
+        ':hover': 
+        {
+            color: '#020202'
+        }
+    }),
+    clearIndicator: (baseStyles: CSSObjectWithLabel) => 
+    ({
+        ...baseStyles,
+        color: 'firebrick',
+        ':hover': 
+        {
+            color: 'red'
+        }
+    }),
+    option: (baseStyles: CSSObjectWithLabel, state) => 
+    ({
+        ...baseStyles,
+        backgroundColor: state.isSelected ? '#edf1f2': '#edf1f2',
+        ':hover': 
+        {
+            backgroundColor: '#cfd4d6'
+        }
+    })
 }
 
 export const nearbyCityFontSize = 16;

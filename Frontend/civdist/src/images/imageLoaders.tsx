@@ -1,12 +1,13 @@
-import { TileDistricts, TileWonders, TileNaturalWonders, TileYields, TileBonusResources, TileLuxuryResources, TileStrategicResources, TileArtifactResources, TileUniqueDistricts } from "../types/civTypes";
+import { TileDistricts, TileWonders, TileNaturalWonders, TileYields, TileBonusResources, TileLuxuryResources, TileStrategicResources, TileArtifactResources, TileUniqueDistricts, VictoryType } from "../types/civTypes";
 import { MiscImages, YieldImagesKey  } from "../types/imageTypes";
 import { allWonderImages } from "./importers/wondersImport";
-import { allDistrictImages } from "./importers/districtImport";
+import { allDistrictDropdownImages, allDistrictImages } from "./importers/districtImport";
 import { allTerrainImages } from "./importers/terrainImport";
 import { allNaturalWonderImages } from "./importers/naturalWondersImport";
 import { yieldDropdownImages, yieldHexmapImages } from "./importers/yieldsImport";
 import { allResourceImages } from "./importers/resourcesImport";
 import { allMiscImages } from "./importers/miscImport";
+import { allVictoryDropdownImages } from "./importers/victoryImport";
 
 async function loadImages<T extends string | number | symbol>(theMap: Map<T, HTMLImageElement>, imageImport: Record<T, string>)
 {
@@ -45,6 +46,11 @@ export async function loadDistrictImages(dist: Map<TileDistricts | TileUniqueDis
     loadImages(dist, allDistrictImages);
 }
 
+export async function loadDistrictDropdownImages(dist: Map<TileDistricts | TileUniqueDistricts, HTMLImageElement>)
+{
+    loadImages(dist, allDistrictDropdownImages);
+}
+
 export async function loadYieldDropdownImages(yieldCache: Map<TileYields, HTMLImageElement>)
 {
     loadImages(yieldCache, yieldDropdownImages);
@@ -63,4 +69,9 @@ export async function loadResourceImages(resources: Map<TileBonusResources | Til
 export async function loadMiscImages(misc: Map<MiscImages, HTMLImageElement>)
 {
     loadImages(misc, allMiscImages);
+}
+
+export async function loadVictoryDropdownImages(vict: Map<VictoryType, HTMLImageElement>)
+{
+    loadImages(vict, allVictoryDropdownImages);
 }

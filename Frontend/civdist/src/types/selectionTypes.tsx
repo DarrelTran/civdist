@@ -10,8 +10,8 @@ export type OptionsWithSpecialText =
 
 export type OptionsWithImage = 
 {
-  value: TileYields;
-  label: TileYields;
+  value: string;
+  label: string;
   image: HTMLImageElement;
 };
 

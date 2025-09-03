@@ -17,28 +17,31 @@ export const getAllPossibleDistricts = (civObj: Civilization | null) =>
 
     for (const dist of Object.values(TileDistricts)) 
     {
-        if (civObj)
+        if (dist !== TileDistricts.CENTER_DISTRICT)
         {
-            const uniqueDistrTuple = CivilizationToUniqueDistrict[civObj.constructor.name];
-            
-            if (uniqueDistrTuple)
+            if (civObj)
             {
-                const districtIdentifier = uniqueDistrTuple[0];
-                const uniqueDistrict = uniqueDistrTuple[1];
+                const uniqueDistrTuple = CivilizationToUniqueDistrict[civObj.constructor.name];
+                
+                if (uniqueDistrTuple)
+                {
+                    const districtIdentifier = uniqueDistrTuple[0];
+                    const uniqueDistrict = uniqueDistrTuple[1];
 
-                if (dist === districtIdentifier) // this failing means just need to find district at appropriate spot - a unique one does exist
-                    allDistricts.push(uniqueDistrict);
-                else
+                    if (dist === districtIdentifier) // this failing means just need to find district at appropriate spot - a unique one does exist
+                        allDistricts.push(uniqueDistrict);
+                    else
+                        allDistricts.push(dist);
+                }
+                else // civ exists, but no unique = fallback
+                {
                     allDistricts.push(dist);
+                }
             }
-            else // civ exists, but no unique = fallback
+            else // no civ = fallback to defaults
             {
                 allDistricts.push(dist);
             }
-        }
-        else // no civ = fallback to defaults
-        {
-            allDistricts.push(dist);
         }
     }
 

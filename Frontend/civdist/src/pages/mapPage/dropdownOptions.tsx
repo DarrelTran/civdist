@@ -1,6 +1,6 @@
 import { JSX } from "react";
 import { OptionsGenericString, OptionsWithImage, OptionsWithSpecialText, OptionalVisualOptions } from "../../types/selectionTypes";
-import { TileYields } from "../../types/civTypes";
+import { TileDistricts, TileUniqueDistricts, TileYields, VictoryType } from "../../types/civTypes";
 import { getAllPossibleDistricts, getAllPossibleVictoryTypes, getAllPossibleYields } from "../../utils/constants";
 import { getTextWidth } from "../../utils/misc/misc";
 import { nearbyCityFontSize, optionalVisualFontSize } from "./mapPageSelectStyles";
@@ -27,9 +27,9 @@ export function getSelectionYields(areImagesLoaded: boolean, dropdownYieldImages
 
 export function formatSelectionYields(option: OptionsWithImage): JSX.Element
 {
-    return <div>
+    return <div style={{display: 'flex'}}>
         <img src={option.image.src} width={20} height={20} alt='' style={{paddingRight: '10px'}}/>
-        <span>{option.label}</span>
+        <span style={{color: 'black'}}>{option.label}</span>
     </div>
 }
 
@@ -84,32 +84,58 @@ export function getCityOptions(uniqueCities: Map<string, string[]>, dropdownCiv:
     return tempArr;
 }
 
-export function getDistrictOptions(civObj: Civilization | null) 
+export function getDistrictOptions(areImagesLoaded: boolean, civObj: Civilization | null, dropdownDistrictCache: Map<TileDistricts | TileUniqueDistricts, HTMLImageElement>)
 {
-    const tempArr: OptionsGenericString[] = [];
     const allDistricts = getAllPossibleDistricts(civObj);
+    const tempArr: OptionsWithImage[] = [];
 
-    for (let i = 0; i < allDistricts.length; i++)
+    if (areImagesLoaded)
     {
-        const theDistrict = allDistricts[i];
-        tempArr.push({value: theDistrict, label: theDistrict});
+        for (let i = 0; i < allDistricts.length; i++)
+        {
+            const currDistrict = allDistricts[i];
+            const currImage = dropdownDistrictCache.get(currDistrict);
+            if (currImage)
+                tempArr.push({value: currDistrict, label: currDistrict, image: currImage});
+        }
     }
 
     return tempArr;
 }
 
-export function getVictoryTypeOptions() 
+export function formatDistrictOptions(option: OptionsWithImage): JSX.Element
 {
-    const tempArr: OptionsGenericString[] = [];
-    const allVictoryTypes = getAllPossibleVictoryTypes();
+    return <div style={{display: 'flex'}}>
+        <img src={option.image.src} width={30} height={30} alt='' style={{paddingRight: '10px'}}/>
+        <span style={{color: 'black'}}>{option.label}</span>
+    </div>
+}
 
-    for (let i = 0; i < allVictoryTypes.length; i++)
+export function getVictoryTypeOptions(areImagesLoaded: boolean, dropdownVictoryCache: Map<VictoryType, HTMLImageElement>)
+{
+    const allVictory = getAllPossibleVictoryTypes();
+    const tempArr: OptionsWithImage[] = [];
+
+    if (areImagesLoaded)
     {
-        const theVictoryType = allVictoryTypes[i];
-        tempArr.push({value: theVictoryType, label: theVictoryType});
+        for (let i = 0; i < allVictory.length; i++)
+        {
+            const currVict = allVictory[i];
+            const currImage = dropdownVictoryCache.get(currVict);
+            if (currImage)
+                tempArr.push({value: currVict, label: currVict, image: currImage});
+        }
     }
 
     return tempArr;
+}
+
+export function formatVictoryOptions(option: OptionsWithImage): JSX.Element
+{
+    return <div style={{display: 'flex'}}>
+        <img src={option.image.src} width={40} height={40} alt='' style={{paddingRight: '10px'}}/>
+        <span style={{color: 'black'}}>{option.label}</span>
+    </div>
 }
 
 export function getNearbyCityTextMaxWidth(nearbyCityOptions: OptionsWithSpecialText[])

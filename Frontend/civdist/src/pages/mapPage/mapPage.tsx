@@ -1,18 +1,18 @@
 import React, {useEffect, useState, useRef, useCallback} from 'react';
 import Select, { GroupBase, SelectInstance } from 'react-select'
-import { replace, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import styles from './mapPage.module.css';
 import common from '../common.module.css';
 import { TileNone, TileWonders, TileDistricts, TileNaturalWonders, TileType, LeaderName, TileYields, PossibleErrors, VictoryType, TileBonusResources, TileLuxuryResources, TileStrategicResources, TileArtifactResources, TileUniqueDistricts, HexType} from '../../types/civTypes'
 import {SaveType, DatabaseMapType} from '../../types/serverTypes'
 import {MiscImages, TerrainFeatureKey, YieldImagesKey} from '../../types/imageTypes'
-import { loadDistrictImages, loadMiscImages, loadNaturalWonderImages, loadResourceImages, loadTerrainImages, loadWonderImages, loadYieldDropdownImages, loadYieldImages } from '../../images/imageLoaders';
+import { loadDistrictDropdownImages, loadDistrictImages, loadMiscImages, loadNaturalWonderImages, loadResourceImages, loadTerrainImages, loadVictoryDropdownImages, loadWonderImages, loadYieldDropdownImages, loadYieldImages } from '../../images/imageLoaders';
 import { getYields } from '../../images/imageAttributeFinders';
 import { BASE_TILE_SIZE, MIN_ZOOM, MAX_ZOOM } from '../../utils/constants';
-import { yieldSelectStyle, nearbyCityFontSize, nearbyCityStyles, genericSingleSelectStyle, optionalVisualStyle } from './mapPageSelectStyles';
-import { OptionsWithSpecialText, OptionsGenericString, OptionalVisualOptions } from '../../types/selectionTypes';
+import { nearbyCityFontSize, nearbyCityStyles, genericSingleSelectStyle, optionalVisualStyle, genericWithSingleImageStyle, genericWithMultiImageStyle } from './mapPageSelectStyles';
+import { OptionsWithSpecialText, OptionsGenericString, OptionalVisualOptions, OptionsWithImage } from '../../types/selectionTypes';
 import { getTextWidth } from '../../utils/misc/misc';
-import { getOffsets, oddrToPixel, pixelToOddr, downloadMapJSON, getMapOddrString, getMinMaxXY, getOddrFromOddrString, hexmapCacheToJSONArray } from '../../utils/hex/genericHex';
+import { getOffsets, oddrToPixel, pixelToOddr, downloadMapJSON, getMapOddrString, getMinMaxXY, hexmapCacheToJSONArray } from '../../utils/hex/genericHex';
 import { getScaledGridAndTileSizes, getScaledGridSizesFromTile } from '../../utils/imgScaling/scaling';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCircleQuestion } from '@fortawesome/free-regular-svg-icons';
@@ -25,7 +25,7 @@ import SaveDropdown from '../../components/saveDropdown/saveDropdown';
 import { backend_addMap, backend_checkLoggedIn, backend_getAllMaps, backend_getMap, backend_logout, backend_refreshToken, backend_updateMap } from '../../REST/user';
 import { useIdleTimer } from '../../hooks/idleDetector';
 import { drawBorderLines, drawCityHighlight, drawHexImage, drawResourceOnTile, drawRiversFromCache, drawTextWithBox, drawYieldsOnTile, getHexMapOffset, getImageAttributes, wrapCol, wrapRow } from '../../utils/drawing/hexmap';
-import { formatSelectionYields, getCityOptions, getCivilizationOptions, getDistrictOptions, getNearbyCityOptions, getNearbyCityTextMaxWidth, getOptionalVisualMaxWidth, getOptionalVisualOptions, getSelectionYields, getVictoryTypeOptions } from './dropdownOptions';
+import { formatDistrictOptions, formatSelectionYields, formatVictoryOptions, getCityOptions, getCivilizationOptions, getDistrictOptions, getNearbyCityOptions, getNearbyCityTextMaxWidth, getOptionalVisualMaxWidth, getOptionalVisualOptions, getSelectionYields, getVictoryTypeOptions } from './dropdownOptions';
 import { useMessage } from '../../hooks/useMessage';
 import { useThrottledCallback } from '../../hooks/throttledCallback';
 import { Norway, getCivilizationObject } from '../../civilization/uniqueCivilizations';
@@ -126,11 +126,13 @@ const MapPage = () =>
     const [dropdownCity, setDropdownCity] = useState<string | null>(null);
 
     const [dropdownDistrict, setDropdownDistrict] = useState<string | null>(null);
+    const [visualDropdownDistrict, setVisualDropdownDistrict] = useState<OptionsWithImage | null>(null);
 
     const [dropdownYields, setDropdownYields] = useState<TileYields[]>([]);
-    const [visualYieldDropdown, setVisualYieldDropdown] = useState<{value: TileYields, label: TileYields, image: HTMLImageElement}[]>([]);
+    const [visualYieldDropdown, setVisualYieldDropdown] = useState<OptionsWithImage[]>([]);
 
     const [dropdownVictoryType, setDropdownVictoryType] = useState<string | null>(null);
+    const [visualVictoryType, setVisualVictoryType] = useState<OptionsWithImage | null>(null);
 
     const [dropdownNearbyCity, setDropdownNearbyCity] = useState<TileType | null>(null);
 
@@ -162,6 +164,8 @@ const MapPage = () =>
     const yieldImagesCache = useRef<Map<YieldImagesKey, HTMLImageElement>>(new Map());
     const resourceImagesCache = useRef<Map<TileBonusResources | TileLuxuryResources | TileStrategicResources | TileArtifactResources, HTMLImageElement>>(new Map());
     const miscImagesCache = useRef<Map<MiscImages, HTMLImageElement>>(new Map());
+    const dropdownDistrictsCache = useRef<Map<TileDistricts | TileUniqueDistricts, HTMLImageElement>>(new Map());
+    const victoryDropdownCache = useRef<Map<VictoryType, HTMLImageElement>>(new Map());
 
     const [areImagesLoaded, setAreImagesLoaded] = useState<boolean>(false);
     const [riverTiles, setRiverTiles] = useState<TileType[]>([]);
@@ -176,6 +180,8 @@ const MapPage = () =>
         await loadResourceImages(resourceImagesCache.current);
         await loadYieldImages(yieldImagesCache.current);
         await loadMiscImages(miscImagesCache.current);
+        await loadDistrictDropdownImages(dropdownDistrictsCache.current);
+        await loadVictoryDropdownImages(victoryDropdownCache.current);
 
         setAreImagesLoaded(true);
     }
@@ -304,7 +310,7 @@ const MapPage = () =>
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mousedown', handleMouseClick);
         };
-    }, [tileSize, gridSize, currentCity, cityOwnedTiles, cityBoundaryTiles, mapCacheVersion, currentCity, dropdownCity, hoveredTile, dropdownNearbyCity])
+    }, [tileSize, gridSize, currentCity, cityOwnedTiles, cityBoundaryTiles, mapCacheVersion, currentCity, dropdownCity, hoveredTile, dropdownNearbyCity, optionalVisual])
 
     function setDropdownValues(theJSON: TileType[])
     {
@@ -749,6 +755,7 @@ const MapPage = () =>
         setVisualZoomInput(100);
         setZoomFactor(1);
         setVisualYieldDropdown([]);
+        setVisualDropdownDistrict(null);
         setCityOwnedTiles(new Map());
         setCivCompletedWonders(new Set());
         setDropdownVictoryType(null);
@@ -1457,11 +1464,27 @@ const MapPage = () =>
                             <Select
                                 inputId='district-dropdown'
                                 instanceId='district-dropdown'
-                                value={dropdownDistrict ? {label: dropdownDistrict, value: dropdownDistrict} : null}
-                                options={mapJSON.length > 0 ? getDistrictOptions(getCivilizationObject(findCivLeader())) : undefined}
+                                value={visualDropdownDistrict ? visualDropdownDistrict : null}
+                                options={mapJSON.length > 0 ? getDistrictOptions(areImagesLoaded, getCivilizationObject(findCivLeader()), dropdownDistrictsCache.current) : undefined}
                                 placeholder='Select a district'
-                                styles={genericSingleSelectStyle}
-                                onChange={val => {if (val && val.value) setDropdownDistrict(val.value); else setDropdownDistrict(null);}}
+                                styles={genericWithSingleImageStyle}
+                                formatOptionLabel={formatDistrictOptions}
+                                onChange=
+                                {
+                                    (e) => 
+                                    {
+                                        if (e && e.value)
+                                        {
+                                            setDropdownDistrict(e.value);
+                                            setVisualDropdownDistrict(e);
+                                        }
+                                        else
+                                        {
+                                            setDropdownDistrict(null);
+                                            setVisualDropdownDistrict(null);
+                                        }
+                                    }
+                                }
                             />
 
                             <Tooltip text='Select a district. Assumes all buildings will be built.'>
@@ -1537,15 +1560,15 @@ const MapPage = () =>
                                 value={visualYieldDropdown}
                                 options={mapJSON.length > 0 ? getSelectionYields(areImagesLoaded, dropdownYieldImagesCache.current) : undefined} 
                                 isMulti 
-                                styles={yieldSelectStyle}
+                                styles={genericWithMultiImageStyle}
                                 onChange=
                                 {
                                     (e) => 
                                     {
                                         const yields: TileYields[] = [];
-                                        const opts: {value: TileYields, label: TileYields, image: HTMLImageElement}[] = [];
+                                        const opts: OptionsWithImage[] = [];
 
-                                        e.forEach((opt) => { yields.push(opt.value); opts.push(opt);})
+                                        e.forEach((opt) => { yields.push(opt.value as TileYields); opts.push(opt);})
 
                                         setDropdownYields(yields);
                                         setVisualYieldDropdown(opts);
@@ -1565,11 +1588,27 @@ const MapPage = () =>
                             <Select
                                 inputId='victoryType-dropdown'
                                 instanceId='victoryType-dropdown'
-                                value={dropdownVictoryType ? {label: dropdownVictoryType, value: dropdownVictoryType} : null}
-                                options={mapJSON.length > 0 ? getVictoryTypeOptions() : undefined}
+                                value={visualVictoryType ? visualVictoryType : null}
+                                options={mapJSON.length > 0 ? getVictoryTypeOptions(areImagesLoaded, victoryDropdownCache.current) : undefined}
                                 placeholder='Select a victory type'
-                                styles={genericSingleSelectStyle}
-                                onChange={val => {if (val && val.value) setDropdownVictoryType(val.value); else setDropdownVictoryType(null)}}
+                                formatOptionLabel={formatVictoryOptions}
+                                styles={genericWithSingleImageStyle}
+                                onChange=
+                                {
+                                    val => 
+                                        {
+                                            if (val && val.value) 
+                                            {
+                                                setDropdownVictoryType(val.value); 
+                                                setVisualVictoryType(val);
+                                            }
+                                            else 
+                                            {
+                                                setDropdownVictoryType(null);
+                                                setVisualVictoryType(null);
+                                            }
+                                        }
+                                }
                                 isClearable
                             />
 
@@ -1641,15 +1680,8 @@ const MapPage = () =>
                     </div>
                 </div>
             </div>
-
-            <button onClick={test}>TEST</button>
         </div>
     );
-
-    function test()
-    {
-        console.log(mapJSON.length)
-    }
 };
 
 export default MapPage;

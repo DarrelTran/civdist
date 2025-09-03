@@ -461,6 +461,5 @@ export enum VictoryType
   CULTURE = "Culture",
   DOMINATION = "Domination",
   RELIGIOUS = "Religious",
-  DIPLOMATIC = "Diplomatic",
   NONE = "None"
 }

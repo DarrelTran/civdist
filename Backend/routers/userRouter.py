@@ -52,8 +52,7 @@ async def loginUser(user: UserCreateSchema, response: Response, db: AsyncSession
         httponly=True,
         secure=True,
         samesite='none',
-        max_age=tokens.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
-        partitioned=True
+        max_age=tokens.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
     )
 
     response.set_cookie(
@@ -62,8 +61,7 @@ async def loginUser(user: UserCreateSchema, response: Response, db: AsyncSession
         httponly=True,
         secure=True,
         samesite='none',
-        max_age=tokens.ACCESS_TOKEN_EXPIRE_MIN * 60,
-        partitioned=True
+        max_age=tokens.ACCESS_TOKEN_EXPIRE_MIN * 60
     )
 
     return
@@ -86,8 +84,7 @@ async def refreshToken(response: Response, refresh_token: str | None = Cookie(de
         httponly=True,
         secure=True,
         samesite='none',
-        max_age=tokens.ACCESS_TOKEN_EXPIRE_MIN * 60,
-        partitioned=True
+        max_age=tokens.ACCESS_TOKEN_EXPIRE_MIN * 60
     )
 
     return

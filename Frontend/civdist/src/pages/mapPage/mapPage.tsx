@@ -35,18 +35,6 @@ import { getMousePos } from '../../utils/drawing/misc';
 
 // assuming all resources are revealed
 
-/*
-/////////////////////////////////////////////////////////////////
-
-TODO: Add images to dropdown.
-
-TODO: Add documentation to functions. Read random comments to see if any extra issues need fixing.
-
-TODO: Make page nice for mobile.
-
-/////////////////////////////////////////////////////////////////
-*/
-
 const MapPage = () => 
 {
     const 

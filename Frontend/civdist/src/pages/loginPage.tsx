@@ -5,17 +5,23 @@ import styles from './loginPage.module.css';
 import { TITLE_CHAR_ANIM_DELAY_MS, TITLE_CHAR_ANIM_TIME_MS, TITLE_TEXT } from '../utils/constants';
 import Marquee from '../components/marquee/marquee';
 import { backend_loginUser } from '../REST/user';
-import { easySetTimeout } from '../utils/misc/misc';
+import { useMessage } from '../hooks/useMessage';
+import Overlay from '../components/overlay/overlay';
 
 const LoginPage = () => 
 {
+    const 
+    {
+        message: miscMessage,
+        showError: showMiscError,
+    } = useMessage();
+
     const nav = useNavigate()
 
     const [username, setUsername] = useState<string>('');
     const [password, setPassword] = useState<string>('');
 
-    const [errorText, setErrorText] = useState<string>('');
-    const errorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [isLoggingIn, setIsLogginIn] = useState<boolean>(false);
 
     useEffect(() => 
     {
@@ -38,6 +44,12 @@ const LoginPage = () =>
 
     return (
         <div className={common.body}>
+            <Overlay 
+                text='Logging in...'
+                overlayStyle={{display: isLoggingIn ? 'flex' : 'none', backgroundColor: 'rgb(0, 0, 0, 0.5)', cursor: 'wait'}}
+                textClassName={common.overlayText}
+            />
+
             <Marquee 
                 text={TITLE_TEXT} 
                 animTimeMS={TITLE_CHAR_ANIM_TIME_MS} 
@@ -72,81 +84,71 @@ const LoginPage = () =>
                     <button className={`${common.smallButton} ${styles.returnButton}`} onClick={e => nav('/')}>RETURN</button>
                 </div>
 
-                <span style={{display: 'block', margin: '0 auto'}} className={common.errorText}>{errorText}</span>
+                {
+                    miscMessage && 
+                    (
+                        <span className={miscMessage.type === 'error' ? common.errorText : common.successText} style={{margin: '0 auto', display: 'block'}}>
+                            {miscMessage.text}
+                        </span>
+                    )
+                }
             </div>
         </div>
     );
 
     async function handleLogin()
     {
-        const loginResponse = await backend_loginUser(username, password);
-
-        switch(loginResponse.status)
+        try
         {
-            case 400:
-                easySetTimeout<string>
-                (
-                    setErrorText, 
-                    errorTimeoutRef, 
-                    `Invalid username or password!`,
-                    '',
-                    4000
-                );
-                return;
-            case 404:
-                easySetTimeout<string>
-                (
-                    setErrorText, 
-                    errorTimeoutRef, 
-                    `User ${username} does not exist!`,
-                    '',
-                    4000
-                );
-                return;
-            case 409:
-                easySetTimeout<string>
-                (
-                    setErrorText, 
-                    errorTimeoutRef, 
-                    `User ${username} already exists!`,
-                    '',
-                    4000
-                );
-                return;
-            case 411:
-                easySetTimeout<string>
-                (
-                    setErrorText, 
-                    errorTimeoutRef, 
-                    `Username or password cannot be empty!`,
-                    '',
-                    4000
-                );
-                return;
-            case 422:
-                easySetTimeout<string>
-                (
-                    setErrorText, 
-                    errorTimeoutRef, 
-                    `Type validation error (422).`,
-                    '',
-                    4000
-                );
-                return;
-            case 500:
-                easySetTimeout<string>
-                (
-                    setErrorText, 
-                    errorTimeoutRef, 
-                    `Something went wrong (500).`,
-                    '',
-                    4000
-                );
-                return;
-        }
+            setIsLogginIn(true);
+            const loginResponse = await backend_loginUser(username, password);
+            console.log(JSON.stringify(loginResponse) + ' where status is ' + loginResponse.status);
 
-        localStorage.setItem('loggedIn', 'true');
-        nav('/map');
+            if (!loginResponse.status || (loginResponse.status && loginResponse.status !== 201))
+                throw loginResponse.status ? loginResponse.status : null;
+
+            setIsLogginIn(false);
+            localStorage.setItem('loggedIn', 'true');
+            nav('/map');
+        }
+        catch (err)
+        {
+            switch(err)
+            {
+                case 400:
+                    showMiscError('Invalid username or password!');
+                    setIsLogginIn(false);
+                    break;
+                case 404:
+                    showMiscError(`User ${username} does not exist!`);
+                    setIsLogginIn(false);
+                    break;
+                case 409:
+                    showMiscError(`User ${username} already exists!`);
+                    setIsLogginIn(false);
+                    break;
+                case 411:
+                    showMiscError(`Username or password cannot be empty!`);
+                    setIsLogginIn(false);
+                    break;
+                case 422:
+                    showMiscError(`Username or password cannot be empty!`);
+                    setIsLogginIn(false);
+                    break;
+            }
+
+            // non specific errors
+            if (err && err !== 201)
+            {
+                showMiscError(`Something went wrong (${err}).`);
+                setIsLogginIn(false);
+            }
+            else if (!err)
+            {
+                showMiscError('Something went wrong. This should not have happened.');
+                setIsLogginIn(false);
+            }
+        }
     }
 };
 

@@ -1,5 +1,5 @@
 # Civdist
-A website where you can view your **VANILLA** Civilization VI map and find a good place to place your districts. Test it out at https://civdist.vercel.app/!  
+A website where you can view your **VANILLA** Civilization VI map and find a smart place to place your districts (if possible). Test it out at https://civdist.vercel.app/!  
          
 There are some sample json files in Frontend/civdist/src/json if you don't want to generate any of your own yet. If you don't care about logging in or saving your maps, you can run just the frontend on your own machine if you know how to setup a react website.
 

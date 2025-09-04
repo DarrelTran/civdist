@@ -5,7 +5,7 @@ import { CivilizationToUniqueDistrict } from "../types/typeMaps";
 export const BASE_TILE_SIZE : number = 10;
 export const MIN_ZOOM = 50;
 export const MAX_ZOOM = 1000;
-export const BACKEND_URL = 'https://civdist.onrender.com';
+export const BACKEND_URL = 'https://civdist.onrender.com'; 
 
 export const TITLE_TEXT = "Civdist";
 export const TITLE_CHAR_ANIM_TIME_MS = 500;

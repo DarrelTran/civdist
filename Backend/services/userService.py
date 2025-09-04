@@ -1,10 +1,9 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from asyncpg.exceptions import UniqueViolationError
-from Backend.schemas.user import UserCreateSchema, UserItemsCreateSchema, UserItemUpdateSchemaID, UserItemsReadSchemaID, UserItemsReadSchemaUsername, UserReadSchema, TileType
-from Backend.db.models import UserBaseSQL, UserItemsBaseSQL
-from Backend.exceptions.user import AlreadyExists, BadPassword, DoesNotExist
+from schemas.user import UserCreateSchema, UserItemsCreateSchema, UserItemUpdateSchemaID, UserItemsReadSchemaID, UserItemsReadSchemaUsername, UserReadSchema, TileType
+from db.models import UserBaseSQL, UserItemsBaseSQL
+from exceptions.user import AlreadyExists, BadPassword, DoesNotExist
 from bcrypt import hashpw, gensalt, checkpw
 
 def getHashedPassword(password: str):

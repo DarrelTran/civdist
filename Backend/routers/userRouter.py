@@ -1,13 +1,13 @@
 from fastapi import Cookie, Depends, APIRouter, HTTPException, Response
-from Backend.db.session import postgresqlSession
-from Backend.db.models import UserBaseSQL
-import Backend.services.userService as userServices
-from Backend.schemas.user import UserItemsCreateSchema, UserCreateSchema, UserReadSchema, UserItemUpdateSchemaID, UserItemsReadSchemaID, UserItemsReadSchemaUsername
+from db.session import postgresqlSession
+from db.models import UserBaseSQL
+import services.userService as userServices
+from schemas.user import UserItemsCreateSchema, UserCreateSchema, UserReadSchema, UserItemUpdateSchemaID, UserItemsReadSchemaID, UserItemsReadSchemaUsername
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.exc import IntegrityError
-from Backend.exceptions.user import AlreadyExists, BadPassword, DoesNotExist
-import Backend.routers.tokens as tokens
+from exceptions.user import AlreadyExists, BadPassword, DoesNotExist
+import routers.tokens as tokens
 #from fastapi.middleware.gzip import GZipMiddleware
 
 router = APIRouter()

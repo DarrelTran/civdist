@@ -1,4 +1,4 @@
-from Backend.routers.userRouter import router
+from routers.userRouter import router
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 

@@ -102,7 +102,6 @@ const LoginPage = () =>
         {
             setIsLogginIn(true);
             const loginResponse = await backend_loginUser(username, password);
-            console.log(JSON.stringify(loginResponse) + ' where status is ' + loginResponse.status);
 
             if (!loginResponse.status || (loginResponse.status && loginResponse.status !== 201))
                 throw loginResponse.status ? loginResponse.status : null;
@@ -118,23 +117,23 @@ const LoginPage = () =>
                 case 400:
                     showMiscError('Invalid username or password!');
                     setIsLogginIn(false);
-                    break;
+                    return;
                 case 404:
                     showMiscError(`User ${username} does not exist!`);
                     setIsLogginIn(false);
-                    break;
+                    return;
                 case 409:
                     showMiscError(`User ${username} already exists!`);
                     setIsLogginIn(false);
-                    break;
+                    return;
                 case 411:
                     showMiscError(`Username or password cannot be empty!`);
                     setIsLogginIn(false);
-                    break;
+                    return;
                 case 422:
                     showMiscError(`Username or password cannot be empty!`);
                     setIsLogginIn(false);
-                    break;
+                    return;
             }
 
             // non specific errors
@@ -142,11 +141,13 @@ const LoginPage = () =>
             {
                 showMiscError(`Something went wrong (${err}).`);
                 setIsLogginIn(false);
+                return;
             }
             else if (!err)
             {
                 showMiscError('Something went wrong. This should not have happened.');
                 setIsLogginIn(false);
+                return;
             }
         }
     }

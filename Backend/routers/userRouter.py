@@ -51,7 +51,7 @@ async def loginUser(user: UserCreateSchema, response: Response, db: AsyncSession
         value=refreshToken,
         httponly=True,
         secure=True,
-        samesite='lax',
+        samesite='none',
         max_age=tokens.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
     )
 
@@ -60,7 +60,7 @@ async def loginUser(user: UserCreateSchema, response: Response, db: AsyncSession
         value=accessToken,
         httponly=True,
         secure=True,
-        samesite='lax',
+        samesite='none',
         max_age=tokens.ACCESS_TOKEN_EXPIRE_MIN * 60
     )
 
@@ -83,7 +83,7 @@ async def refreshToken(response: Response, refresh_token: str | None = Cookie(de
         value=newAccessToken,
         httponly=True,
         secure=True,
-        samesite='lax',
+        samesite='none',
         max_age=tokens.ACCESS_TOKEN_EXPIRE_MIN * 60
     )
 
@@ -98,14 +98,14 @@ async def logoutUser(response: Response, username: str = Depends(tokens.getUserW
         key='refresh_token',
         httponly=True,
         secure=True,
-        samesite='lax'
+        samesite='none'
     )
 
     response.delete_cookie(
         key='access_token',
         httponly=True,
         secure=True,
-        samesite='lax'
+        samesite='none'
     )
 
     return

@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 origins = [
-    'https://localhost:3000'
+    'https://civdist.vercel.app'
 ]
 
 app = FastAPI()
